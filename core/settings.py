@@ -31,7 +31,7 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['s-poryadok.ru', 'www.s-poryadok.ru', '159.194.230.39']
 
 
 # Application definition
@@ -123,4 +123,5 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = '/static/'
