@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Системы Порядок — Автоматизация бизнеса</title>
+    <!-- Tailwind CSS через CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Премиальные шрифты -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght=800;900&family=Inter:wght=300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .heading-heavy { font-family: 'Montserrat', sans-serif; }
+    </style>
+</head>
+<body class="bg-[#1A1A1A] text-white antialiased selection:bg-[#00FF66] selection:text-black pt-24">
+
+    <!-- ЗАКРЕПЛЕННЫЙ ХЭДЕР -->
+    <header class="fixed top-0 left-0 w-full z-50 bg-[#1A1A1A]/90 backdrop-blur-md border-b border-gray-800/60 px-6 md:px-16 py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center w-full">
+            <div class="heading-heavy text-lg font-black tracking-widest text-white">
+                СИСТЕМЫ <span class="text-[#00FF66]">ПОРЯДОК</span>
+            </div>
+
+            <!-- Десктопное меню -->
+            <div class="hidden md:flex gap-8 text-xs font-semibold tracking-widest uppercase text-gray-400">
+                <a href="#services" class="hover:text-[#00FF66] transition">[ продукт ]</a>
+                <a href="#pains" class="hover:text-[#00FF66] transition">[ боли ]</a>
+                <a href="#founder" class="hover:text-[#00FF66] transition">[ экспертность ]</a>
+            </div>
+
+            <div class="hidden md:block text-base font-bold font-mono tracking-tight text-gray-300">
+                8 (800) 000-00-00
+            </div>
+
+            <!-- Кнопка Бургера (Мобильная) -->
+            <button id="menu-btn" class="block md:hidden text-white focus:outline-none z-50">
+                <svg id="menu-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Мобильное выпадающее меню -->
+        <div id="mobile-menu" class="hidden fixed top-full left-0 w-full bg-[#1A1A1A] border-b border-gray-800 flex flex-col p-6 space-y-4 text-sm font-semibold tracking-widest uppercase text-gray-400 transition-all">
+            <a href="#services" class="mobile-link hover:text-[#00FF66] transition">[ продукт ]</a>
+            <a href="#pains" class="mobile-link hover:text-[#00FF66] transition">[ боли ]</a>
+            <a href="#founder" class="mobile-link hover:text-[#00FF66] transition">[ экспертность ]</a>
+            <div class="text-sm font-bold font-mono tracking-tight text-gray-300 pt-2 border-t border-gray-800">
+                8 (800) 000-00-00
+            </div>
+        </div>
+    </header>
+
+    <!-- БЛОК 1: ГЛАВНЫЙ ЭКРАН -->
+    <section class="min-h-[calc(100vh-6rem)] flex flex-col justify-between px-6 py-6 md:px-16 max-w-7xl mx-auto">
+        <div class="grid md:grid-cols-12 gap-8 items-center my-auto pt-10 md:pt-0 w-full">
+            <div class="md:col-span-7 space-y-6">
+                <h1 class="heading-heavy text-4xl md:text-6xl font-black uppercase tracking-tight leading-none text-balance">
+                    КОНТРОЛЬ И РОСТ <br>
+                    <span class="text-[#00FF66]">ВАШЕГО БИЗНЕСА</span>
+                </h1>
+                <p class="text-gray-400 text-base md:text-lg max-w-xl leading-relaxed font-light">
+                    Автоматизация хаотичных процессов, жесткое внедрение CRM и разработка высококонверсионных сайтов в Красноярске. Только цифры, окупаемость и контроль.
+                </p>
+                <div class="pt-4">
+                    <a href="#cta" class="inline-block bg-[#00FF66] text-black font-black uppercase tracking-wider px-8 py-5 text-xs md:text-sm hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_0_35px_rgba(0,255,102,0.25)] rounded-none">
+                        Записаться на аудит системы
+                    </a>
+                </div>
+            </div>
+
+            <div class="md:col-span-5 border border-gray-800 bg-[#222222]/40 backdrop-blur-md p-6 rounded-none shadow-2xl relative overflow-hidden hidden md:block">
+                <div class="flex items-center gap-2 mb-6 border-b border-gray-800 pb-4">
+                    <span class="w-2 h-2 rounded-full bg-red-500/60"></span>
+                    <span class="w-2 h-2 rounded-full bg-yellow-500/60"></span>
+                    <span class="w-2 h-2 rounded-full bg-green-500/60"></span>
+                    <span class="text-[10px] text-gray-500 ml-2 font-mono">poryadok_core_system.sh</span>
+                </div>
+                <div class="space-y-4 font-mono text-xs text-gray-400">
+                    <p class="text-gray-600">// Сканирование инфраструктуры...</p>
+                    <p><span class="text-gray-500">СТАТУС:</span> <span class="text-white">Интеграция active</span></p>
+                    <p><span class="text-[#00FF66]">МЕТРИКА ROI:</span> Положительная</p>
+                    <p><span class="text-red-500">УТЕЧКА БЮДЖЕТА:</span> Обнаружена в CRM_</p>
+                    <div class="w-full bg-[#1A1A1A] h-28 border border-gray-800 flex items-end p-2 gap-2 relative">
+                        <div class="absolute left-2 top-2 text-[9px] text-gray-600 uppercase tracking-widest">Анализ потерь</div>
+                        <div class="bg-gray-800/40 w-full h-1/3"></div>
+                        <div class="bg-gray-800/60 w-full h-1/2"></div>
+                        <div class="bg-[#00FF66]/30 w-full h-2/3"></div>
+                        <div class="bg-[#00FF66] w-full h-[95%] shadow-[0_0_20px_rgba(0,255,102,0.3)]"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <footer class="text-[10px] text-gray-600 font-mono tracking-widest uppercase pt-6 border-t border-gray-800/60 w-full flex justify-between select-none">
+            <span>[ b2b веб-разработка & автоматизация ]</span>
+            <span class="animate-pulse text-gray-500">Скролл вниз ↓</span>
+        </footer>
+    </section>
+
+    <!-- БЛОК 2: БОЛИ КЛИЕНТА -->
+    <section id="pains" class="py-24 px-6 md:px-16 max-w-7xl mx-auto border-b border-gray-900/80">
+        <div class="mb-16 md:w-3/4">
+            <h2 class="heading-heavy text-3xl md:text-5xl font-black uppercase tracking-tight text-white mb-6">
+                Бизнес работает, но прибыль тает? <br>
+                <span class="text-gray-600">Посмотрите правде в глаза.</span>
+            </h2>
+            <p class="text-gray-400 text-base md:text-lg font-light leading-relaxed max-w-2xl">
+                Вы ежедневно выбрасываете деньги на ветер, даже не подозревая об этом. Мы находим системные дыры, которые съедают вашу маржу.
+            </p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-[#111111] border border-gray-800 p-8 hover:border-[#00FF66]/40 transition-colors duration-300 group">
+                <div class="text-red-500/80 mb-6 font-mono text-xs tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">ERROR_01 // УТЕЧКА_ЛИДОВ</div>
+                <h3 class="heading-heavy text-lg md:text-xl text-white uppercase mb-4 leading-snug">Сайт есть,<br>толку нет</h3>
+                <p class="text-gray-500 text-sm leading-relaxed font-light">Вложили бюджет в дизайн, но телефон молчит. Сайт висит мертвым грузом.</p>
+            </div>
+            <div class="bg-[#111111] border border-gray-800 p-8 hover:border-[#00FF66]/40 transition-colors duration-300 group">
+                <div class="text-red-500/80 mb-6 font-mono text-xs tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">ERROR_02 // HUMAN_FACTOR</div>
+                <h3 class="heading-heavy text-lg md:text-xl text-white uppercase mb-4 leading-snug">Менеджеры-<br>«сливщики»</h3>
+                <p class="text-gray-500 text-sm leading-relaxed font-light">Заявки остывают. Сотрудники перезванивают через 3 часа или забывают вовсе.</p>
+            </div>
+            <div class="bg-[#111111] border border-gray-800 p-8 hover:border-[#00FF66]/40 transition-colors duration-300 group">
+                <div class="text-red-500/80 mb-6 font-mono text-xs tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">ERROR_03 // DATA_CHAOS</div>
+                <h3 class="heading-heavy text-lg md:text-xl text-white uppercase mb-4 leading-snug">Ад в Excel<br>и блокнотах</h3>
+                <p class="text-gray-500 text-sm leading-relaxed font-light">Вся база ведется на коленке. Уволился менеджер — и унес клиентов к конкурентам.</p>
+            </div>
+            <div class="bg-[#111111] border border-gray-800 p-8 hover:border-[#00FF66]/40 transition-colors duration-300 group">
+                <div class="text-red-500/80 mb-6 font-mono text-xs tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">ERROR_04 // TIME_TRAP</div>
+                <h3 class="heading-heavy text-lg md:text-xl text-white uppercase mb-4 leading-snug">Рутина сожрала<br>ваше время</h3>
+                <p class="text-gray-500 text-sm leading-relaxed font-light">Вместо масштабирования вы работаете «тушителем пожаров». Операционка управляет вами.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- БЛОК 3: НАШИ РЕШЕНИЯ -->
+    <section id="services" class="py-24 px-6 md:px-16 max-w-7xl mx-auto border-b border-gray-900/80">
+        <div class="mb-16 md:w-2/3">
+            <h2 class="heading-heavy text-3xl md:text-5xl font-black uppercase tracking-tight text-white mb-6">
+                Мы не продаем время. <br>
+                <span class="text-[#00FF66]">Мы внедряем результат.</span>
+            </h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="bg-gradient-to-b from-[#161616] to-[#111111] border border-gray-800 p-8 hover:-translate-y-2 transition-transform duration-300 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-[#00FF66]/5 rounded-bl-full z-0 group-hover:bg-[#00FF66]/10 transition-colors"></div>
+                <div class="relative z-10">
+                    <div class="text-[#00FF66] font-mono text-sm mb-4">01 // CONVERSION_SITES</div>
+                    <h3 class="heading-heavy text-xl md:text-2xl text-white uppercase mb-4 leading-snug">Сайты для заявок</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed font-light mb-6">Машина для генерации целевых лидов. Каждый рубль возвращается горячими клиентами.</p>
+                    <ul class="space-y-3 text-gray-400 text-xs font-mono">
+                        <li class="flex gap-3 items-start"><span class="text-[#00FF66]">▸</span> Высокий % конверсии</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-gradient-to-b from-[#161616] to-[#111111] border border-gray-800 p-8 hover:-translate-y-2 transition-transform duration-300 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-[#00FF66]/5 rounded-bl-full z-0 group-hover:bg-[#00FF66]/10 transition-colors"></div>
+                <div class="relative z-10">
+                    <div class="text-[#00FF66] font-mono text-sm mb-4">02 // CRM_INTEGRATION</div>
+                    <h3 class="heading-heavy text-xl md:text-2xl text-white uppercase mb-4 leading-snug">Внедрение CRM</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed font-light mb-6">Тотальный контроль каждого рубля и звонка. Вы видите, на каком этапе сделка.</p>
+                    <ul class="space-y-3 text-gray-400 text-xs font-mono">
+                        <li class="flex gap-3 items-start"><span class="text-[#00FF66]">▸</span> Прозрачная аналитика</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-gradient-to-b from-[#161616] to-[#111111] border border-gray-800 p-8 hover:-translate-y-2 transition-transform duration-300 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-[#00FF66]/5 rounded-bl-full z-0 group-hover:bg-[#00FF66]/10 transition-colors"></div>
+                <div class="relative z-10">
+                    <div class="text-[#00FF66] font-mono text-sm mb-4">03 // PROCESS_AUTOMATION</div>
+                    <h3 class="heading-heavy text-xl md:text-2xl text-white uppercase mb-4 leading-snug">Автоматизация</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed font-light mb-6">Роботы вместо людей на рутинных задачах. Отправка счетов, договоров — без ошибок.</p>
+                    <ul class="space-y-3 text-gray-400 text-xs font-mono">
+                        <li class="flex gap-3 items-start"><span class="text-[#00FF66]">▸</span> Исключение факторов риска</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- БЛОК 4: ПОЧЕМУ НАМ ДОВЕРЯЮТ -->
+    <section id="founder" class="py-24 px-6 md:px-16 max-w-7xl mx-auto border-b border-gray-900/80">
+        <div class="grid md:grid-cols-12 gap-12 items-center">
+            <div class="md:col-span-7 space-y-6">
+                <div class="text-[#00FF66] font-mono text-sm uppercase tracking-widest">// ARCHITECTURE_LEADER</div>
+                <h2 class="heading-heavy text-3xl md:text-5xl font-black uppercase tracking-tight text-white leading-none">
+                    Мы мыслим как управленцы, <br>
+                    <span class="text-gray-600">а не как рядовые IT-шники.</span>
+                </h2>
+                <p class="text-gray-400 text-base md:text-lg font-light leading-relaxed">
+                    Мы берем ваши хаотичные процессы, очищаем их от лишних издержек и упаковываем в строгую IT-систему.
+                </p>
+            </div>
+            <div class="md:col-span-5 border-l-2 border-[#00FF66] bg-[#111111] p-8 space-y-6 relative">
+                <div class="absolute bottom-4 right-4 font-mono text-[60px] text-gray-900/30 font-black select-none pointer-events-none uppercase">CEO</div>
+                <p class="text-white text-lg md:text-xl font-medium tracking-wide italic leading-relaxed relative z-10">
+                    «Основатель компании „Системы Порядок“ — бывший директор филиала крупной компании с реальным опытом управления. Мы знаем, как устроена архитектура реального бизнеса изнутри».
+                </p>
+                <div class="pt-4 border-t border-gray-800 flex justify-between items-center relative z-10">
+                    <div>
+                        <div class="heading-heavy text-xs font-bold tracking-widest text-white uppercase">Системы «Порядок»</div>
+                    </div>
+                    <div class="text-[#00FF66] font-mono text-xs uppercase tracking-tight border border-[#00FF66]/30 px-3 py-1 bg-[#00FF66]/5">Krasnoyarsk // 2026</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- СЕКЦИЯ: ЭКСПРЕСС-АУДИТ ПРОДАЖ (MVP) -->
+    <section id="audit" class="py-24 px-6 md:px-16 max-w-7xl mx-auto border-b border-gray-900/80">
+        <div class="bg-[#111111] border border-[#00FF66]/30 p-8 md:p-12 relative overflow-hidden">
+            <div class="max-w-3xl space-y-6">
+                <div class="text-[#00FF66] font-mono text-xs uppercase tracking-widest">// ONLINE_EXPRESS_DIAGNOSTICS</div>
+                <h2 class="heading-heavy text-3xl md:text-4xl font-black uppercase tracking-tight text-white">
+                    Проверьте утечки вашей выручки <br>
+                    <span class="text-[#00FF66]">за 10 секунд онлайн</span>
+                </h2>
+                <p class="text-gray-400 text-sm md:text-base font-light leading-relaxed">
+                    Загрузите выгрузку из вашей текущей таблицы или CRM (в формате .xlsx или .csv). Наш алгоритм моментально найдет объем слитого бюджета и покажет точную конверсию.
+                </p>
+
+                <!-- Скачивание эталонного шаблона -->
+                <div class="pt-2">
+                    <a href="/static/files/poryadok_template.xlsx" download class="text-xs font-mono text-gray-400 hover:text-[#00FF66] underline transition">
+                        ↓ Скачать эталонный шаблон Excel для проверки (.xlsx)
+                    </a>
+                </div>
+            </div>
+
+            <!-- Форма с Drag-and-Drop дропзоной -->
+            <form method="POST" action="{% url 'express_audit' %}" enctype="multipart/form-data" class="mt-8 space-y-4 bg-[#161616] p-6 border border-gray-800">
+                {% csrf_token %}
+
+                <!-- ДРОПЗОНА ДЛЯ ФАЙЛА -->
+                <div>
+                    <label class="block font-mono text-[10px] uppercase tracking-widest text-gray-500 mb-2">Файл продаж (.xlsx / .csv)</label>
+                    <div id="drop-zone" class="border-2 border-dashed border-gray-800 bg-[#1A1A1A] hover:border-[#00FF66]/60 p-8 text-center cursor-pointer transition-all duration-300 relative group">
+                        <!-- Скрытый стандартный инпут -->
+                        <input type="file" id="sales-file-input" name="sales_file" required accept=".xlsx, .xls, .csv" class="hidden">
+
+                        <!-- Состояние 1: Приглашение к загрузке -->
+                        <div id="drop-zone-prompt" class="space-y-2 pointer-events-none">
+                            <div class="text-[#00FF66] font-mono text-2xl group-hover:scale-110 transition-transform">↓</div>
+                            <p class="text-xs font-mono text-gray-300">
+                                Перетащите файл сюда или <span class="text-[#00FF66] underline">выберите на компьютере</span>
+                            </p>
+                            <p class="text-[10px] font-mono text-gray-500 uppercase">Поддерживаются форматы .xlsx, .xls, .csv</p>
+                        </div>
+
+                        <!-- Состояние 2: Файл прикреплен -->
+                        <div id="file-info" class="hidden font-mono text-xs text-[#00FF66] pointer-events-none">
+                            📄 Загружен файл: <span id="file-name" class="text-white font-bold underline"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-12 gap-4 items-end pt-2">
+                    <div class="md:col-span-8">
+                        <label class="block font-mono text-[10px] uppercase tracking-widest text-gray-500 mb-2">Телефон для полного отчета</label>
+                        <input type="text" id="audit-phone" name="phone" required placeholder="+7 (___) ___-__-__"
+                               class="w-full bg-[#1A1A1A] border border-gray-800 px-4 py-3.5 text-white font-mono text-xs focus:outline-none focus:border-[#00FF66] transition">
+                    </div>
+                    <div class="md:col-span-4">
+                        <button type="submit" class="w-full bg-[#00FF66] text-black font-black uppercase tracking-wider py-4 text-xs hover:bg-white transition-all duration-300">
+                            Рассчитать
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- БЛОК 5: ФИНАЛЬНЫЙ СТА -->
+    <section id="cta" class="py-24 px-6 md:px-16 max-w-7xl mx-auto">
+        <div class="bg-[#111111] border border-gray-800 p-8 md:p-16 grid md:grid-cols-12 gap-12 items-center relative overflow-hidden">
+            <div class="absolute -top-40 -right-40 w-80 h-80 bg-[#00FF66]/5 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="md:col-span-7 space-y-6 relative z-10">
+                <div class="text-[#00FF66] font-mono text-sm uppercase tracking-widest">// LEAKS_DETECTION_SYSTEM</div>
+                <h2 class="heading-heavy text-3xl md:text-5xl font-black uppercase tracking-tight text-white leading-none">
+                    Хватит гадать. <br>
+                    <span class="text-gray-500">Давайте найдем дыры в вашем бюджете.</span>
+                </h2>
+                <p class="text-gray-400 text-base md:text-lg font-light leading-relaxed">
+                    Запишитесь на бесплатный 20-минутный разбор вашего текущего сайта или бизнес-процессов. По итогам вы получите:
+                </p>
+            </div>
+
+            <div class="md:col-span-5 relative z-10 w-full">
+                <!-- Сообщение об успешной отправке (Django контекст) -->
+                {% if success %}
+                <div class="bg-[#00FF66]/10 border border-[#00FF66] p-6 text-center mb-4">
+                    <p class="text-[#00FF66] font-mono font-bold uppercase text-sm">Заявка принята.</p>
+                    <p class="text-gray-400 text-xs mt-2 font-light">Мы свяжемся с вами в течение 15 минут.</p>
+                </div>
+                {% endif %}
+
+                <form method="POST" action="" class="space-y-5 bg-[#161616] border border-gray-800 p-6 md:p-8">
+                    {% csrf_token %}
+                    <div>
+                        <label class="block font-mono text-[10px] uppercase tracking-widest text-gray-500 mb-2">Ваше имя</label>
+                        <input type="text" name="name" required placeholder="Например: Александр"
+                               class="w-full bg-[#1A1A1A] border border-gray-800 px-4 py-4 text-white font-mono text-sm focus:outline-none focus:border-[#00FF66] transition-colors placeholder-gray-800">
+                    </div>
+                    <div>
+                        <!-- ИСПРАВЛЕНО: Просто Номер телефона -->
+                        <label class="block font-mono text-[10px] uppercase tracking-widest text-gray-500 mb-2">Номер телефона</label>
+                        <input type="text" id="phone-input" name="phone" required placeholder="+7 (___) ___-__-__"
+                               class="w-full bg-[#1A1A1A] border border-gray-800 px-4 py-4 text-white font-mono text-sm focus:outline-none focus:border-[#00FF66] transition-colors placeholder-gray-800">
+                    </div>
+                    <div class="pt-2">
+                        <button type="submit"
+                                class="w-full bg-[#00FF66] text-black font-black uppercase tracking-wider py-5 text-xs md:text-sm hover:bg-white hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 shadow-[0_0_30px_rgba(0,255,102,0.15)] rounded-none">
+                            Заказать бесплатный разбор
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- СКРИПТЫ: БУРГЕР И МАСКА ТЕЛЕФОНА -->
+    <!-- СКРИПТЫ: БУРГЕР И УНИВЕРСАЛЬНАЯ МАСКА ТЕЛЕФОНА -->
+    <script>
+    // 1. Мобильное бургер-меню
+        const menuBtn = document.getElementById('menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (menuBtn && mobileMenu) {
+            menuBtn.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+            document.querySelectorAll('.mobile-link').forEach(link => {
+                link.addEventListener('click', () => mobileMenu.classList.add('hidden'));
+            });
+        }
+
+        // 2. Универсальная маска для телефона
+        function initPhoneMask(inputElement) {
+            if (!inputElement) return;
+
+            inputElement.addEventListener('input', (e) => {
+                let input = e.target.value.replace(/\D/g, '');
+                if (input.startsWith('8') || input.startsWith('7')) input = input.substring(1);
+                if (input.length > 10) input = input.substring(0, 10);
+
+                let formatted = '';
+                if (input.length > 0) formatted += '+7 (' + input.substring(0, 3);
+                if (input.length >= 4) formatted += ') ' + input.substring(3, 6);
+                if (input.length >= 7) formatted += '-' + input.substring(6, 8);
+                if (input.length >= 9) formatted += '-' + input.substring(8, 10);
+
+                e.target.value = formatted;
+            });
+
+            inputElement.closest('form')?.addEventListener('submit', (e) => {
+                if (inputElement.value.length < 18) {
+                    e.preventDefault();
+                    alert('Пожалуйста, введите корректный номер телефона целиком.');
+                }
+            });
+        }
+
+        initPhoneMask(document.getElementById('phone-input'));
+        initPhoneMask(document.getElementById('audit-phone'));
+
+        // 3. Логика Drag-and-Drop для файла аудита
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('sales-file-input');
+        const dropPrompt = document.getElementById('drop-zone-prompt');
+        const fileInfo = document.getElementById('file-info');
+        const fileNameDisplay = document.getElementById('file-name');
+
+        if (dropZone && fileInput) {
+            // Клик по дропзоне открывает стандартный выбор файла
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            // Отменяем стандартное открытие файла в браузере при Drag&Drop
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+
+            // Визуальная подсветка при перетаскивании
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.add('border-[#00FF66]', 'bg-[#00FF66]/10');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.remove('border-[#00FF66]', 'bg-[#00FF66]/10');
+                }, false);
+            });
+
+            // Обработка сброса файла (Drop)
+            dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+
+                if (files.length > 0) {
+                    fileInput.files = files; // Передаем перетащенный файл в HTML-инпут
+                    showFileName(files[0].name);
+                }
+            });
+
+            // Обработка стандартного выбора файла через диалоговое окно
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length > 0) {
+                    showFileName(fileInput.files[0].name);
+                }
+            });
+
+            function showFileName(name) {
+                dropPrompt.classList.add('hidden');
+                fileInfo.classList.remove('hidden');
+                fileNameDisplay.textContent = name;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Python / Django
+*.pyc
+__pycache__/
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+
+# Переменные окружения и секреты
+.env
+
+# Виртуальное окружение
+venv/
+.venv/
+
+# ИДЕ и ОС
+.vscode/
+.idea/
+.DS_Store
