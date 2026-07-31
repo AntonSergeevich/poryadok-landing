@@ -1,0 +1,60 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#F2F2EE">
+<title>{% block title %}Порядок — операционные системы для малого бизнеса{% endblock %}</title>
+<meta name="description" content="{% block description %}Собираю операционные системы для малого бизнеса: заявки, записи, оплаты, напоминания, отчётность в одном месте. Python/Django. Красноярск и удалённо. Бесплатный разбор процессов.{% endblock %}">
+
+<link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexSans-var-cyrillic.woff2' %}" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexMono-400-cyrillic.woff2' %}" crossorigin>
+<link rel="stylesheet" href="{% static 'landing/css/site.css' %}">
+<script>
+/* Прячем блоки до появления только если анимация уместна. Страховка: если site.js
+   не загрузился за 2.5 с, класс снимается и содержимое показывается как есть. */
+if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+  var d=document.documentElement;
+  d.className='js-anim';
+  setTimeout(function(){ if(!d.dataset.ready) d.className=''; },2500);
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Перейти к содержанию</a>
+
+<header class="head" id="head">
+  <div class="wrap head__in">
+    <a class="logo" href="{% url 'index' %}">
+      <b>Порядок</b><i>Системы</i>
+    </a>
+    <nav class="nav" id="nav" aria-label="Разделы страницы">
+      <a href="#pains">Боли</a>
+      <a href="#what">Что делаю</a>
+      <a href="#cases">Кейсы</a>
+      <a href="#how">Как работаем</a>
+      <a href="#price">Цена</a>
+      <a href="#about">Обо мне</a>
+    </nav>
+    <a class="btn btn--sm" href="#cta">Бесплатный разбор</a>
+    <button class="burger" id="burger" type="button" aria-expanded="false" aria-controls="nav" aria-label="Меню">
+      <span></span>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__in">
+    <p>Системы Порядок · Красноярск и удалённо</p>
+    <p>Python / Django · {% now "Y" %}</p>
+    <p><a href="#cta">Оставить заявку</a></p>
+  </div>
+</footer>
+
+<script src="{% static 'landing/js/site.js' %}" defer></script>
+</body>
+</html>

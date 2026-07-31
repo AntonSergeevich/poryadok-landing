@@ -1,424 +1,514 @@
-<!DOCTYPE html>
-<html lang="ru" class="scroll-smooth">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Системы Порядок — Автоматизация бизнеса</title>
-    <!-- Tailwind CSS через CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Премиальные шрифты -->
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght=800;900&family=Inter:wght=300;400;600&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .heading-heavy { font-family: 'Montserrat', sans-serif; }
-    </style>
-</head>
-<body class="bg-[#1A1A1A] text-white antialiased selection:bg-[#00FF66] selection:text-black pt-24">
+{% extends "landing/base.html" %}
+{% load static %}
 
-    <!-- ЗАКРЕПЛЕННЫЙ ХЭДЕР -->
-    <header class="fixed top-0 left-0 w-full z-50 bg-[#1A1A1A]/90 backdrop-blur-md border-b border-gray-800/60 px-6 md:px-16 py-4">
-        <div class="max-w-7xl mx-auto flex justify-between items-center w-full">
-            <div class="heading-heavy text-lg font-black tracking-widest text-white">
-                СИСТЕМЫ <span class="text-[#00FF66]">ПОРЯДОК</span>
+{% block content %}
+
+{# ═══ ЛИСТ 01 — ТЕЗИС ═══════════════════════════════════════════════════ #}
+<section class="sheet hero" id="top">
+  <span class="tick tick--tl" aria-hidden="true"></span>
+  <span class="tick tick--tr" aria-hidden="true"></span>
+  <div class="wrap">
+    <div class="grid">
+      <div class="hero__text">
+        <span class="tag">Лист 01 · Малый бизнес · Красноярск и удалённо</span>
+        <h1>Заявки, записи и оплаты живут в системе, а не у вас в голове</h1>
+        <p class="lede">
+          Собираю операционные системы для небольших компаний. Через несколько недель вы открываете
+          один экран и видите: кто записан, кто оплатил, кому нужно позвонить сегодня.
+        </p>
+        <div class="hero__cta">
+          <a class="btn" href="#cta">Разобрать мои процессы <span class="arrow" aria-hidden="true">→</span></a>
+          <a class="btn btn--ghost" href="#what">Что именно я делаю</a>
+        </div>
+        <p class="hero__note">
+          Разбор бесплатный, 45 минут. Схему своих процессов вы заберёте себе,
+          даже если мы не станем работать дальше.
+        </p>
+      </div>
+
+      <div class="hero__vis">
+        <div class="flow" id="flow">
+          {# Хаос: то, как это выглядит сейчас #}
+          <div class="flow__slips" aria-hidden="true">
+            <div class="slip">Ира — стрижка,<br>вроде в чт?</div>
+            <div class="slip">оплата 2500 ??</div>
+            <div class="slip">перезвонить!!!</div>
+            <div class="slip">записать Диму</div>
+          </div>
+
+          {# Порядок: то, как это выглядит в системе #}
+          <div class="order">
+            <div class="order__bar">
+              <span>Сегодня · 14 заявок</span>
+              <em>1 просрочена</em>
             </div>
-
-            <!-- Десктопное меню -->
-            <div class="hidden md:flex gap-8 text-xs font-semibold tracking-widest uppercase text-gray-400">
-                <a href="#pains" class="hover:text-[#00FF66] transition">[ боли ]</a>
-                <a href="#services" class="hover:text-[#00FF66] transition">[ продукт ]</a>
-                <a href="#audit" class="hover:text-[#00FF66] transition">[ онлайн аудит ]</a>
-                <a href="#founder" class="hover:text-[#00FF66] transition">[ экспертность ]</a>
+            <div class="order__row">
+              <b>№1042</b><span>Директ · стрижка</span><i class="st-ok">14:00 · оплачено</i>
             </div>
-
-            <div class="hidden md:block text-base font-bold font-mono tracking-tight text-gray-300">
-                8 (800) 000-00-00
+            <div class="order__row">
+              <b>№1043</b><span>Сайт · консультация</span><i class="st-ok">16:30 · ждёт оплаты</i>
             </div>
+            <div class="order__row">
+              <b>№1044</b><span>Звонок · новый клиент</span><i class="st-due">перезвонить · 20 мин</i>
+            </div>
+            <div class="order__foot">Напоминания клиентам уходят сами</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-            <!-- Кнопка Бургера (Мобильная) -->
-            <button id="menu-btn" class="block md:hidden text-white focus:outline-none z-50">
-                <svg id="menu-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
-            </button>
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 01</span>
+      <span class="s-name">Общий вид</span>
+      <span class="s-scale">Масштаб 1:1</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+{# ═══ ЛИСТ 02 — ДИАГНОСТИКА ═════════════════════════════════════════════ #}
+<section class="sheet pains" id="pains">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="tag">Лист 02 · Диагностика</span>
+      <h2>Узнаёте себя?</h2>
+      <p class="lede">
+        Пять ситуаций из тех, что я вижу чаще всего. Если совпало хотя бы три —
+        процессы уже стоят вам денег, просто эти потери нигде не записаны.
+      </p>
+    </div>
+
+    <ul>
+      <li class="pain rv">
+        <span class="pain__n">01</span>
+        <p class="pain__t">Заявка пришла в директ, вы её увидели между делами и забыли. Клиент ушёл к тем, кто ответил первым.</p>
+        <span class="pain__m">Теряется заявка</span>
+      </li>
+      <li class="pain rv">
+        <span class="pain__n">02</span>
+        <p class="pain__t">Записи в блокноте, в календаре и в переписке. Три источника правды — значит, ни одного.</p>
+        <span class="pain__m">Теряется запись</span>
+      </li>
+      <li class="pain rv">
+        <span class="pain__n">03</span>
+        <p class="pain__t">Кто оплатил, а кто пообещал — вспоминаете вручную. В конце месяца сходится не всё.</p>
+        <span class="pain__m">Теряются деньги</span>
+      </li>
+      <li class="pain rv">
+        <span class="pain__n">04</span>
+        <p class="pain__t">Реклама идёт, бюджет списывается. Какой канал принёс реальные сделки — точно сказать нельзя.</p>
+        <span class="pain__m">Теряется бюджет</span>
+      </li>
+      <li class="pain rv">
+        <span class="pain__n">05</span>
+        <p class="pain__t">Вы уезжаете на неделю — и всё замирает. Бизнес держится на вас и на вашей памяти.</p>
+        <span class="pain__m">Теряется свобода</span>
+      </li>
+    </ul>
+
+    <div class="pains__after rv">
+      <p>Это не проблема дисциплины. Так работает любая голова, когда процессов больше десятка. Помогает не собранность, а место, где всё это лежит само.</p>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 02</span>
+      <span class="s-name">Диагностика</span>
+      <span class="s-scale">Позиций 5</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+{# ═══ ЛИСТ 03 — ЧТО Я ДЕЛАЮ ═════════════════════════════════════════════ #}
+<section class="sheet" id="what">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="tag">Лист 03 · Что вы получаете</span>
+      <h2>Четыре вещи, которые перестают висеть на вас</h2>
+      <p class="lede">Названия блоков — по результату, а не по названию программ. Что стоит внутри, вам знать не обязательно.</p>
+    </div>
+
+    <div class="cards">
+      <article class="card rv">
+        <span class="card__n">01</span>
+        <h3>Ни одна заявка не теряется</h3>
+        <p>Обращения с сайта, из директа, с телефона и из мессенджеров попадают в одно место. У каждой заявки есть статус и ответственный. Видно, что просрочено прямо сейчас.</p>
+        <ul>
+          <li>одна общая лента заявок</li>
+          <li>напоминание, если долго не ответили</li>
+        </ul>
+      </article>
+      <article class="card rv rv-d1">
+        <span class="card__n">02</span>
+        <h3>Запись ведёт себя сама</h3>
+        <p>Клиент выбирает свободное время сам, подтверждение и напоминание уходят без вашего участия. Расписание одно, и оно всегда актуальное — у вас и у сотрудников.</p>
+        <ul>
+          <li>онлайн-запись без переписки</li>
+          <li>напоминание за сутки и за два часа</li>
+        </ul>
+      </article>
+      <article class="card rv rv-d2">
+        <span class="card__n">03</span>
+        <h3>Видно, кто оплатил</h3>
+        <p>Оплаты, абонементы, долги, повторные визиты. Не в тетради и не в памяти администратора, а в карточке клиента, с историей и суммой.</p>
+        <ul>
+          <li>оплаты и остатки по абонементам</li>
+          <li>карточка клиента с историей</li>
+        </ul>
+      </article>
+      <article class="card rv rv-d3">
+        <span class="card__n">04</span>
+        <h3>Вы видите цифры, а не ощущения</h3>
+        <p>Сколько пришло заявок, сколько дошло до оплаты, сколько это денег и какой канал сработал. Отчёт открывается за десять секунд, без бухгалтера и без Excel.</p>
+        <ul>
+          <li>заявки → оплаты в одной таблице</li>
+          <li>видно, откуда пришли деньги</li>
+        </ul>
+      </article>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 03</span>
+      <span class="s-name">Состав системы</span>
+      <span class="s-scale">Узлов 4</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+{# ═══ ЛИСТ 04 — КЕЙСЫ ═══════════════════════════════════════════════════ #}
+{% comment %}
+  ВНИМАНИЕ: формулировки кейсов и сроки — черновые.
+  Замените на свои фактические перед публикацией.
+{% endcomment %}
+<section class="sheet" id="cases">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="tag">Лист 04 · Сделано</span>
+      <h2>Три системы, которые уже работают</h2>
+      <p class="lede">Что было до, что стало после и сколько это заняло.</p>
+    </div>
+
+    <div class="cases">
+      <article class="case rv">
+        <div class="case__head">
+          <h3>Барбершоп</h3>
+          <span class="t">Две точки</span>
+        </div>
+        <dl class="case__body">
+          <div>
+            <dt>Было</dt>
+            <dd class="was">Запись в блокноте и в директе. База клиентов — в голове администратора. При смене администратора часть постоянных клиентов терялась.</dd>
+          </div>
+          <div>
+            <dt>Стало</dt>
+            <dd class="now">Онлайн-запись с выбором мастера и времени. Карточка клиента с историей визитов. Напоминание уходит за два часа, окно освобождается автоматически.</dd>
+          </div>
+        </dl>
+        <div class="case__foot"><span>Срок</span><span>5 недель</span></div>
+      </article>
+
+      <article class="case rv rv-d1">
+        <div class="case__head">
+          <h3>Языковая школа</h3>
+          <span class="t">Группы и оплаты</span>
+        </div>
+        <dl class="case__body">
+          <div>
+            <dt>Было</dt>
+            <dd class="was">Расписание в Excel, посещаемость на листках, оплаты сверялись вручную раз в месяц. Долги вспоминались случайно.</dd>
+          </div>
+          <div>
+            <dt>Стало</dt>
+            <dd class="now">Расписание групп, отметка посещаемости в два клика, абонементы и оплаты в одном месте. Родитель видит свой баланс и не спрашивает об этом администратора.</dd>
+          </div>
+        </dl>
+        <div class="case__foot"><span>Срок</span><span>7 недель</span></div>
+      </article>
+
+      <article class="case rv rv-d2">
+        <div class="case__head">
+          <h3>Частный эксперт</h3>
+          <span class="t">Практика</span>
+        </div>
+        <dl class="case__body">
+          <div>
+            <dt>Было</dt>
+            <dd class="was">Консультации согласовывались перепиской по несколько сообщений. Доступ в закрытый клуб выдавался и продлевался руками.</dd>
+          </div>
+          <div>
+            <dt>Стало</dt>
+            <dd class="now">Запись на консультацию сразу с оплатой. Подписка продлевается сама, доступ в закрытый клуб открывается и закрывается без участия человека.</dd>
+          </div>
+        </dl>
+        <div class="case__foot"><span>Срок</span><span>4 недели</span></div>
+      </article>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 04</span>
+      <span class="s-name">Выполненные работы</span>
+      <span class="s-scale">Объектов 3</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+{# ═══ ЛИСТ 05 — ПОРЯДОК РАБОТ ═══════════════════════════════════════════ #}
+<section class="sheet" id="how">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="tag">Лист 05 · Порядок работ</span>
+      <h2>Как проходит работа</h2>
+      <p class="lede">Четыре шага. Вы в любой момент знаете, где мы находимся и что будет дальше.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step rv">
+        <span class="step__n">01</span>
+        <div>
+          <h3>Разбор процессов</h3>
+          <p>45 минут разговора. Рисуем, как всё устроено сейчас: откуда приходят заявки, где они застревают, что вы делаете руками каждый день. К концу разговора у вас на руках схема собственного бизнеса.</p>
+          <p class="step__meta">Бесплатно · 45 минут</p>
+        </div>
+      </div>
+      <div class="step rv">
+        <span class="step__n">02</span>
+        <div>
+          <h3>Что делаем и сколько стоит</h3>
+          <p>Через два-три дня присылаю схему будущей системы, список того, что в неё войдёт, срок и фиксированную цену. Никаких «уточним в процессе». Решение принимаете спокойно, без звонков с напоминаниями.</p>
+          <p class="step__meta">2–3 дня</p>
+        </div>
+      </div>
+      <div class="step rv">
+        <span class="step__n">03</span>
+        <div>
+          <h3>Сборка</h3>
+          <p>Показываю работающие части каждую неделю. Вы пользуетесь ими по ходу и говорите, что поправить, — а не смотрите на готовый результат в самом конце, когда менять уже дорого.</p>
+          <p class="step__meta">Показ раз в неделю</p>
+        </div>
+      </div>
+      <div class="step rv">
+        <span class="step__n">04</span>
+        <div>
+          <h3>Запуск и месяц рядом</h3>
+          <p>Переношу данные, обучаю сотрудников, остаюсь на связи. Месяц после запуска правки и поддержка входят в цену — именно в этот месяц становится понятно, что нужно докрутить.</p>
+          <p class="step__meta">Месяц сопровождения в цене</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 05</span>
+      <span class="s-name">Порядок работ</span>
+      <span class="s-scale">Этапов 4</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+{# ═══ ЛИСТ 06 — ЦЕНА ════════════════════════════════════════════════════ #}
+<section class="sheet" id="price">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="tag">Лист 06 · Стоимость</span>
+      <h2>Цена — открыто</h2>
+    </div>
+
+    <div class="price">
+      <div class="price__box rv">
+        <span class="tag">Стоимость системы</span>
+        <p class="price__fig">от 150 000 ₽</p>
+        <p>Зависит от того, сколько процессов заводим в систему. После бесплатного разбора вы получаете фиксированную сумму и срок — по ходу работы они не меняются.</p>
+      </div>
+
+      <div class="price__side">
+        <div class="price__row rv">
+          <span class="k">Окупаемость</span>
+          <p class="v">Посчитайте две цифры: сколько вы зарабатываете на одном клиенте и сколько обращений теряется за месяц. <strong>Обычно этой арифметики достаточно</strong> — система окупается на тех клиентах, которые уже к вам пришли, но потерялись между блокнотом и директом.</p>
+        </div>
+        <div class="price__row rv">
+          <span class="k">Что входит</span>
+          <p class="v">Разбор, схема, сборка, перенос данных, обучение сотрудников и <strong>месяц сопровождения после запуска</strong>. Отдельных счетов за «доработки» в этот месяц не будет.</p>
+        </div>
+        <div class="price__row rv">
+          <span class="k">Что дальше</span>
+          <p class="v">После первого месяца — поддержка по договорённости или ничего: система ваша и работает сама. <strong>Привязки к себе я не делаю</strong>, исходный код остаётся у вас.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 06</span>
+      <span class="s-name">Стоимость</span>
+      <span class="s-scale">от 150 000 ₽</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+{# ═══ ЛИСТ 07 — ЭКСПРЕСС-ПРОВЕРКА (второстепенно) ═══════════════════════ #}
+<section class="sheet" id="check">
+  <div class="wrap">
+    <div class="tool rv">
+      <div class="tool__head">
+        <span class="tag tag--ink">Лист 07 · Если у вас уже есть выгрузка</span>
+        <h2>Посмотреть цифры прямо сейчас</h2>
+        <p class="small">
+          Загрузите таблицу продаж или выгрузку из CRM (.xlsx или .csv). Посчитаю конверсию
+          и сумму по сделкам, которые не дошли до оплаты. Это не замена разбору — просто быстрый взгляд на числа.
+        </p>
+      </div>
+
+      <form class="tool__body form" method="POST" action="{% url 'express_audit' %}" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        <div class="field">
+          <label for="sales-file">Файл продаж</label>
+          <div class="drop" id="drop" role="button" tabindex="0" aria-controls="sales-file">
+            <input type="file" id="sales-file" name="sales_file" required accept=".xlsx,.xls,.csv" hidden>
+            <div id="drop-idle">
+              <p class="drop__mark" aria-hidden="true">↓</p>
+              <p>Перетащите файл сюда или <u>выберите на компьютере</u></p>
+              <p class="small mono" style="margin-top:6px">.xlsx · .xls · .csv · нужны столбцы «Сумма» и «Статус»</p>
+            </div>
+            <p id="drop-filled" class="mono" hidden>Файл: <b id="drop-name"></b></p>
+          </div>
         </div>
 
-        <!-- Мобильное выпадающее меню -->
-        <div id="mobile-menu" class="hidden fixed top-full left-0 w-full bg-[#1A1A1A] border-b border-gray-800 flex flex-col p-6 space-y-4 text-sm font-semibold tracking-widest uppercase text-gray-400 transition-all">
-            <a href="#pains" class="mobile-link hover:text-[#00FF66] transition">[ боли ]</a>
-            <a href="#services" class="mobile-link hover:text-[#00FF66] transition">[ продукт ]</a>
-            <a href="#audit" class="mobile-link hover:text-[#00FF66] transition">[ онлайн аудит ]</a>
-            <a href="#founder" class="mobile-link hover:text-[#00FF66] transition">[ экспертность ]</a>
-            <div class="text-sm font-bold font-mono tracking-tight text-gray-300 pt-2 border-t border-gray-800">
-                8 (800) 000-00-00
-            </div>
+        <div class="tool__row">
+          <div class="field" data-validate="phone">
+            <label for="check-phone">Телефон — пришлю разбор цифр</label>
+            <input class="input" type="tel" id="check-phone" name="phone" required
+                   inputmode="tel" autocomplete="tel" placeholder="+7 (___) ___-__-__"
+                   aria-describedby="check-phone-err">
+            <p class="err" id="check-phone-err">Введите номер полностью — 10 цифр после +7.</p>
+          </div>
+          <button class="btn" type="submit">Посчитать <span class="arrow" aria-hidden="true">→</span></button>
         </div>
-    </header>
+      </form>
+    </div>
 
-    <!-- БЛОК 1: ГЛАВНЫЙ ЭКРАН -->
-    <section class="min-h-[calc(100vh-6rem)] flex flex-col justify-between px-6 py-6 md:px-16 max-w-7xl mx-auto">
-        <div class="grid md:grid-cols-12 gap-8 items-center my-auto pt-10 md:pt-0 w-full">
-            <div class="md:col-span-7 space-y-6">
-                <h1 class="heading-heavy text-4xl md:text-6xl font-black uppercase tracking-tight leading-none text-balance">
-                    КОНТРОЛЬ И РОСТ <br>
-                    <span class="text-[#00FF66]">ВАШЕГО БИЗНЕСА</span>
-                </h1>
-                <p class="text-gray-400 text-base md:text-lg max-w-xl leading-relaxed font-light">
-                    Автоматизация хаотичных процессов, жесткое внедрение CRM и разработка высококонверсионных сайтов в Красноярске. Только цифры, окупаемость и контроль.
-                </p>
-                <div class="pt-4">
-                    <a href="#cta" class="inline-block bg-[#00FF66] text-black font-black uppercase tracking-wider px-8 py-5 text-xs md:text-sm hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_0_35px_rgba(0,255,102,0.25)] rounded-none">
-                        Записаться на аудит системы
-                    </a>
-                </div>
-            </div>
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 07</span>
+      <span class="s-name">Экспресс-проверка</span>
+      <span class="s-scale">.xlsx / .csv</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
 
-            <div class="md:col-span-5 border border-gray-800 bg-[#222222]/40 backdrop-blur-md p-6 rounded-none shadow-2xl relative overflow-hidden hidden md:block">
-                <div class="flex items-center gap-2 mb-6 border-b border-gray-800 pb-4">
-                    <span class="w-2 h-2 rounded-full bg-red-500/60"></span>
-                    <span class="w-2 h-2 rounded-full bg-yellow-500/60"></span>
-                    <span class="w-2 h-2 rounded-full bg-green-500/60"></span>
-                    <span class="text-[10px] text-gray-500 ml-2 font-mono">poryadok_core_system.sh</span>
-                </div>
-                <div class="space-y-4 font-mono text-xs text-gray-400">
-                    <p class="text-gray-600">// Сканирование инфраструктуры...</p>
-                    <p><span class="text-gray-500">СТАТУС:</span> <span class="text-white">Интеграция active</span></p>
-                    <p><span class="text-[#00FF66]">МЕТРИКА ROI:</span> Положительная</p>
-                    <p><span class="text-red-500">УТЕЧКА БЮДЖЕТА:</span> Обнаружена в CRM_</p>
-                    <div class="w-full bg-[#1A1A1A] h-28 border border-gray-800 flex items-end p-2 gap-2 relative">
-                        <div class="absolute left-2 top-2 text-[9px] text-gray-600 uppercase tracking-widest">Анализ потерь</div>
-                        <div class="bg-gray-800/40 w-full h-1/3"></div>
-                        <div class="bg-gray-800/60 w-full h-1/2"></div>
-                        <div class="bg-[#00FF66]/30 w-full h-2/3"></div>
-                        <div class="bg-[#00FF66] w-full h-[95%] shadow-[0_0_20px_rgba(0,255,102,0.3)]"></div>
-                    </div>
-                </div>
-            </div>
+
+{# ═══ ЛИСТ 08 — ОБО МНЕ ═════════════════════════════════════════════════ #}
+<section class="sheet" id="about">
+  <div class="wrap">
+    <div class="about">
+      <figure class="about__photo portrait rv" id="portrait">
+        <div class="portrait__img">
+          {# Положите файл в landing/static/landing/img/anton.jpg (портрет, 4:5, от 900px по ширине) #}
+          <img src="{% static 'landing/img/anton.jpg' %}" alt="Антон — автор систем «Порядок»"
+               width="900" height="1125" loading="lazy" decoding="async" id="portrait-img">
         </div>
-        <footer class="text-[10px] text-gray-600 font-mono tracking-widest uppercase pt-6 border-t border-gray-800/60 w-full flex justify-between select-none">
-            <span>[ b2b веб-разработка & автоматизация ]</span>
-            <span class="animate-pulse text-gray-500">Скролл вниз ↓</span>
-        </footer>
-    </section>
+        <figcaption class="portrait__cap">
+          <span>Антон</span>
+          <span>Красноярск</span>
+        </figcaption>
+      </figure>
 
-    <!-- БЛОК 2: БОЛИ КЛИЕНТА -->
-    <section id="pains" class="py-24 px-6 md:px-16 max-w-7xl mx-auto border-b border-gray-900/80">
-        <div class="mb-16 md:w-3/4">
-            <h2 class="heading-heavy text-3xl md:text-5xl font-black uppercase tracking-tight text-white mb-6">
-                Бизнес работает, но прибыль тает? <br>
-                <span class="text-gray-600">Посмотрите правде в глаза.</span>
-            </h2>
-            <p class="text-gray-400 text-base md:text-lg font-light leading-relaxed max-w-2xl">
-                Вы ежедневно выбрасываете деньги на ветер, даже не подозревая об этом. Мы находим системные дыры, которые съедают вашу маржу.
-            </p>
+      <div class="about__text">
+        <span class="tag rv">Лист 08 · Исполнитель</span>
+        <h2 class="rv">Со мной вы говорите напрямую</h2>
+        <p class="lede rv">
+          Я не агентство и не студия. Разбор проводит тот же человек, который потом пишет код
+          и отвечает на ваши сообщения через год после запуска.
+        </p>
+
+        <ul class="facts">
+          <li class="rv"><span class="k">Разработчик</span><span class="v">Пишу на Python и Django. Систему собираю под ваши процессы, а не подгоняю процессы под чужой конструктор.</span></li>
+          <li class="rv"><span class="k">Преподаватель</span><span class="v">Преподавал информатику. Умею объяснять сложное простыми словами — это половина работы, когда систему предстоит освоить вашим сотрудникам.</span></li>
+          <li class="rv"><span class="k">Руководитель</span><span class="v">Был директором красноярского филиала международной школы. Знаю изнутри, как выглядят расписание, оплаты и текучка глазами того, кто за них отвечает.</span></li>
+          <li class="rv"><span class="k">Предприниматель</span><span class="v">Веду собственный бизнес. Считаю ваши деньги так же, как свои, и не предлагаю того, что не окупится.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 08</span>
+      <span class="s-name">Исполнитель</span>
+      <span class="s-scale">Красноярск</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+{# ═══ ЛИСТ 09 — ЗАЯВКА ══════════════════════════════════════════════════ #}
+<section class="sheet cta on-graphite" id="cta">
+  <div class="wrap">
+    <div class="cta__grid">
+      <div class="cta__left">
+        <span class="tag">Лист 09 · Заявка</span>
+        <h2 style="margin-block:calc(var(--u)*2) calc(var(--u)*3)">Бесплатный разбор процессов</h2>
+        <p class="lede">
+          45 минут. Вы рассказываете, как всё устроено сейчас, — я показываю, где теряются деньги
+          и что из этого закрывается системой.
+        </p>
+        <ul class="cta__list">
+          <li><span class="n">01</span><span class="v">Схема ваших процессов — остаётся у вас в любом случае</span></li>
+          <li><span class="n">02</span><span class="v">Список мест, где сейчас теряются заявки и оплаты</span></li>
+          <li><span class="n">03</span><span class="v">Честный ответ, нужна ли вам система вообще и когда она окупится</span></li>
+        </ul>
+      </div>
+
+      <div class="cta__right">
+        {% if success %}
+        <div class="done" role="status">
+          <b>Заявка принята</b>
+          <p>Свяжусь с вами сегодня. Продавать по телефону не буду — договоримся о времени разбора.</p>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div class="bg-[#111111] border border-gray-800 p-8 hover:border-[#00FF66]/40 transition-colors duration-300 group">
-                <div class="text-red-500/80 mb-6 font-mono text-xs tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">ERROR_01 // УТЕЧКА_ЛИДОВ</div>
-                <h3 class="heading-heavy text-lg md:text-xl text-white uppercase mb-4 leading-snug">Сайт есть,<br>толку нет</h3>
-                <p class="text-gray-500 text-sm leading-relaxed font-light">Вложили бюджет в дизайн, но телефон молчит. Сайт висит мертвым грузом.</p>
-            </div>
-            <div class="bg-[#111111] border border-gray-800 p-8 hover:border-[#00FF66]/40 transition-colors duration-300 group">
-                <div class="text-red-500/80 mb-6 font-mono text-xs tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">ERROR_02 // HUMAN_FACTOR</div>
-                <h3 class="heading-heavy text-lg md:text-xl text-white uppercase mb-4 leading-snug">Менеджеры-<br>«сливщики»</h3>
-                <p class="text-gray-500 text-sm leading-relaxed font-light">Заявки остывают. Сотрудники перезванивают через 3 часа или забывают вовсе.</p>
-            </div>
-            <div class="bg-[#111111] border border-gray-800 p-8 hover:border-[#00FF66]/40 transition-colors duration-300 group">
-                <div class="text-red-500/80 mb-6 font-mono text-xs tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">ERROR_03 // DATA_CHAOS</div>
-                <h3 class="heading-heavy text-lg md:text-xl text-white uppercase mb-4 leading-snug">Ад в Excel<br>и блокнотах</h3>
-                <p class="text-gray-500 text-sm leading-relaxed font-light">Вся база ведется на коленке. Уволился менеджер — и унес клиентов к конкурентам.</p>
-            </div>
-            <div class="bg-[#111111] border border-gray-800 p-8 hover:border-[#00FF66]/40 transition-colors duration-300 group">
-                <div class="text-red-500/80 mb-6 font-mono text-xs tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">ERROR_04 // TIME_TRAP</div>
-                <h3 class="heading-heavy text-lg md:text-xl text-white uppercase mb-4 leading-snug">Рутина сожрала<br>ваше время</h3>
-                <p class="text-gray-500 text-sm leading-relaxed font-light">Вместо масштабирования вы работаете «тушителем пожаров». Операционка управляет вами.</p>
-            </div>
+        {% elif form_error %}
+        <div class="done done--bad" role="alert">
+          <b>Заявка не отправлена</b>
+          <p>{{ form_error }}</p>
         </div>
-    </section>
+        {% endif %}
 
-    <!-- БЛОК 3: НАШИ РЕШЕНИЯ -->
-    <section id="services" class="py-24 px-6 md:px-16 max-w-7xl mx-auto border-b border-gray-900/80">
-        <div class="mb-16 md:w-2/3">
-            <h2 class="heading-heavy text-3xl md:text-5xl font-black uppercase tracking-tight text-white mb-6">
-                Мы не продаем время. <br>
-                <span class="text-[#00FF66]">Мы внедряем результат.</span>
-            </h2>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="bg-gradient-to-b from-[#161616] to-[#111111] border border-gray-800 p-8 hover:-translate-y-2 transition-transform duration-300 relative overflow-hidden group">
-                <div class="absolute top-0 right-0 w-24 h-24 bg-[#00FF66]/5 rounded-bl-full z-0 group-hover:bg-[#00FF66]/10 transition-colors"></div>
-                <div class="relative z-10">
-                    <div class="text-[#00FF66] font-mono text-sm mb-4">01 // CONVERSION_SITES</div>
-                    <h3 class="heading-heavy text-xl md:text-2xl text-white uppercase mb-4 leading-snug">Сайты для заявок</h3>
-                    <p class="text-gray-500 text-sm leading-relaxed font-light mb-6">Машина для генерации целевых лидов. Каждый рубль возвращается горячими клиентами.</p>
-                    <ul class="space-y-3 text-gray-400 text-xs font-mono">
-                        <li class="flex gap-3 items-start"><span class="text-[#00FF66]">▸</span> Высокий % конверсии</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="bg-gradient-to-b from-[#161616] to-[#111111] border border-gray-800 p-8 hover:-translate-y-2 transition-transform duration-300 relative overflow-hidden group">
-                <div class="absolute top-0 right-0 w-24 h-24 bg-[#00FF66]/5 rounded-bl-full z-0 group-hover:bg-[#00FF66]/10 transition-colors"></div>
-                <div class="relative z-10">
-                    <div class="text-[#00FF66] font-mono text-sm mb-4">02 // CRM_INTEGRATION</div>
-                    <h3 class="heading-heavy text-xl md:text-2xl text-white uppercase mb-4 leading-snug">Внедрение CRM</h3>
-                    <p class="text-gray-500 text-sm leading-relaxed font-light mb-6">Тотальный контроль каждого рубля и звонка. Вы видите, на каком этапе сделка.</p>
-                    <ul class="space-y-3 text-gray-400 text-xs font-mono">
-                        <li class="flex gap-3 items-start"><span class="text-[#00FF66]">▸</span> Прозрачная аналитика</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="bg-gradient-to-b from-[#161616] to-[#111111] border border-gray-800 p-8 hover:-translate-y-2 transition-transform duration-300 relative overflow-hidden group">
-                <div class="absolute top-0 right-0 w-24 h-24 bg-[#00FF66]/5 rounded-bl-full z-0 group-hover:bg-[#00FF66]/10 transition-colors"></div>
-                <div class="relative z-10">
-                    <div class="text-[#00FF66] font-mono text-sm mb-4">03 // PROCESS_AUTOMATION</div>
-                    <h3 class="heading-heavy text-xl md:text-2xl text-white uppercase mb-4 leading-snug">Автоматизация</h3>
-                    <p class="text-gray-500 text-sm leading-relaxed font-light mb-6">Роботы вместо людей на рутинных задачах. Отправка счетов, договоров — без ошибок.</p>
-                    <ul class="space-y-3 text-gray-400 text-xs font-mono">
-                        <li class="flex gap-3 items-start"><span class="text-[#00FF66]">▸</span> Исключение факторов риска</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </section>
+        <form class="form" method="POST" action="{% url 'index' %}#cta" novalidate>
+          {% csrf_token %}
+          <div class="field">
+            <label for="name">Как к вам обращаться</label>
+            <input class="input" type="text" id="name" name="name" required autocomplete="name" placeholder="Александр">
+          </div>
+          <div class="field" data-validate="phone">
+            <label for="phone">Телефон</label>
+            <input class="input" type="tel" id="phone" name="phone" required
+                   inputmode="tel" autocomplete="tel" placeholder="+7 (___) ___-__-__"
+                   aria-describedby="phone-err">
+            <p class="err" id="phone-err">Введите номер полностью — 10 цифр после +7.</p>
+          </div>
+          <div class="field">
+            <label for="area">Сфера бизнеса <span class="mono" style="text-transform:none;letter-spacing:0">(необязательно)</span></label>
+            <input class="input" type="text" id="area" name="area" placeholder="Барбершоп, школа, стоматология…">
+          </div>
+          <button class="btn btn--block" type="submit">Записаться на разбор <span class="arrow" aria-hidden="true">→</span></button>
+          <p class="consent">Отвечаю в тот же день. Номер нужен только для звонка — в рассылки не попадёте.</p>
+        </form>
+      </div>
+    </div>
 
-    <!-- БЛОК 4: ПОЧЕМУ НАМ ДОВЕРЯЮТ -->
-    <section id="founder" class="py-24 px-6 md:px-16 max-w-7xl mx-auto border-b border-gray-900/80">
-        <div class="grid md:grid-cols-12 gap-12 items-center">
-            <div class="md:col-span-7 space-y-6">
-                <div class="text-[#00FF66] font-mono text-sm uppercase tracking-widest">// ARCHITECTURE_LEADER</div>
-                <h2 class="heading-heavy text-3xl md:text-5xl font-black uppercase tracking-tight text-white leading-none">
-                    Мы мыслим как управленцы, <br>
-                    <span class="text-gray-600">а не как рядовые IT-шники.</span>
-                </h2>
-                <p class="text-gray-400 text-base md:text-lg font-light leading-relaxed">
-                    Мы берем ваши хаотичные процессы, очищаем их от лишних издержек и упаковываем в строгую IT-систему.
-                </p>
-            </div>
-            <div class="md:col-span-5 border-l-2 border-[#00FF66] bg-[#111111] p-8 space-y-6 relative">
-                <div class="absolute bottom-4 right-4 font-mono text-[60px] text-gray-900/30 font-black select-none pointer-events-none uppercase">CEO</div>
-                <p class="text-white text-lg md:text-xl font-medium tracking-wide italic leading-relaxed relative z-10">
-                    «Основатель компании „Системы Порядок“ — бывший директор филиала крупной компании с реальным опытом управления. Мы знаем, как устроена архитектура реального бизнеса изнутри».
-                </p>
-                <div class="pt-4 border-t border-gray-800 flex justify-between items-center relative z-10">
-                    <div>
-                        <div class="heading-heavy text-xs font-bold tracking-widest text-white uppercase">Системы «Порядок»</div>
-                    </div>
-                    <div class="text-[#00FF66] font-mono text-xs uppercase tracking-tight border border-[#00FF66]/30 px-3 py-1 bg-[#00FF66]/5">Krasnoyarsk // 2026</div>
-                </div>
-            </div>
-        </div>
-    </section>
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 09</span>
+      <span class="s-name">Заявка на разбор</span>
+      <span class="s-scale">45 минут</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
 
-    <!-- СЕКЦИЯ: ЭКСПРЕСС-АУДИТ ПРОДАЖ (MVP) -->
-    <section id="audit" class="py-24 px-6 md:px-16 max-w-7xl mx-auto border-b border-gray-900/80">
-        <div class="bg-[#111111] border border-[#00FF66]/30 p-8 md:p-12 relative overflow-hidden">
-            <div class="max-w-3xl space-y-6">
-                <div class="text-[#00FF66] font-mono text-xs uppercase tracking-widest">// ONLINE_EXPRESS_DIAGNOSTICS</div>
-                <h2 class="heading-heavy text-3xl md:text-4xl font-black uppercase tracking-tight text-white">
-                    Проверьте утечки вашей выручки <br>
-                    <span class="text-[#00FF66]">за 10 секунд онлайн</span>
-                </h2>
-                <p class="text-gray-400 text-sm md:text-base font-light leading-relaxed">
-                    Загрузите выгрузку из вашей текущей таблицы или CRM (в формате .xlsx или .csv). Наш алгоритм моментально найдет объем слитого бюджета и покажет точную конверсию.
-                </p>
-
-                <!-- Скачивание эталонного шаблона -->
-                <div class="pt-2">
-                    <a href="/static/files/poryadok_template.xlsx" download class="text-xs font-mono text-gray-400 hover:text-[#00FF66] underline transition">
-                        ↓ Скачать эталонный шаблон Excel для проверки (.xlsx)
-                    </a>
-                </div>
-            </div>
-
-            <!-- Форма с Drag-and-Drop дропзоной -->
-            <form method="POST" action="{% url 'express_audit' %}" enctype="multipart/form-data" class="mt-8 space-y-4 bg-[#161616] p-6 border border-gray-800">
-                {% csrf_token %}
-
-                <!-- ДРОПЗОНА ДЛЯ ФАЙЛА -->
-                <div>
-                    <label class="block font-mono text-[10px] uppercase tracking-widest text-gray-500 mb-2">Файл продаж (.xlsx / .csv)</label>
-                    <div id="drop-zone" class="border-2 border-dashed border-gray-800 bg-[#1A1A1A] hover:border-[#00FF66]/60 p-8 text-center cursor-pointer transition-all duration-300 relative group">
-                        <!-- Скрытый стандартный инпут -->
-                        <input type="file" id="sales-file-input" name="sales_file" required accept=".xlsx, .xls, .csv" class="hidden">
-
-                        <!-- Состояние 1: Приглашение к загрузке -->
-                        <div id="drop-zone-prompt" class="space-y-2 pointer-events-none">
-                            <div class="text-[#00FF66] font-mono text-2xl group-hover:scale-110 transition-transform">↓</div>
-                            <p class="text-xs font-mono text-gray-300">
-                                Перетащите файл сюда или <span class="text-[#00FF66] underline">выберите на компьютере</span>
-                            </p>
-                            <p class="text-[10px] font-mono text-gray-500 uppercase">Поддерживаются форматы .xlsx, .xls, .csv</p>
-                        </div>
-
-                        <!-- Состояние 2: Файл прикреплен -->
-                        <div id="file-info" class="hidden font-mono text-xs text-[#00FF66] pointer-events-none">
-                            📄 Загружен файл: <span id="file-name" class="text-white font-bold underline"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid md:grid-cols-12 gap-4 items-end pt-2">
-                    <div class="md:col-span-8">
-                        <label class="block font-mono text-[10px] uppercase tracking-widest text-gray-500 mb-2">Телефон для полного отчета</label>
-                        <input type="text" id="audit-phone" name="phone" required placeholder="+7 (___) ___-__-__"
-                               class="w-full bg-[#1A1A1A] border border-gray-800 px-4 py-3.5 text-white font-mono text-xs focus:outline-none focus:border-[#00FF66] transition">
-                    </div>
-                    <div class="md:col-span-4">
-                        <button type="submit" class="w-full bg-[#00FF66] text-black font-black uppercase tracking-wider py-4 text-xs hover:bg-white transition-all duration-300">
-                            Рассчитать
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </section>
-
-    <!-- БЛОК 5: ФИНАЛЬНЫЙ СТА -->
-    <section id="cta" class="py-24 px-6 md:px-16 max-w-7xl mx-auto">
-        <div class="bg-[#111111] border border-gray-800 p-8 md:p-16 grid md:grid-cols-12 gap-12 items-center relative overflow-hidden">
-            <div class="absolute -top-40 -right-40 w-80 h-80 bg-[#00FF66]/5 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div class="md:col-span-7 space-y-6 relative z-10">
-                <div class="text-[#00FF66] font-mono text-sm uppercase tracking-widest">// LEAKS_DETECTION_SYSTEM</div>
-                <h2 class="heading-heavy text-3xl md:text-5xl font-black uppercase tracking-tight text-white leading-none">
-                    Хватит гадать. <br>
-                    <span class="text-gray-500">Давайте найдем дыры в вашем бюджете.</span>
-                </h2>
-                <p class="text-gray-400 text-base md:text-lg font-light leading-relaxed">
-                    Запишитесь на бесплатный 20-минутный разбор вашего текущего сайта или бизнес-процессов. По итогам вы получите:
-                </p>
-            </div>
-
-            <div class="md:col-span-5 relative z-10 w-full">
-                <!-- Сообщение об успешной отправке (Django контекст) -->
-                {% if success %}
-                <div class="bg-[#00FF66]/10 border border-[#00FF66] p-6 text-center mb-4">
-                    <p class="text-[#00FF66] font-mono font-bold uppercase text-sm">Заявка принята.</p>
-                    <p class="text-gray-400 text-xs mt-2 font-light">Мы свяжемся с вами в течение 15 минут.</p>
-                </div>
-                {% endif %}
-
-                <form method="POST" action="" class="space-y-5 bg-[#161616] border border-gray-800 p-6 md:p-8">
-                    {% csrf_token %}
-                    <div>
-                        <label class="block font-mono text-[10px] uppercase tracking-widest text-gray-500 mb-2">Ваше имя</label>
-                        <input type="text" name="name" required placeholder="Например: Александр"
-                               class="w-full bg-[#1A1A1A] border border-gray-800 px-4 py-4 text-white font-mono text-sm focus:outline-none focus:border-[#00FF66] transition-colors placeholder-gray-800">
-                    </div>
-                    <div>
-                        <!-- ИСПРАВЛЕНО: Просто Номер телефона -->
-                        <label class="block font-mono text-[10px] uppercase tracking-widest text-gray-500 mb-2">Номер телефона</label>
-                        <input type="text" id="phone-input" name="phone" required placeholder="+7 (___) ___-__-__"
-                               class="w-full bg-[#1A1A1A] border border-gray-800 px-4 py-4 text-white font-mono text-sm focus:outline-none focus:border-[#00FF66] transition-colors placeholder-gray-800">
-                    </div>
-                    <div class="pt-2">
-                        <button type="submit"
-                                class="w-full bg-[#00FF66] text-black font-black uppercase tracking-wider py-5 text-xs md:text-sm hover:bg-white hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 shadow-[0_0_30px_rgba(0,255,102,0.15)] rounded-none">
-                            Заказать бесплатный разбор
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </section>
-
-    <!-- СКРИПТЫ: БУРГЕР И МАСКА ТЕЛЕФОНА -->
-    <!-- СКРИПТЫ: БУРГЕР И УНИВЕРСАЛЬНАЯ МАСКА ТЕЛЕФОНА -->
-    <script>
-    // 1. Мобильное бургер-меню
-        const menuBtn = document.getElementById('menu-btn');
-        const mobileMenu = document.getElementById('mobile-menu');
-        if (menuBtn && mobileMenu) {
-            menuBtn.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
-            document.querySelectorAll('.mobile-link').forEach(link => {
-                link.addEventListener('click', () => mobileMenu.classList.add('hidden'));
-            });
-        }
-
-        // 2. Универсальная маска для телефона
-        function initPhoneMask(inputElement) {
-            if (!inputElement) return;
-
-            inputElement.addEventListener('input', (e) => {
-                let input = e.target.value.replace(/\D/g, '');
-                if (input.startsWith('8') || input.startsWith('7')) input = input.substring(1);
-                if (input.length > 10) input = input.substring(0, 10);
-
-                let formatted = '';
-                if (input.length > 0) formatted += '+7 (' + input.substring(0, 3);
-                if (input.length >= 4) formatted += ') ' + input.substring(3, 6);
-                if (input.length >= 7) formatted += '-' + input.substring(6, 8);
-                if (input.length >= 9) formatted += '-' + input.substring(8, 10);
-
-                e.target.value = formatted;
-            });
-
-            inputElement.closest('form')?.addEventListener('submit', (e) => {
-                if (inputElement.value.length < 18) {
-                    e.preventDefault();
-                    alert('Пожалуйста, введите корректный номер телефона целиком.');
-                }
-            });
-        }
-
-        initPhoneMask(document.getElementById('phone-input'));
-        initPhoneMask(document.getElementById('audit-phone'));
-
-        // 3. Логика Drag-and-Drop для файла аудита
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('sales-file-input');
-        const dropPrompt = document.getElementById('drop-zone-prompt');
-        const fileInfo = document.getElementById('file-info');
-        const fileNameDisplay = document.getElementById('file-name');
-
-        if (dropZone && fileInput) {
-            // Клик по дропзоне открывает стандартный выбор файла
-            dropZone.addEventListener('click', () => fileInput.click());
-
-            // Отменяем стандартное открытие файла в браузере при Drag&Drop
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }, false);
-            });
-
-            // Визуальная подсветка при перетаскивании
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropZone.addEventListener(eventName, () => {
-                    dropZone.classList.add('border-[#00FF66]', 'bg-[#00FF66]/10');
-                }, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, () => {
-                    dropZone.classList.remove('border-[#00FF66]', 'bg-[#00FF66]/10');
-                }, false);
-            });
-
-            // Обработка сброса файла (Drop)
-            dropZone.addEventListener('drop', (e) => {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-
-                if (files.length > 0) {
-                    fileInput.files = files; // Передаем перетащенный файл в HTML-инпут
-                    showFileName(files[0].name);
-                }
-            });
-
-            // Обработка стандартного выбора файла через диалоговое окно
-            fileInput.addEventListener('change', () => {
-                if (fileInput.files.length > 0) {
-                    showFileName(fileInput.files[0].name);
-                }
-            });
-
-            function showFileName(name) {
-                dropPrompt.classList.add('hidden');
-                fileInfo.classList.remove('hidden');
-                fileNameDisplay.textContent = name;
-            }
-        }
-    </script>
-</body>
-</html>
+{% endblock %}

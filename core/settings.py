@@ -33,6 +33,9 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 ALLOWED_HOSTS = ['s-poryadok.ru', 'www.s-poryadok.ru', '159.194.230.39']
 
+if DEBUG:
+    ALLOWED_HOSTS += ['localhost', '127.0.0.1']
+
 
 # Application definition
 
@@ -111,9 +114,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru-ru'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Krasnoyarsk'
 
 USE_I18N = True
 

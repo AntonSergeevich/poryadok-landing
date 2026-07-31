@@ -1,8 +1,12 @@
 # landing/views.py
+import logging
+
 from django.shortcuts import render, redirect
 import pandas as pd
 import requests
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 # ID token и chat
 TELEGRAM_BOT_TOKEN = settings.TELEGRAM_BOT_TOKEN
@@ -10,29 +14,40 @@ TELEGRAM_CHAT_ID = settings.TELEGRAM_CHAT_ID
 
 
 def index(request):
-    context = {'success': False}
+    context = {'success': False, 'form_error': None}
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         phone = request.POST.get('phone', '').strip()
+        area = request.POST.get('area', '').strip()
 
-        if name and len(phone) == 18:
+        if not name or len(phone) != 18:
+            context['form_error'] = 'Проверьте имя и номер телефона — номер нужен целиком.'
+        else:
             message_text = (
-                f"🚨 СИСТЕМЫ ПОРЯДОК // НОВАЯ ЗАЯВКА\n"
+                f"ПОРЯДОК // ЗАЯВКА НА РАЗБОР\n"
                 f"----------------------------------------\n"
-                f"👤 Имя лида: {name}\n"
-                f"📞 Телефон: {phone}\n"
+                f"Имя: {name}\n"
+                f"Телефон: {phone}\n"
+                f"Сфера: {area or '—'}\n"
                 f"----------------------------------------\n"
-                f"⚡️ Действие: Требуется связаться за 15 минут."
+                f"Связаться сегодня, согласовать время разбора."
             )
+            # Заявку показываем принятой в любом случае: посетитель свою часть выполнил.
+            # Сбой доставки — наша проблема, поэтому он попадает в лог, а не в тишину.
+            context['success'] = True
             try:
-                requests.post(
+                response = requests.post(
                     f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                    data={'chat_id': TELEGRAM_CHAT_ID, 'text': message_text, 'parse_mode': 'HTML'},
+                    data={'chat_id': TELEGRAM_CHAT_ID, 'text': message_text},
                     timeout=5
                 )
-                context['success'] = True
+                if response.status_code != 200:
+                    logger.error(
+                        'Заявка не доставлена в Telegram (HTTP %s): %s | %s',
+                        response.status_code, name, phone
+                    )
             except requests.exceptions.RequestException:
-                pass
+                logger.exception('Заявка не доставлена в Telegram: %s | %s', name, phone)
 
     return render(request, 'landing/index.html', context)
 
@@ -82,28 +97,32 @@ def express_audit(request):
                 'top_loser': top_loser
             }
 
-            # Отправка в Telegram
+            # Отправка в Telegram. Имя файла и телефон приходят от пользователя —
+            # шлём обычным текстом, чтобы разметку нельзя было подделать.
             tg_message = (
-                f"📊 <b>СИСТЕМЫ ПОРЯДОК // ЭКСПРЕСС-АУДИТ</b>\n"
+                f"ПОРЯДОК // ЭКСПРЕСС-ПРОВЕРКА\n"
                 f"----------------------------------------\n"
-                f"📞 <b>Телефон:</b> {phone}\n"
-                f"📁 <b>Файл:</b> {uploaded_file.name}\n"
-                f"📈 <b>Всего лидов:</b> {total_leads}\n"
-                f"💰 <b>Выручка:</b> {audit_metrics['total_revenue']} руб.\n"
-                f"🔴 <b>Упущенная прибыль:</b> {audit_metrics['lost_revenue']} руб.\n"
-                f"🎯 <b>Конверсия:</b> {conversion}%\n"
-                f"👤 <b>Лидер по потерям:</b> {top_loser}\n"
+                f"Телефон: {phone}\n"
+                f"Файл: {uploaded_file.name}\n"
+                f"Всего обращений: {total_leads}\n"
+                f"Оплачено: {audit_metrics['total_revenue']} руб.\n"
+                f"Не дошло до оплаты: {audit_metrics['lost_revenue']} руб.\n"
+                f"Конверсия: {conversion}%\n"
+                f"Больше всего потерь у: {top_loser}\n"
                 f"----------------------------------------\n"
-                f"🔥 <b>Действие:</b> Срочно звонить и закрывать на полноценный аудит."
+                f"Связаться и предложить разбор процессов."
             )
             try:
-                requests.post(
+                response = requests.post(
                     f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                    data={'chat_id': TELEGRAM_CHAT_ID, 'text': tg_message, 'parse_mode': 'HTML'},
+                    data={'chat_id': TELEGRAM_CHAT_ID, 'text': tg_message},
                     timeout=5
                 )
+                if response.status_code != 200:
+                    logger.error('Экспресс-проверка не доставлена в Telegram (HTTP %s): %s',
+                                 response.status_code, phone)
             except requests.exceptions.RequestException:
-                pass
+                logger.exception('Экспресс-проверка не доставлена в Telegram: %s', phone)
 
             # Сохраняем результат в сессию и перенаправляем (GET запрос)
             request.session['audit_result'] = audit_metrics
