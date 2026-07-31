@@ -4,39 +4,20 @@
    ========================================================================= */
 
 /* ---------- Шрифты ----------
-   Локальные подмножества: Plex Sans — вариативный (400–600) одним файлом,
-   Plex Mono — два начертания. Только нужные символы, все шесть файлов ~40 КБ.
+   IBM Plex, подрезанный до нужных символов: кириллица, латиница, цифры,
+   типографские знаки, ₽ и стрелки. Пять файлов, около 50 КБ на всё.
+   Лицензия SIL OFL 1.1 — текст лежит рядом, в fonts/LICENSE.txt.
    ---------------------------------------------------------------------- */
-@font-face{
-  font-family:'Plex Sans';font-style:normal;font-weight:400 600;font-display:swap;
-  src:url(../fonts/PlexSans-var-cyrillic.woff2) format('woff2');
-  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
-}
-@font-face{
-  font-family:'Plex Sans';font-style:normal;font-weight:400 600;font-display:swap;
-  src:url(../fonts/PlexSans-var-latin.woff2) format('woff2');
-  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+20BD,U+2122,U+2190-2193,U+2212,U+2215;
-}
-@font-face{
-  font-family:'Plex Mono';font-style:normal;font-weight:400;font-display:swap;
-  src:url(../fonts/PlexMono-400-cyrillic.woff2) format('woff2');
-  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
-}
-@font-face{
-  font-family:'Plex Mono';font-style:normal;font-weight:400;font-display:swap;
-  src:url(../fonts/PlexMono-400-latin.woff2) format('woff2');
-  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+20BD,U+2122,U+2190-2193,U+2212,U+2215;
-}
-@font-face{
-  font-family:'Plex Mono';font-style:normal;font-weight:500;font-display:swap;
-  src:url(../fonts/PlexMono-500-cyrillic.woff2) format('woff2');
-  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
-}
-@font-face{
-  font-family:'Plex Mono';font-style:normal;font-weight:500;font-display:swap;
-  src:url(../fonts/PlexMono-500-latin.woff2) format('woff2');
-  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+20BD,U+2122,U+2190-2193,U+2212,U+2215;
-}
+@font-face{font-family:'Plex Sans';font-style:normal;font-weight:400;font-display:swap;
+  src:url(../fonts/PlexSans-400.woff2) format('woff2');}
+@font-face{font-family:'Plex Sans';font-style:normal;font-weight:500;font-display:swap;
+  src:url(../fonts/PlexSans-500.woff2) format('woff2');}
+@font-face{font-family:'Plex Sans';font-style:normal;font-weight:600;font-display:swap;
+  src:url(../fonts/PlexSans-600.woff2) format('woff2');}
+@font-face{font-family:'Plex Mono';font-style:normal;font-weight:400;font-display:swap;
+  src:url(../fonts/PlexMono-400.woff2) format('woff2');}
+@font-face{font-family:'Plex Mono';font-style:normal;font-weight:500;font-display:swap;
+  src:url(../fonts/PlexMono-500.woff2) format('woff2');}
 
 /* ---------- Токены ---------- */
 :root{
@@ -75,6 +56,8 @@
 
 /* ---------- База ---------- */
 *,*::before,*::after{box-sizing:border-box}
+/* Атрибут hidden должен побеждать любые display из компонентов */
+[hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
 @media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 body{
@@ -522,3 +505,168 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   body{background:#fff}
   .head,.cta,.tool,.burger{display:none}
 }
+
+/* =========================================================================
+   ДОБАВЛЕНИЯ: телефон в шапке, липкая кнопка, cookie, вопросы, клуб, документ
+   ========================================================================= */
+
+/* ---------- Телефон в шапке ---------- */
+.head__tel{
+  font:500 var(--t-small)/1 var(--f-mono);letter-spacing:.02em;
+  text-decoration:none;white-space:nowrap;flex:none;
+  border-bottom:1px solid var(--line);padding-bottom:2px;
+}
+.head__tel:hover{color:var(--ink);border-color:var(--ink)}
+@media (max-width:1200px){.head__tel{display:none}}
+@media (max-width:960px){
+  .head.is-open .head__tel{
+    display:block;position:absolute;left:var(--pad);bottom:64px;border:0;
+    font-size:1rem;
+  }
+}
+
+/* ---------- Липкая кнопка на телефоне ---------- */
+.dock{
+  position:fixed;left:0;right:0;bottom:0;z-index:45;display:none;
+  border-top:1px solid var(--graphite);background:var(--paper);
+}
+.dock a{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:15px 12px;text-decoration:none;
+  font:500 var(--t-small)/1 var(--f-sans);
+}
+.dock__tel{color:var(--graphite);border-right:1px solid var(--graphite);flex:0 0 40%}
+.dock__cta{background:var(--graphite);color:var(--paper)}
+@media (max-width:860px){
+  .dock{display:flex}
+  body{padding-bottom:52px}
+  .cookie{bottom:52px}
+}
+
+/* ---------- Предупреждение о cookie ---------- */
+.cookie{
+  position:fixed;left:var(--pad);right:var(--pad);bottom:16px;z-index:50;
+  max-width:640px;margin-inline:auto;
+  display:flex;gap:var(--gut);align-items:center;flex-wrap:wrap;
+  padding:16px 18px;background:var(--sheet);
+  border:1px solid var(--graphite);box-shadow:6px 8px 0 rgba(13,15,14,.08);
+}
+.cookie__text{flex:1;min-width:220px;font:400 var(--t-tag)/1.6 var(--f-mono);color:var(--muted)}
+.cookie__text a{color:var(--ink)}
+.cookie .btn--sm{flex:none}
+@media (max-width:520px){.cookie{left:8px;right:8px;bottom:8px;padding:14px}.cookie .btn--sm{width:100%;justify-content:center}}
+
+/* ---------- Согласие рядом с формой ---------- */
+.check{
+  display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;
+  cursor:pointer;font:400 var(--t-tag)/1.55 var(--f-mono);color:var(--muted);
+}
+.check input{
+  appearance:none;-webkit-appearance:none;margin:2px 0 0;
+  width:16px;height:16px;flex:none;border:1px solid var(--line);
+  background:var(--sheet);cursor:pointer;display:grid;place-items:center;
+}
+.check input:checked{background:var(--ink);border-color:var(--ink)}
+.check input:checked::after{content:"";width:8px;height:4px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+.check a{color:var(--ink)}
+.cta .check{color:rgba(242,242,238,.6)}
+.cta .check input{background:transparent;border-color:rgba(242,242,238,.4)}
+.cta .check input:checked{background:var(--paper);border-color:var(--paper)}
+.cta .check input:checked::after{border-color:var(--graphite)}
+.cta .check a{color:var(--paper)}
+.check.is-bad input{border-color:var(--ink)}
+.cta .check.is-bad input{border-color:#FFD2CB}
+
+/* Ошибка, пришедшая с сервера, показывается сразу */
+.err--shown{display:block}
+
+/* ---------- Выпадающий список ---------- */
+select.input{
+  appearance:none;-webkit-appearance:none;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),
+                   linear-gradient(135deg,currentColor 50%,transparent 50%);
+  background-position:calc(100% - 18px) calc(50% + 2px),calc(100% - 13px) calc(50% + 2px);
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat;
+  padding-right:40px;
+}
+.cta select.input option{background:var(--sheet);color:var(--graphite)}
+
+/* ---------- Частые вопросы ---------- */
+.faq{border-top:1px solid var(--line)}
+.faq__item{border-bottom:1px solid var(--line)}
+.faq__item summary{
+  list-style:none;cursor:pointer;position:relative;
+  padding:clamp(18px,2.4vw,24px) 44px clamp(18px,2.4vw,24px) 0;
+  font-size:clamp(1rem,.95rem + .35vw,1.1875rem);font-weight:500;
+  line-height:1.4;letter-spacing:-.01em;
+}
+.faq__item summary::-webkit-details-marker{display:none}
+.faq__item summary::after{
+  content:"";position:absolute;right:14px;top:50%;width:13px;height:13px;
+  border-right:1px solid var(--graphite);border-bottom:1px solid var(--graphite);
+  transform:translateY(-70%) rotate(45deg);transition:transform .18s ease;
+}
+.faq__item[open] summary::after{transform:translateY(-30%) rotate(-135deg)}
+.faq__item summary:hover{color:var(--ink)}
+.faq__item p{
+  padding:0 clamp(0px,4vw,56px) clamp(20px,2.6vw,28px) 0;
+  max-width:72ch;color:var(--muted);font-size:var(--t-small);line-height:1.7;
+}
+
+/* ---------- Тарифы клуба ---------- */
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:var(--gut)}
+.plan{position:relative;background:var(--sheet);border:1px solid var(--line);padding:clamp(22px,2.8vw,32px)}
+.plan__n{font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+.plan__fig{
+  font-family:var(--f-sans);font-weight:500;line-height:1;letter-spacing:-.03em;
+  font-size:clamp(1.75rem,1.2rem + 1.6vw,2.5rem);
+  margin:calc(var(--u)*2) 0 calc(var(--u)*1.5);
+}
+.plan__note{color:var(--muted);font-size:var(--t-small);line-height:1.6}
+.plan--best{border-color:var(--graphite);background:var(--graphite);color:var(--paper)}
+.plan--best .plan__n{color:rgba(242,242,238,.6)}
+.plan--best .plan__note{color:rgba(242,242,238,.72)}
+.plan__flag{
+  position:absolute;top:-1px;right:-1px;
+  background:var(--ink);color:#fff;padding:5px 10px;
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;
+}
+
+/* ---------- Тизер клуба на главной ---------- */
+.teaser{
+  display:grid;grid-template-columns:1.3fr 1fr;gap:clamp(28px,4vw,64px);
+  border:1px solid var(--graphite);background:var(--sheet);padding:clamp(24px,3.4vw,48px);
+}
+@media (max-width:860px){.teaser{grid-template-columns:1fr}}
+.teaser__text h2{margin-block:calc(var(--u)*2) calc(var(--u)*2)}
+.teaser__side{display:grid;gap:0;align-content:start}
+.teaser__row{
+  display:grid;grid-template-columns:auto 1fr;gap:14px;
+  padding:14px 0;border-top:1px solid var(--line);
+}
+.teaser__row:last-child{border-bottom:1px solid var(--line)}
+.teaser__row b{font:500 var(--t-tag)/1.7 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;color:var(--ink);white-space:nowrap}
+.teaser__row span{font-size:var(--t-small);line-height:1.6;color:var(--muted)}
+
+/* ---------- Телефон в блоке заявки ---------- */
+.cta__phone{
+  margin-top:calc(var(--u)*4);font:400 var(--t-small)/1.6 var(--f-mono);
+  color:rgba(242,242,238,.6);
+}
+.cta__phone a{color:var(--paper);border-bottom:1px solid rgba(242,242,238,.4);text-decoration:none}
+.cta__phone a:hover{border-color:var(--paper)}
+
+/* ---------- Документ (политика) ---------- */
+.doc__body{max-width:74ch}
+.doc__meta{font:400 var(--t-tag)/1.6 var(--f-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:calc(var(--u)*4)}
+.doc__body h3{margin-top:calc(var(--u)*5);margin-bottom:calc(var(--u)*1.5)}
+.doc__body p{color:var(--muted);line-height:1.7;font-size:var(--t-small)}
+.doc__body p + p{margin-top:calc(var(--u)*1.5)}
+.doc__body a{color:var(--ink)}
+.doc__list{margin-top:calc(var(--u)*1.5);display:grid;gap:8px}
+.doc__list li{
+  position:relative;padding-left:20px;color:var(--muted);
+  font-size:var(--t-small);line-height:1.7;
+}
+.doc__list li::before{content:"—";position:absolute;left:0;color:var(--graphite)}
+.note b{font-weight:500}

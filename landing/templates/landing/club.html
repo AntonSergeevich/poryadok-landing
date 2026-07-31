@@ -1,0 +1,240 @@
+{% extends "landing/base.html" %}
+
+{% block title %}Клуб «Порядок» — закрытый канал для владельцев бизнеса{% endblock %}
+{% block description %}Закрытый телеграм-канал для владельцев малого бизнеса Красноярска: разборы процессов, готовые схемы, цифры без прикрас.{% endblock %}
+{% block og_title %}Клуб «Порядок» — закрытый канал для владельцев бизнеса{% endblock %}
+{% block og_description %}Разборы процессов, готовые схемы и цифры без прикрас. Клиентам доступ открывается автоматически.{% endblock %}
+
+{% block nav %}
+  <a href="{% url 'index' %}">На главную</a>
+  <a href="#inside">Что внутри</a>
+  <a href="#price-club">Сколько стоит</a>
+  <a href="#join">Вступить</a>
+{% endblock %}
+{% block head_cta_href %}#join{% endblock %}
+{% block head_cta %}Вступить в клуб{% endblock %}
+{% block dock_href %}#join{% endblock %}
+{% block dock_cta %}Вступить в клуб{% endblock %}
+
+{% block content %}
+
+<section class="sheet hero" id="top">
+  <span class="tick tick--tl" aria-hidden="true"></span>
+  <span class="tick tick--tr" aria-hidden="true"></span>
+  <div class="wrap">
+    <div class="grid">
+      <div class="hero__text">
+        <span class="tag">Лист 01 · Закрытый канал · {{ SITE_CITY }}</span>
+        <h1>Клуб «Порядок»</h1>
+        <p class="lede">
+          Закрытый телеграм-канал для тех, кто владеет бизнесом, а не рассуждает о нём.
+          Раз в неделю — разбор реальных процессов: что было, что поменяли, что из этого вышло.
+          Без мотивации и без «десяти способов увеличить продажи».
+        </p>
+        <div class="hero__cta">
+          <a class="btn" href="#join">Вступить в клуб <span class="arrow" aria-hidden="true">→</span></a>
+          <a class="btn btn--ghost" href="#inside">Что внутри</a>
+        </div>
+        <p class="hero__note">
+          Клиентам, заказавшим систему, доступ открывается автоматически и бесплатно —
+          отдельно платить не нужно.
+        </p>
+      </div>
+
+      <div class="hero__vis">
+        <div class="order">
+          <div class="order__bar"><span>Канал · закрытый</span><em>по приглашению</em></div>
+          <div class="order__row"><b>ПН</b><span>Разбор процессов</span><i class="st-ok">пример недели</i></div>
+          <div class="order__row"><b>СР</b><span>Схема, которую можно повторить</span><i class="st-ok">файл</i></div>
+          <div class="order__row"><b>ПТ</b><span>Цифры: что сработало, что нет</span><i class="st-due">без прикрас</i></div>
+          <div class="order__foot">Вход — по одноразовой ссылке на ваш аккаунт</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 01</span>
+      <span class="s-name">Клуб «Порядок»</span>
+      <span class="s-scale">Telegram</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+<section class="sheet" id="inside">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="tag">Лист 02 · Содержание</span>
+      <h2>Что внутри</h2>
+      <p class="lede">Четыре вещи, за которые здесь платят. Пятой — «общения ради общения» — не будет.</p>
+    </div>
+
+    <div class="cards">
+      <article class="card rv">
+        <span class="card__n">01</span>
+        <h3>Разборы чужих процессов</h3>
+        <p>Каждую неделю беру один бизнес и показываю его изнутри: где текло, что поменяли, сколько это стоило. С цифрами, а не с общими словами.</p>
+      </article>
+      <article class="card rv rv-d1">
+        <span class="card__n">02</span>
+        <h3>Схемы, которые можно повторить</h3>
+        <p>Готовые схемы процессов: приём заявок, запись, напоминания, сверка оплат. Забираете и внедряете у себя — хоть руками, хоть с кем угодно.</p>
+      </article>
+      <article class="card rv rv-d2">
+        <span class="card__n">03</span>
+        <h3>Ответы на ваши вопросы</h3>
+        <p>Описываете свою ситуацию — разбираю её в канале, без имён, если попросите. Часто чужой ответ оказывается полезнее собственного вопроса.</p>
+      </article>
+      <article class="card rv rv-d3">
+        <span class="card__n">04</span>
+        <h3>Свои люди</h3>
+        <p>Только владельцы бизнеса {{ SITE_CITY }}а и окрестностей. Подрядчиков, продающих услуги участникам, отсюда убираю без предупреждения.</p>
+      </article>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 02</span>
+      <span class="s-name">Содержание</span>
+      <span class="s-scale">Разделов 4</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+<section class="sheet" id="price-club">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="tag">Лист 03 · Стоимость</span>
+      <h2>Сколько стоит</h2>
+      <p class="lede">Три варианта. Доступ действует, пока оплачен, и закрывается сам — без напоминаний и неловких разговоров.</p>
+    </div>
+
+    <div class="plans">
+      <article class="plan rv">
+        <span class="plan__n">Месяц</span>
+        <p class="plan__fig">{{ prices.month }} ₽</p>
+        <p class="plan__note">Посмотреть, подходит ли вам формат.</p>
+      </article>
+      <article class="plan plan--best rv rv-d1">
+        <span class="plan__n">Три месяца</span>
+        <p class="plan__fig">{{ prices.quarter }} ₽</p>
+        <p class="plan__note">Столько нужно, чтобы что-то у себя действительно поменять.</p>
+        <span class="plan__flag">Чаще берут</span>
+      </article>
+      <article class="plan rv rv-d2">
+        <span class="plan__n">Год</span>
+        <p class="plan__fig">{{ prices.year }} ₽</p>
+        <p class="plan__note">Дешевле всего в пересчёте на месяц.</p>
+      </article>
+    </div>
+
+    <div class="pains__after rv" style="margin-top:calc(var(--u)*5)">
+      <p>Заказали у меня систему — доступ в клуб открывается автоматически на год и денег не стоит. Отдельно оплачивать его в этом случае не нужно.</p>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 03</span>
+      <span class="s-name">Стоимость</span>
+      <span class="s-scale">Тарифов 3</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+<section class="sheet cta on-graphite" id="join">
+  <div class="wrap">
+    <div class="cta__grid">
+      <div class="cta__left">
+        <span class="tag">Лист 04 · Вступление</span>
+        <h2 style="margin-block:calc(var(--u)*2) calc(var(--u)*3)">Вступить в клуб</h2>
+        <p class="lede">
+          {% if payments_enabled %}
+            Заполните форму и оплатите — ссылка на вход придёт сразу после оплаты.
+            Она одноразовая и работает только на ваш аккаунт.
+          {% else %}
+            Оставьте контакты — вернусь с реквизитами и открою доступ вручную.
+            Приём оплат прямо на сайте подключается отдельно.
+          {% endif %}
+        </p>
+        <ul class="cta__list">
+          <li><span class="n">01</span><span class="v">Ник в Telegram нужен обязательно — иначе доступ выдать некуда</span></li>
+          <li><span class="n">02</span><span class="v">Ссылка на вход одноразовая: переслать её знакомому не получится</span></li>
+          <li><span class="n">03</span><span class="v">Не понравилось в первую неделю — верну деньги без вопросов</span></li>
+        </ul>
+        <p class="cta__phone">
+          Вопросы — по телефону: <a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>
+        </p>
+      </div>
+
+      <div class="cta__right">
+        {% if success %}
+        <div class="done" role="status">
+          <b>Заявка принята</b>
+          <p>Свяжусь с вами сегодня и открою доступ. Проверьте, что вам можно написать в Telegram.</p>
+        </div>
+        {% endif %}
+
+        <form class="form" method="POST" action="{% url 'club' %}#join" novalidate>
+          {% csrf_token %}
+          <div class="field{% if form.name.errors %} is-bad{% endif %}">
+            <label for="id_name">Как вас зовут</label>
+            <input class="input" type="text" id="id_name" name="name" required autocomplete="name"
+                   placeholder="Александр" value="{{ form.name.value|default_if_none:'' }}">
+            {% if form.name.errors %}<p class="err err--shown">{{ form.name.errors.0 }}</p>{% endif %}
+          </div>
+          <div class="field{% if form.phone.errors %} is-bad{% endif %}" data-validate="phone">
+            <label for="id_phone">Телефон</label>
+            <input class="input" type="tel" id="id_phone" name="phone" required
+                   inputmode="tel" autocomplete="tel" placeholder="+7 (___) ___-__-__"
+                   value="{{ form.phone.value|default_if_none:'' }}" aria-describedby="phone-err">
+            <p class="err{% if form.phone.errors %} err--shown{% endif %}" id="phone-err">
+              {% if form.phone.errors %}{{ form.phone.errors.0 }}{% else %}Введите номер полностью — 10 цифр после +7.{% endif %}
+            </p>
+          </div>
+          <div class="field{% if form.telegram_username.errors %} is-bad{% endif %}">
+            <label for="id_telegram_username">Ник в Telegram</label>
+            <input class="input" type="text" id="id_telegram_username" name="telegram_username"
+                   required placeholder="@nickname"
+                   value="{{ form.telegram_username.value|default_if_none:'' }}">
+            {% if form.telegram_username.errors %}<p class="err err--shown">{{ form.telegram_username.errors.0 }}</p>{% endif %}
+          </div>
+          <div class="field">
+            <label for="id_plan">Тариф</label>
+            <select class="input" id="id_plan" name="plan">
+              <option value="month">Месяц — {{ prices.month }} ₽</option>
+              <option value="quarter" selected>Три месяца — {{ prices.quarter }} ₽</option>
+              <option value="year">Год — {{ prices.year }} ₽</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="id_area">Сфера бизнеса <span class="mono" style="text-transform:none;letter-spacing:0">(необязательно)</span></label>
+            <input class="input" type="text" id="id_area" name="area" placeholder="Барбершоп, школа, стройка…"
+                   value="{{ form.area.value|default_if_none:'' }}">
+          </div>
+          <label class="check{% if form.consent.errors %} is-bad{% endif %}">
+            <input type="checkbox" name="consent" value="1" required
+                   {% if form.consent.value %}checked{% endif %}>
+            <span>Согласен на обработку персональных данных и с <a href="{% url 'privacy' %}">политикой конфиденциальности</a></span>
+          </label>
+          {% if form.consent.errors %}<p class="err err--shown">{{ form.consent.errors.0 }}</p>{% endif %}
+          <button class="btn btn--block" type="submit">
+            {% if payments_enabled %}Перейти к оплате{% else %}Отправить заявку{% endif %}
+            <span class="arrow" aria-hidden="true">→</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 04</span>
+      <span class="s-name">Вступление в клуб</span>
+      <span class="s-scale">Telegram</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

@@ -8,7 +8,7 @@
   <div class="wrap">
     <div class="sec-head">
       <span class="tag">Лист 07 · Экспресс-проверка</span>
-      <h2>{% if error %}Файл не удалось прочитать{% else %}Что видно по вашей выгрузке{% endif %}</h2>
+      <h2>{% if error %}Расчёт не выполнен{% else %}Что видно по вашей выгрузке{% endif %}</h2>
       {% if error %}
         <p class="lede">{{ error }}</p>
       {% else %}
@@ -53,7 +53,7 @@
     <div class="stamp" aria-hidden="true">
       <span class="s-num">Лист 07</span>
       <span class="s-name">Результат проверки</span>
-      <span class="s-scale">{% if error %}Ошибка чтения{% else %}Расчёт выполнен{% endif %}</span>
+      <span class="s-scale">{% if error %}Не выполнен{% else %}Расчёт выполнен{% endif %}</span>
       <span class="s-org">С-Порядок</span>
     </div>
   </div>

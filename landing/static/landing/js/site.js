@@ -5,6 +5,62 @@
 
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  /* ---------- Хранилище: в приватном режиме оно может быть недоступно ---------- */
+  function remember(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) { /* переживём */ }
+  }
+  function recall(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+
+  /* ---------- Предупреждение о cookie ---------- */
+  var COOKIE_KEY = 'poryadok:cookie-ok';
+
+  function startMetrika() {
+    var id = window.__metrikaId;
+    if (!id || window.__metrikaStarted) return;
+    window.__metrikaStarted = true;
+    // Счётчик подключается только после согласия — до него запросов нет.
+    (function (m, e, t, r, i, k, a) {
+      m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments); };
+      m[i].l = 1 * new Date();
+      k = e.createElement(t); a = e.getElementsByTagName(t)[0];
+      k.async = 1; k.src = r; a.parentNode.insertBefore(k, a);
+    })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js', 'ym');
+    window.ym(id, 'init', {
+      clickmap: true, trackLinks: true, accurateTrackBounce: true, webvisor: false
+    });
+  }
+
+  var cookieBox = document.getElementById('cookie');
+  if (cookieBox) {
+    if (recall(COOKIE_KEY) === '1') {
+      startMetrika();
+    } else {
+      cookieBox.hidden = false;
+      var okBtn = document.getElementById('cookie-ok');
+      if (okBtn) {
+        okBtn.addEventListener('click', function () {
+          remember(COOKIE_KEY, '1');
+          cookieBox.hidden = true;
+          startMetrika();
+        });
+      }
+    }
+  }
+
+  /* ---------- Липкая кнопка: показываем, когда первый экран уехал ---------- */
+  var dock = document.getElementById('dock');
+  if (dock) {
+    var hero = document.querySelector('.hero');
+    var toggleDock = function () {
+      var passed = hero ? (hero.getBoundingClientRect().bottom < 0) : (window.scrollY > 400);
+      dock.hidden = !passed;
+    };
+    toggleDock();
+    window.addEventListener('scroll', toggleDock, { passive: true });
+  }
+
   /* ---------- Меню ---------- */
   var head = document.getElementById('head');
   var burger = document.getElementById('burger');

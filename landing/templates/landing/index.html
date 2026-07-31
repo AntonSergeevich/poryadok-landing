@@ -10,7 +10,7 @@
   <div class="wrap">
     <div class="grid">
       <div class="hero__text">
-        <span class="tag">Лист 01 · Малый бизнес · Красноярск и удалённо</span>
+        <span class="tag">Лист 01 · Малый бизнес · {{ SITE_CITY }} и удалённо</span>
         <h1>Заявки, записи и оплаты живут в системе, а не у вас в голове</h1>
         <p class="lede">
           Собираю операционные системы для небольших компаний. Через несколько недель вы открываете
@@ -353,16 +353,63 @@
 </section>
 
 
-{# ═══ ЛИСТ 07 — ЭКСПРЕСС-ПРОВЕРКА (второстепенно) ═══════════════════════ #}
+{# ═══ ЛИСТ 07 — ВОПРОСЫ ═════════════════════════════════════════════════ #}
+<section class="sheet" id="faq">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="tag">Лист 07 · Возражения</span>
+      <h2>О чём обычно спрашивают</h2>
+      <p class="lede">Отвечаю так же, как ответил бы на разборе.</p>
+    </div>
+
+    <div class="faq">
+      <details class="faq__item rv">
+        <summary>Мне знакомый предлагает сделать то же самое за тридцать тысяч</summary>
+        <p>Скорее всего, он предлагает не то же самое. За тридцать тысяч делают сайт или настраивают готовую CRM под чужой сценарий. Я разбираю ваши процессы и собираю систему под них — и остаюсь месяц после запуска. Если ваша задача решается готовым сервисом за три тысячи в месяц, я скажу об этом на разборе и денег не возьму.</p>
+      </details>
+      <details class="faq__item rv">
+        <summary>Сколько времени это отнимет лично у меня?</summary>
+        <p>Разбор — 45 минут. Дальше примерно час в неделю: я показываю готовую часть, вы говорите, что не так. На запуске — полдня на обучение сотрудников. Всё остальное время работаю я.</p>
+      </details>
+      <details class="faq__item rv">
+        <summary>Я не разбираюсь в технике и не хочу разбираться</summary>
+        <p>И не нужно. Я преподавал информатику и знаю, как объяснять без терминов. Если системой не могут пользоваться ваши администраторы — это моя недоработка, а не их.</p>
+      </details>
+      <details class="faq__item rv">
+        <summary>А если вы пропадёте через год?</summary>
+        <p>Система остаётся у вас вместе с исходным кодом и доступами. Она написана на Python и Django — это распространённый стек, любой разработчик продолжит с того места, где остановился я. Специально «завязывать» вас на себя мне невыгодно: я живу на рекомендациях.</p>
+      </details>
+      <details class="faq__item rv">
+        <summary>Можно начать с маленького куска, а не сразу со всего?</summary>
+        <p>Так обычно и правильнее. На разборе выбираем один процесс, который течёт сильнее прочих, — чаще всего это заявки или запись. Запускаем его, вы смотрите на результат и уже потом решаете, добавлять ли остальное.</p>
+      </details>
+      <details class="faq__item rv">
+        <summary>Мы не в Красноярске — это проблема?</summary>
+        <p>Нет. Половина работы всё равно идёт по видеосвязи, а разница в часовых поясах решается расписанием созвонов. С красноярскими клиентами могу встретиться лично, с остальными — нет, и на результат это не влияет.</p>
+      </details>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 07</span>
+      <span class="s-name">Частые вопросы</span>
+      <span class="s-scale">Позиций 6</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+{# ═══ ЛИСТ 08 — ЭКСПРЕСС-ПРОВЕРКА (второстепенно) ═══════════════════════ #}
 <section class="sheet" id="check">
   <div class="wrap">
     <div class="tool rv">
       <div class="tool__head">
-        <span class="tag tag--ink">Лист 07 · Если у вас уже есть выгрузка</span>
+        <span class="tag tag--ink">Лист 08 · Если у вас уже есть выгрузка</span>
         <h2>Посмотреть цифры прямо сейчас</h2>
         <p class="small">
           Загрузите таблицу продаж или выгрузку из CRM (.xlsx или .csv). Посчитаю конверсию
-          и сумму по сделкам, которые не дошли до оплаты. Это не замена разбору — просто быстрый взгляд на числа.
+          и сумму по сделкам, которые не дошли до оплаты. Файл нигде не сохраняется —
+          он разбирается в памяти и сразу забывается.
         </p>
       </div>
 
@@ -392,11 +439,16 @@
           </div>
           <button class="btn" type="submit">Посчитать <span class="arrow" aria-hidden="true">→</span></button>
         </div>
+
+        <label class="check">
+          <input type="checkbox" name="consent" value="1" required>
+          <span>Согласен на обработку персональных данных и с <a href="{% url 'privacy' %}">политикой конфиденциальности</a></span>
+        </label>
       </form>
     </div>
 
     <div class="stamp" aria-hidden="true">
-      <span class="s-num">Лист 07</span>
+      <span class="s-num">Лист 08</span>
       <span class="s-name">Экспресс-проверка</span>
       <span class="s-scale">.xlsx / .csv</span>
       <span class="s-org">С-Порядок</span>
@@ -405,28 +457,28 @@
 </section>
 
 
-{# ═══ ЛИСТ 08 — ОБО МНЕ ═════════════════════════════════════════════════ #}
+{# ═══ ЛИСТ 09 — ОБО МНЕ ═════════════════════════════════════════════════ #}
 <section class="sheet" id="about">
   <div class="wrap">
     <div class="about">
       <figure class="about__photo portrait rv" id="portrait">
         <div class="portrait__img">
           {# Положите файл в landing/static/landing/img/anton.jpg (портрет, 4:5, от 900px по ширине) #}
-          <img src="{% static 'landing/img/anton.jpg' %}" alt="Антон — автор систем «Порядок»"
+          <img src="{% static 'landing/img/anton.jpg' %}" alt="Антон Глухов, автор систем «Порядок»"
                width="900" height="1125" loading="lazy" decoding="async" id="portrait-img">
         </div>
         <figcaption class="portrait__cap">
-          <span>Антон</span>
-          <span>Красноярск</span>
+          <span>Антон Глухов</span>
+          <span>{{ SITE_CITY }}</span>
         </figcaption>
       </figure>
 
       <div class="about__text">
-        <span class="tag rv">Лист 08 · Исполнитель</span>
+        <span class="tag rv">Лист 09 · Исполнитель</span>
         <h2 class="rv">Со мной вы говорите напрямую</h2>
         <p class="lede rv">
-          Я не агентство и не студия. Разбор проводит тот же человек, который потом пишет код
-          и отвечает на ваши сообщения через год после запуска.
+          Меня зовут Антон Глухов. Я не агентство и не студия: разбор проводит тот же человек,
+          который потом пишет код и отвечает на ваши сообщения через год после запуска.
         </p>
 
         <ul class="facts">
@@ -435,25 +487,61 @@
           <li class="rv"><span class="k">Руководитель</span><span class="v">Был директором красноярского филиала международной школы. Знаю изнутри, как выглядят расписание, оплаты и текучка глазами того, кто за них отвечает.</span></li>
           <li class="rv"><span class="k">Предприниматель</span><span class="v">Веду собственный бизнес. Считаю ваши деньги так же, как свои, и не предлагаю того, что не окупится.</span></li>
         </ul>
+
+        <p class="rv" style="margin-top:calc(var(--u)*4)">
+          <a class="btn btn--ghost" href="tel:{{ SITE_PHONE }}">Позвонить: {{ SITE_PHONE_PRETTY }}</a>
+        </p>
       </div>
     </div>
 
     <div class="stamp" aria-hidden="true">
-      <span class="s-num">Лист 08</span>
+      <span class="s-num">Лист 09</span>
       <span class="s-name">Исполнитель</span>
-      <span class="s-scale">Красноярск</span>
+      <span class="s-scale">{{ SITE_CITY }}</span>
       <span class="s-org">С-Порядок</span>
     </div>
   </div>
 </section>
 
 
-{# ═══ ЛИСТ 09 — ЗАЯВКА ══════════════════════════════════════════════════ #}
+{# ═══ ЛИСТ 10 — КЛУБ ════════════════════════════════════════════════════ #}
+<section class="sheet" id="club-teaser">
+  <div class="wrap">
+    <div class="teaser rv">
+      <div class="teaser__text">
+        <span class="tag tag--ink">Лист 10 · Закрытый канал</span>
+        <h2>Клуб «Порядок»</h2>
+        <p class="lede">
+          Закрытый телеграм-канал для владельцев бизнеса {{ SITE_CITY }}а: разборы чужих процессов,
+          готовые схемы и цифры без прикрас. Клиентам, заказавшим систему, доступ открывается сам.
+        </p>
+        <p style="margin-top:calc(var(--u)*4)">
+          <a class="btn" href="{% url 'club' %}">Что внутри клуба <span class="arrow" aria-hidden="true">→</span></a>
+        </p>
+      </div>
+      <div class="teaser__side">
+        <div class="teaser__row"><b>Раз в неделю</b><span>разбор процессов реального бизнеса</span></div>
+        <div class="teaser__row"><b>Схемы</b><span>которые можно повторить у себя</span></div>
+        <div class="teaser__row"><b>Свои</b><span>владельцы, а не подрядчики и не наблюдатели</span></div>
+      </div>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 10</span>
+      <span class="s-name">Закрытый клуб</span>
+      <span class="s-scale">Telegram</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
+
+{# ═══ ЛИСТ 11 — ЗАЯВКА ══════════════════════════════════════════════════ #}
 <section class="sheet cta on-graphite" id="cta">
   <div class="wrap">
     <div class="cta__grid">
       <div class="cta__left">
-        <span class="tag">Лист 09 · Заявка</span>
+        <span class="tag">Лист 11 · Заявка</span>
         <h2 style="margin-block:calc(var(--u)*2) calc(var(--u)*3)">Бесплатный разбор процессов</h2>
         <p class="lede">
           45 минут. Вы рассказываете, как всё устроено сейчас, — я показываю, где теряются деньги
@@ -464,6 +552,9 @@
           <li><span class="n">02</span><span class="v">Список мест, где сейчас теряются заявки и оплаты</span></li>
           <li><span class="n">03</span><span class="v">Честный ответ, нужна ли вам система вообще и когда она окупится</span></li>
         </ul>
+        <p class="cta__phone">
+          Или просто позвоните: <a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>
+        </p>
       </div>
 
       <div class="cta__right">
@@ -472,30 +563,36 @@
           <b>Заявка принята</b>
           <p>Свяжусь с вами сегодня. Продавать по телефону не буду — договоримся о времени разбора.</p>
         </div>
-        {% elif form_error %}
-        <div class="done done--bad" role="alert">
-          <b>Заявка не отправлена</b>
-          <p>{{ form_error }}</p>
-        </div>
         {% endif %}
 
         <form class="form" method="POST" action="{% url 'index' %}#cta" novalidate>
           {% csrf_token %}
-          <div class="field">
-            <label for="name">Как к вам обращаться</label>
-            <input class="input" type="text" id="name" name="name" required autocomplete="name" placeholder="Александр">
+          <div class="field{% if form.name.errors %} is-bad{% endif %}">
+            <label for="id_name">Как к вам обращаться</label>
+            <input class="input" type="text" id="id_name" name="name" required autocomplete="name"
+                   placeholder="Александр" value="{{ form.name.value|default_if_none:'' }}">
+            {% if form.name.errors %}<p class="err err--shown">{{ form.name.errors.0 }}</p>{% endif %}
           </div>
-          <div class="field" data-validate="phone">
-            <label for="phone">Телефон</label>
-            <input class="input" type="tel" id="phone" name="phone" required
+          <div class="field{% if form.phone.errors %} is-bad{% endif %}" data-validate="phone">
+            <label for="id_phone">Телефон</label>
+            <input class="input" type="tel" id="id_phone" name="phone" required
                    inputmode="tel" autocomplete="tel" placeholder="+7 (___) ___-__-__"
-                   aria-describedby="phone-err">
-            <p class="err" id="phone-err">Введите номер полностью — 10 цифр после +7.</p>
+                   value="{{ form.phone.value|default_if_none:'' }}" aria-describedby="phone-err">
+            <p class="err{% if form.phone.errors %} err--shown{% endif %}" id="phone-err">
+              {% if form.phone.errors %}{{ form.phone.errors.0 }}{% else %}Введите номер полностью — 10 цифр после +7.{% endif %}
+            </p>
           </div>
           <div class="field">
-            <label for="area">Сфера бизнеса <span class="mono" style="text-transform:none;letter-spacing:0">(необязательно)</span></label>
-            <input class="input" type="text" id="area" name="area" placeholder="Барбершоп, школа, стоматология…">
+            <label for="id_area">Сфера бизнеса <span class="mono" style="text-transform:none;letter-spacing:0">(необязательно)</span></label>
+            <input class="input" type="text" id="id_area" name="area" placeholder="Барбершоп, школа, стоматология…"
+                   value="{{ form.area.value|default_if_none:'' }}">
           </div>
+          <label class="check{% if form.consent.errors %} is-bad{% endif %}">
+            <input type="checkbox" name="consent" value="1" required
+                   {% if form.consent.value %}checked{% endif %}>
+            <span>Согласен на обработку персональных данных и с <a href="{% url 'privacy' %}">политикой конфиденциальности</a></span>
+          </label>
+          {% if form.consent.errors %}<p class="err err--shown">{{ form.consent.errors.0 }}</p>{% endif %}
           <button class="btn btn--block" type="submit">Записаться на разбор <span class="arrow" aria-hidden="true">→</span></button>
           <p class="consent">Отвечаю в тот же день. Номер нужен только для звонка — в рассылки не попадёте.</p>
         </form>
@@ -503,7 +600,7 @@
     </div>
 
     <div class="stamp" aria-hidden="true">
-      <span class="s-num">Лист 09</span>
+      <span class="s-num">Лист 11</span>
       <span class="s-name">Заявка на разбор</span>
       <span class="s-scale">45 минут</span>
       <span class="s-org">С-Порядок</span>

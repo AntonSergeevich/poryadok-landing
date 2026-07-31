@@ -27,14 +27,49 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key')
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-# Переменные Telegram
+# --- Контакты сайта (используются в шаблонах и в политике конфиденциальности) ---
+SITE_OWNER = os.getenv('SITE_OWNER', 'Глухов Антон Сергеевич')
+SITE_PHONE = os.getenv('SITE_PHONE', '+79954412021')
+SITE_PHONE_PRETTY = os.getenv('SITE_PHONE_PRETTY', '+7 (995) 441-20-21')
+SITE_EMAIL = os.getenv('SITE_EMAIL', 'antonsergeevichglukhov@gmail.com')
+SITE_CITY = os.getenv('SITE_CITY', 'Красноярск')
+SITE_TELEGRAM = os.getenv('SITE_TELEGRAM', '')       # ник без @, для кнопки «написать»
+SITE_INN = os.getenv('SITE_INN', '')                 # ИНН — подставится в политику
+
+# --- Telegram ---
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+# ID закрытого канала (обычно вида -100...). Бот должен быть в нём администратором
+# с правом приглашать по ссылке.
+TELEGRAM_CLUB_CHAT_ID = os.getenv('TELEGRAM_CLUB_CHAT_ID')
+
+# --- Эквайринг ЮKassa. Пока пусто — сайт работает в режиме заявок. ---
+YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID')
+YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY')
+
+# --- Аналитика ---
+YANDEX_METRIKA_ID = os.getenv('YANDEX_METRIKA_ID', '')
 
 ALLOWED_HOSTS = ['s-poryadok.ru', 'www.s-poryadok.ru', '159.194.230.39']
 
 if DEBUG:
     ALLOWED_HOSTS += ['localhost', '127.0.0.1']
+
+CSRF_TRUSTED_ORIGINS = ['https://s-poryadok.ru', 'https://www.s-poryadok.ru']
+
+# Загружаемые файлы разбираем в памяти и не сохраняем на диск.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True') == 'True'
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    X_FRAME_OPTIONS = 'DENY'
 
 
 # Application definition
@@ -73,6 +108,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'landing.context_processors.site',
             ],
         },
     },
@@ -129,3 +165,29 @@ USE_TZ = True
 # Путь для сборки статики
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATIC_URL = '/static/'
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Логи: сбои доставки заявок должны быть видны, а не теряться.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'plain': {'format': '{asctime} {levelname} {name}: {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'plain'},
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'app.log',
+            'maxBytes': 2 * 1024 * 1024,
+            'backupCount': 3,
+            'formatter': 'plain',
+            'encoding': 'utf-8',
+        },
+    },
+    'loggers': {
+        'landing': {'handlers': ['console', 'file'], 'level': 'INFO', 'propagate': False},
+    },
+}
+(BASE_DIR / 'logs').mkdir(exist_ok=True)

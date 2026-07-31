@@ -1,0 +1,40 @@
+{% extends "landing/base.html" %}
+
+{% block title %}Оплата принята — клуб «Порядок»{% endblock %}
+{% block nav %}<a href="{% url 'index' %}">На главную</a><a href="{% url 'club' %}">Клуб</a>{% endblock %}
+{% block head_cta_href %}{% url 'club' %}{% endblock %}
+{% block head_cta %}Клуб{% endblock %}
+{% block dock_href %}tel:{{ SITE_PHONE }}{% endblock %}
+{% block dock_cta %}Позвонить{% endblock %}
+
+{% block content %}
+<section class="sheet" id="done">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="tag">Лист 05 · Оплата</span>
+      <h2>Спасибо, оплату получил</h2>
+      <p class="lede">
+        Ссылка на вход в закрытый канал придёт вам в Telegram в ближайшие минуты.
+        Она одноразовая и работает только на ваш аккаунт — пересылать её бессмысленно.
+      </p>
+    </div>
+
+    <div class="note" style="max-width:60ch">
+      Если через двадцать минут ссылки нет — напишите или позвоните:
+      <a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>. Открою доступ вручную.
+    </div>
+
+    <p style="margin-top:calc(var(--u)*5);display:flex;gap:var(--gut);flex-wrap:wrap">
+      <a class="btn" href="{% url 'index' %}">На главную <span class="arrow" aria-hidden="true">→</span></a>
+      <a class="btn btn--ghost" href="{% url 'club' %}">Вернуться к клубу</a>
+    </p>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 05</span>
+      <span class="s-name">Оплата принята</span>
+      <span class="s-scale">Клуб</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+{% endblock %}

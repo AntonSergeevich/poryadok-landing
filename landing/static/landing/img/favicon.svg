@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" fill="#0D0F0E"/>
+  <!-- Крест привязки к сетке — тот же знак, что на листах сайта -->
+  <path d="M16 6v20M6 16h20" stroke="#F2F2EE" stroke-width="2"/>
+  <rect x="18" y="18" width="8" height="8" fill="#1F3EC8"/>
+</svg>

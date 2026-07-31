@@ -17,3 +17,9 @@ venv/
 .vscode/
 .idea/
 .DS_Store
+# Логи приложения
+logs/
+
+# Файлы PyCharm, которые не стоит хранить в репозитории
+.idea/workspace.xml
+.idea/tasks.xml

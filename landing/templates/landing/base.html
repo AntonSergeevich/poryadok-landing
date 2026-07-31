@@ -4,11 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#F2F2EE">
-<title>{% block title %}Порядок — операционные системы для малого бизнеса{% endblock %}</title>
+<title>{% block title %}Порядок — операционные системы для малого бизнеса в Красноярске{% endblock %}</title>
 <meta name="description" content="{% block description %}Собираю операционные системы для малого бизнеса: заявки, записи, оплаты, напоминания, отчётность в одном месте. Python/Django. Красноярск и удалённо. Бесплатный разбор процессов.{% endblock %}">
+<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
 
-<link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexSans-var-cyrillic.woff2' %}" crossorigin>
-<link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexMono-400-cyrillic.woff2' %}" crossorigin>
+{# Как ссылка выглядит, когда её кидают в Telegram или WhatsApp #}
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:site_name" content="Системы Порядок">
+<meta property="og:title" content="{% block og_title %}Заявки, записи и оплаты живут в системе, а не у вас в голове{% endblock %}">
+<meta property="og:description" content="{% block og_description %}Операционные системы для малого бизнеса. Красноярск и удалённо. Бесплатный разбор процессов — 45 минут.{% endblock %}">
+<meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'landing/img/og.png' %}">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="{% static 'landing/img/favicon.svg' %}" type="image/svg+xml">
+<link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexSans-400.woff2' %}" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexSans-600.woff2' %}" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexMono-400.woff2' %}" crossorigin>
 <link rel="stylesheet" href="{% static 'landing/css/site.css' %}">
 <script>
 /* Прячем блоки до появления только если анимация уместна. Страховка: если site.js
@@ -28,15 +41,19 @@ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
     <a class="logo" href="{% url 'index' %}">
       <b>Порядок</b><i>Системы</i>
     </a>
-    <nav class="nav" id="nav" aria-label="Разделы страницы">
+    <nav class="nav" id="nav" aria-label="Разделы сайта">
+      {% block nav %}
       <a href="#pains">Боли</a>
       <a href="#what">Что делаю</a>
       <a href="#cases">Кейсы</a>
       <a href="#how">Как работаем</a>
       <a href="#price">Цена</a>
-      <a href="#about">Обо мне</a>
+      <a href="#faq">Вопросы</a>
+      <a href="{% url 'club' %}">Клуб</a>
+      {% endblock %}
     </nav>
-    <a class="btn btn--sm" href="#cta">Бесплатный разбор</a>
+    <a class="head__tel" href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>
+    <a class="btn btn--sm" href="{% block head_cta_href %}#cta{% endblock %}">{% block head_cta %}Бесплатный разбор{% endblock %}</a>
     <button class="burger" id="burger" type="button" aria-expanded="false" aria-controls="nav" aria-label="Меню">
       <span></span>
     </button>
@@ -49,12 +66,35 @@ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
 
 <footer class="foot">
   <div class="wrap foot__in">
-    <p>Системы Порядок · Красноярск и удалённо</p>
+    <p>{{ SITE_OWNER }} · {{ SITE_CITY }} и удалённо</p>
+    <p><a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a></p>
+    <p><a href="{% url 'privacy' %}">Политика конфиденциальности</a></p>
     <p>Python / Django · {% now "Y" %}</p>
-    <p><a href="#cta">Оставить заявку</a></p>
   </div>
 </footer>
 
+{# Липкая кнопка на телефоне: главное действие всегда под большим пальцем #}
+<div class="dock" id="dock" hidden>
+  <a class="dock__tel" href="tel:{{ SITE_PHONE }}" aria-label="Позвонить">Позвонить</a>
+  <a class="dock__cta" href="{% block dock_href %}#cta{% endblock %}">{% block dock_cta %}Бесплатный разбор{% endblock %}</a>
+</div>
+
+{# Предупреждение о cookie. Без JS не показывается и ничему не мешает. #}
+<div class="cookie" id="cookie" role="dialog" aria-label="Использование cookie" hidden>
+  <p class="cookie__text">
+    Сайт использует cookie и собирает обезличенные данные о посещениях — это нужно,
+    чтобы понимать, какая реклама приводит клиентов. Оставаясь здесь, вы соглашаетесь
+    с <a href="{% url 'privacy' %}">политикой конфиденциальности</a>.
+  </p>
+  <button class="btn btn--sm" type="button" id="cookie-ok">Хорошо</button>
+</div>
+
 <script src="{% static 'landing/js/site.js' %}" defer></script>
+{% if YANDEX_METRIKA_ID %}
+<script>
+/* Яндекс.Метрика подключается только после согласия с cookie. */
+window.__metrikaId = {{ YANDEX_METRIKA_ID }};
+</script>
+{% endif %}
 </body>
 </html>
