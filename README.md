@@ -30,13 +30,15 @@ git clone https://github.com/AntonSergeevich/poryadok-landing.git
 cd poryadok-landing
 ```
 
-**Если проект уже открыт**, заберите свежую ветку:
+**Если проект уже открыт**, заберите свежую версию:
 
 ```powershell
-git fetch origin
-git checkout claude/business-os-website-design-7hvb9a
-git pull origin claude/business-os-website-design-7hvb9a
+git checkout main
+git pull origin main
 ```
+
+Работа ведётся в отдельных ветках, но на сервер уезжает только `main` —
+порядок слияния описан в [DEPLOY.md](DEPLOY.md).
 
 ### 2. Виртуальное окружение
 
@@ -152,9 +154,11 @@ landing/
 
 Проверить, что всё связалось:
 
-```powershell
+```bash
 python manage.py shell -c "from landing.services import telegram; print(telegram.notify('Проверка связи'))"
 ```
+
+Выведет `True`, если сообщение дошло.
 
 ---
 
@@ -171,7 +175,7 @@ python manage.py shell -c "from landing.services import telegram; print(telegram
 Адрес для уведомлений, который надо указать в личном кабинете ЮKassa:
 
 ```
-https://ваш-домен/pay/yookassa/webhook/
+https://s-poryadok.ru/pay/yookassa/webhook/
 ```
 
 Обработчик не верит телу уведомления на слово: он берёт оттуда только номер
@@ -186,29 +190,38 @@ https://ваш-домен/pay/yookassa/webhook/
 На сервере это делает cron:
 
 ```
-0 4 * * * cd /путь/к/проекту && ./venv/bin/python manage.py expire_club >> logs/cron.log 2>&1
+0 4 * * * cd /var/www/s-poryadok && /var/www/s-poryadok/venv/bin/python manage.py expire_club >> /var/www/s-poryadok/logs/cron.log 2>&1
 ```
 
 ---
 
 ## Выкладка на сервер
 
-Коротко, что должно отличаться от разработки:
+Сайт живёт на `s-poryadok.ru`: Ubuntu VPS, Gunicorn через сокет, Nginx для SSL
+и статики, боевая ветка — `main`.
 
-- `DEBUG=False` в `.env`, `SECRET_KEY` — новый и длинный;
-- `python manage.py collectstatic`, раздача `staticfiles/` через nginx;
-- запуск через gunicorn, а не через `runserver`;
-- сертификат HTTPS — при `DEBUG=False` включается редирект на https,
-  защищённые cookie и HSTS;
-- для боевой нагрузки лучше PostgreSQL вместо SQLite, но на текущих объёмах
-  SQLite справляется.
+Порядок обновления, конфигурация Nginx, настройки прода и разбор типовых
+поломок — в **[DEPLOY.md](DEPLOY.md)**.
+
+Коротко, что делается на сервере при каждом обновлении:
+
+```bash
+cd /var/www/s-poryadok
+git pull origin main
+source venv/bin/activate
+python manage.py migrate
+python manage.py collectstatic --noinput
+sudo systemctl restart gunicorn
+```
 
 ---
 
 ## Что осталось сделать руками
 
-- [ ] Положить фото в `landing/static/landing/img/anton.jpg` (портрет 4:5).
+- [x] Положить фото в `landing/static/landing/img/avatar.JPG` (портрет 4:5).
+- [x] Выложить на боевой сервер.
 - [ ] Заменить кейсы на «Листе 04» реальными формулировками и сроками.
 - [ ] Проверить и дополнить политику конфиденциальности: ИНН, статус, реквизиты.
-- [ ] Завести бота и закрытый канал, заполнить `.env`.
+- [ ] Завести бота и закрытый канал, заполнить `.env` на сервере.
+- [ ] Поставить в cron `expire_club` и резервное копирование базы — см. DEPLOY.md.
 - [ ] Решить, когда подключать эквайринг.
