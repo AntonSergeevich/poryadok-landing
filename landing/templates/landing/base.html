@@ -18,7 +18,14 @@
 <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'landing/img/og.png' %}">
 <meta name="twitter:card" content="summary_large_image">
 
+{% comment %}
+  Полный набор иконок. Без него iOS сам запрашивает apple-touch-icon и
+  favicon.ico, получает 404, и серия таких промахов подряд выглядит как
+  перебор адресов ботом.
+{% endcomment %}
 <link rel="icon" href="{% static 'landing/img/favicon.svg' %}" type="image/svg+xml">
+<link rel="icon" href="{% static 'landing/img/favicon.ico' %}" sizes="32x32">
+<link rel="apple-touch-icon" href="{% static 'landing/img/apple-touch-icon.png' %}">
 <link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexSans-400.woff2' %}" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexSans-600.woff2' %}" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexMono-400.woff2' %}" crossorigin>

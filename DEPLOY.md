@@ -199,8 +199,60 @@ python manage.py expire_club --dry-run
 - **ssh работает** — значит сервер жив, проблема в nginx или gunicorn.
   Смотреть `systemctl status gunicorn`, `journalctl -u gunicorn -n 50`,
   `/var/log/nginx/error.log`.
-- **ssh тоже не отвечает** — проблема ниже уровня приложения: сеть,
-  ядро, ограничения хостинга. Код сайта тут ни при чём.
+- **ssh тоже не отвечает** — проблема ниже уровня приложения. Python-код
+  не может оборвать вам ssh: значит перекрыт доступ к машине целиком.
+
+### Если пропадает и ssh: блокировка вашего адреса
+
+Когда с одного устройства разом отваливаются и сайт, и ssh, а через
+некоторое время само чинится, — чаще всего это не поломка, а срабатывание
+защиты: fail2ban или фильтр хостинга внёс ваш адрес в бан. «Подождать,
+и заработает» — это истёкшее время бана.
+
+Проверить:
+
+```bash
+sudo fail2ban-client status                    # какие правила включены
+sudo fail2ban-client status sshd               # и кто забанен
+sudo fail2ban-client status nginx-botsearch
+sudo iptables -L -n | grep -i -E 'DROP|REJECT' | head -30
+sudo ipset list 2>/dev/null | head -20
+```
+
+Разбанить свой адрес:
+
+```bash
+sudo fail2ban-client set sshd unbanip ВАШ_IP
+sudo fail2ban-client set nginx-botsearch unbanip ВАШ_IP
+```
+
+Свой адрес можно узнать на телефоне, открыв `2ip.ru`.
+
+Чтобы себя больше не банило, добавьте свои адреса в исключения —
+`/etc/fail2ban/jail.local`:
+
+```
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1 ВАШ_ДОМАШНИЙ_IP
+```
+
+```bash
+sudo systemctl restart fail2ban
+```
+
+Заодно посмотрите, за что банило:
+
+```bash
+sudo grep -i ban /var/log/fail2ban.log | tail -30
+sudo awk '$9 ~ /^(404|403|444)$/ {print $7}' /var/log/nginx/access.log | sort | uniq -c | sort -rn | head
+```
+
+**Про 404 и iOS.** Safari на айфоне сам, помимо разметки, запрашивает
+`/apple-touch-icon.png`, `/apple-touch-icon-precomposed.png` и `/favicon.ico`.
+Если этих файлов нет, один заход с телефона даёт несколько 404 подряд —
+а такая серия для fail2ban выглядит как перебор адресов ботом. Файлы
+и маршруты для них добавлены в проект, но если правило уже настроено
+агрессивно, стоит его смягчить.
 
 ### Логи после перезагрузки
 
