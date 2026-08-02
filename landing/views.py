@@ -3,9 +3,9 @@
 Правило одно: заявка сначала попадает в базу, и только потом мы пытаемся
 что-то отправить в Telegram. Если Telegram лежит — заявка всё равно наша.
 """
+import json
 import logging
 
-import pandas as pd
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
@@ -13,6 +13,11 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+
+# pandas сознательно НЕ импортируется здесь. Он тянет за собой numpy и стоит
+# около 50 МБ в каждом воркере gunicorn — а нужен ровно одной странице,
+# экспресс-проверке файла. Импорт живёт внутри express_audit, поэтому обычные
+# посетители за него не платят. См. DEPLOY.md, раздел про память.
 
 from .forms import AuditForm, ClubForm, LeadForm
 from .models import Client, ClubSubscription, Lead, Payment, normalize_phone
@@ -141,8 +146,6 @@ def yookassa_webhook(request):
     и переспрашиваем статус у API. Иначе оплату мог бы подделать любой,
     кто знает адрес этого обработчика.
     """
-    import json
-
     try:
         body = json.loads(request.body.decode('utf-8'))
     except (ValueError, UnicodeDecodeError):
@@ -203,9 +206,15 @@ def _grant_club_access(payment):
 
 
 def express_audit(request):
-    """Быстрый расчёт по выгрузке продаж."""
+    """Быстрый расчёт по выгрузке продаж.
+
+    pandas импортируется здесь, а не наверху файла: иначе он висел бы
+    в памяти каждого воркера ради страницы, которую открывают редко.
+    """
     if request.method != 'POST':
         return redirect('index')
+
+    import pandas as pd
 
     form = AuditForm(request.POST, request.FILES)
     if not form.is_valid():
