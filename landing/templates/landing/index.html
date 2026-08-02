@@ -463,8 +463,10 @@
     <div class="about">
       <figure class="about__photo portrait rv" id="portrait">
         <div class="portrait__img">
-          {# Положите файл в landing/static/landing/img/anton.jpg (портрет, 4:5, от 900px по ширине) #}
-          <img src="{% static 'landing/img/anton.jpg' %}" alt="Антон Глухов, автор систем «Порядок»"
+          {# Файл лежит в landing/static/landing/img/avatar.JPG.
+             Имя чувствительно к регистру: на сервере Linux, там avatar.JPG и
+             avatar.jpg — разные файлы. Переименуете — поправьте и здесь. #}
+          <img src="{% static 'landing/img/avatar.JPG' %}" alt="Антон Глухов, автор систем «Порядок»"
                width="900" height="1125" loading="lazy" decoding="async" id="portrait-img">
         </div>
         <figcaption class="portrait__cap">

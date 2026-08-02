@@ -1,6 +1,8 @@
-Django==5.2.16
-requests==2.32.3
-python-dotenv==1.0.1
-pandas==2.2.3
-openpyxl==3.1.5
-gunicorn==23.0.0
+# Диапазоны, а не жёсткие версии: на сервере уже может стоять что-то новее,
+# и переустановка не должна ничего понижать.
+Django>=5.2,<7.0
+requests>=2.32
+python-dotenv>=1.0
+pandas>=2.2
+openpyxl>=3.1
+gunicorn>=23.0
