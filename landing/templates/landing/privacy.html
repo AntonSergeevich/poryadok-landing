@@ -24,10 +24,15 @@
 
       <h3>1. Кто обрабатывает данные</h3>
       <p>
-        {{ owner }}{% if SITE_INN %}, ИНН {{ SITE_INN }}{% endif %} (далее — «я»),
-        {{ SITE_CITY }}. Связь: <a href="tel:{{ phone }}">{{ phone_pretty }}</a>,
-        <a href="mailto:{{ email }}">{{ email }}</a>.
+        {{ owner }} (далее — «я»){% if SITE_STATUS %}, {{ SITE_STATUS }}{% endif %}.
+        {% if SITE_REGION %}Регион деятельности — {{ SITE_REGION }}.{% endif %}
       </p>
+      <ul class="doc__list">
+        {% if SITE_INN %}<li>ИНН {{ SITE_INN }}</li>{% endif %}
+        <li>Телефон: <a href="tel:{{ phone }}">{{ phone_pretty }}</a></li>
+        <li>Почта: <a href="mailto:{{ email }}">{{ email }}</a></li>
+        <li>Сайт: s-poryadok.ru</li>
+      </ul>
 
       <h3>2. Какие данные собираются</h3>
       <ul class="doc__list">
@@ -93,17 +98,25 @@
         из пункта 1 — отвечу в течение трёх рабочих дней.
       </p>
 
-      <div class="note" style="margin-top:calc(var(--u)*5)">
-        <b>Перед публикацией:</b> проверьте этот текст под свою ситуацию — впишите ИНН,
-        статус (ИП или самозанятый) и уберите пункты, которые к вам не относятся.
-        Документ написан как рабочая заготовка, а не как юридическое заключение.
-      </div>
+      <h3>10. Реквизиты</h3>
+      <ul class="doc__list">
+        <li>{{ owner }}</li>
+        {% if SITE_STATUS %}<li>Статус: {{ SITE_STATUS }}</li>{% endif %}
+        {% if SITE_INN %}<li>ИНН: {{ SITE_INN }}</li>{% endif %}
+        {% if SITE_REGION %}<li>Регион деятельности: {{ SITE_REGION }}</li>{% endif %}
+        <li>Телефон: <a href="tel:{{ phone }}">{{ phone_pretty }}</a></li>
+        <li>Почта: <a href="mailto:{{ email }}">{{ email }}</a></li>
+      </ul>
+      <p>
+        Чек по оплате формируется через приложение «Мой налог» и приходит
+        на указанный вами номер телефона или почту.
+      </p>
     </div>
 
     <div class="stamp" aria-hidden="true">
       <span class="s-num">Лист 00</span>
       <span class="s-name">Политика конфиденциальности</span>
-      <span class="s-scale">Пунктов 9</span>
+      <span class="s-scale">Пунктов 10</span>
       <span class="s-org">С-Порядок</span>
     </div>
   </div>

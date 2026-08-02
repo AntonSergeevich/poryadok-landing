@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#F2F2EE">
-<title>{% block title %}Порядок — операционные системы для малого бизнеса в Красноярске{% endblock %}</title>
+<title>{% block title %}Системы Порядок — операционные системы для малого бизнеса в Красноярске{% endblock %}</title>
 <meta name="description" content="{% block description %}Собираю операционные системы для малого бизнеса: заявки, записи, оплаты, напоминания, отчётность в одном месте. Python/Django. Красноярск и удалённо. Бесплатный разбор процессов.{% endblock %}">
 <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
 
@@ -38,8 +38,14 @@ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
 
 <header class="head" id="head">
   <div class="wrap head__in">
-    <a class="logo" href="{% url 'index' %}">
-      <b>Порядок</b><i>Системы</i>
+    <a class="logo" href="{% url 'index' %}" aria-label="Системы Порядок — на главную">
+      <svg class="logo__mark" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" focusable="false">
+        <g stroke="currentColor" stroke-width="3.4">
+          <path d="M2 8h10" opacity=".38"/><path d="M5 16h6" opacity=".38"/><path d="M3 24h8" opacity=".38"/>
+          <path d="M17 8h13"/><path d="M17 16h13"/><path d="M17 24h13"/>
+        </g>
+      </svg>
+      <span class="logo__word"><i>Системы</i><b>Порядок</b></span>
     </a>
     <nav class="nav" id="nav" aria-label="Разделы сайта">
       {% block nav %}
@@ -66,7 +72,8 @@ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
 
 <footer class="foot">
   <div class="wrap foot__in">
-    <p>{{ SITE_OWNER }} · {{ SITE_CITY }} и удалённо</p>
+    <p>Системы Порядок · {{ SITE_CITY }} и удалённо</p>
+    <p>{{ SITE_OWNER }}{% if SITE_INN %} · ИНН {{ SITE_INN }}{% endif %}</p>
     <p><a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a></p>
     <p><a href="{% url 'privacy' %}">Политика конфиденциальности</a></p>
     <p>Python / Django · {% now "Y" %}</p>

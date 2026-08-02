@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Системы Порядок">
+  <!-- Слева обрывки вразнобой, справа ровные линии: хаос, приведённый в порядок.
+       Цвет берётся из currentColor, поэтому знак работает и на бумаге, и на графите. -->
+  <g stroke="currentColor" stroke-width="3.4">
+    <path d="M2 8h10" opacity=".38"/>
+    <path d="M5 16h6" opacity=".38"/>
+    <path d="M3 24h8" opacity=".38"/>
+    <path d="M17 8h13"/>
+    <path d="M17 16h13"/>
+    <path d="M17 24h13"/>
+  </g>
+</svg>

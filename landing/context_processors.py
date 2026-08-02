@@ -11,5 +11,7 @@ def site(request):
         'SITE_CITY': settings.SITE_CITY,
         'SITE_TELEGRAM': settings.SITE_TELEGRAM,
         'SITE_INN': settings.SITE_INN,
+        'SITE_REGION': settings.SITE_REGION,
+        'SITE_STATUS': settings.SITE_STATUS,
         'YANDEX_METRIKA_ID': settings.YANDEX_METRIKA_ID,
     }

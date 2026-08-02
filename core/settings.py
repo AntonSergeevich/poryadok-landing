@@ -31,10 +31,15 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 SITE_OWNER = os.getenv('SITE_OWNER', 'Глухов Антон Сергеевич')
 SITE_PHONE = os.getenv('SITE_PHONE', '+79954412021')
 SITE_PHONE_PRETTY = os.getenv('SITE_PHONE_PRETTY', '+7 (995) 441-20-21')
-SITE_EMAIL = os.getenv('SITE_EMAIL', 'antonsergeevichglukhov@gmail.com')
+SITE_EMAIL = os.getenv('SITE_EMAIL', 'glukhovas@yandex.ru')
 SITE_CITY = os.getenv('SITE_CITY', 'Красноярск')
+SITE_REGION = os.getenv('SITE_REGION', 'Красноярский край')
 SITE_TELEGRAM = os.getenv('SITE_TELEGRAM', '')       # ник без @, для кнопки «написать»
-SITE_INN = os.getenv('SITE_INN', '')                 # ИНН — подставится в политику
+SITE_INN = os.getenv('SITE_INN', '382800965145')     # ИНН — подставится в политику
+# Налоговый статус. Паспорт и СНИЛС здесь не нужны и на сайт не выносятся.
+SITE_STATUS = os.getenv(
+    'SITE_STATUS',
+    'самозанятый, налог на профессиональный доход')
 
 # --- Telegram ---
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
