@@ -462,10 +462,12 @@
   <div class="wrap">
     <div class="about">
       <figure class="about__photo portrait rv" id="portrait">
+        {% comment %}
+          Файл лежит в landing/static/landing/img/avatar.JPG.
+          Имя чувствительно к регистру: на сервере Linux avatar.JPG и avatar.jpg —
+          разные файлы. Переименуете — поправьте и здесь.
+        {% endcomment %}
         <div class="portrait__img">
-          {# Файл лежит в landing/static/landing/img/avatar.JPG.
-             Имя чувствительно к регистру: на сервере Linux, там avatar.JPG и
-             avatar.jpg — разные файлы. Переименуете — поправьте и здесь. #}
           <img src="{% static 'landing/img/avatar.JPG' %}" alt="Антон Глухов, автор систем «Порядок»"
                width="900" height="1125" loading="lazy" decoding="async" id="portrait-img">
         </div>
