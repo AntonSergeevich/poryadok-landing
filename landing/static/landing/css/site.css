@@ -478,6 +478,15 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .cta .err{color:#FFD2CB}
 .field.is-bad .err{display:block}
 .field.is-bad .input{border-color:currentColor}
+/* Подстановка сохранённых данных в браузере красит поле в голубой.
+   Возвращаем бумажный фон, иначе форма выглядит чужой. */
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--graphite);
+  -webkit-box-shadow:0 0 0 40px var(--sheet) inset;
+  box-shadow:0 0 0 40px var(--sheet) inset;
+}
 
 /* Сообщение об успехе */
 .done{border:1px solid var(--paper);padding:22px;margin-bottom:calc(var(--u)*3)}
@@ -737,12 +746,15 @@ select.input{
 .q-step{border:0;padding:0;margin:0;max-width:62ch}
 .q-step + .q-step{margin-top:calc(var(--u)*8);padding-top:calc(var(--u)*8);border-top:1px solid var(--line)}
 .q-sprite{position:absolute;width:0;height:0;overflow:hidden}
-.q-sprite g{fill:none;stroke:currentColor;stroke-width:1.4;
-  stroke-linecap:square;stroke-linejoin:miter;vector-effect:non-scaling-stroke}
 
 .q-step__legend{display:grid;gap:8px;margin-bottom:calc(var(--u)*3);padding:0}
+/* fill и stroke наследуются, поэтому доходят внутрь <use>. Если задать их
+   селектором по самому набору значков, до копии они не дойдут, и значок
+   зальётся чёрным — что и случилось в первой версии. */
 .q-step__icon{
   width:34px;height:34px;color:var(--ink);
+  fill:none;stroke:currentColor;stroke-width:1.4;
+  stroke-linecap:square;stroke-linejoin:miter;
   margin-bottom:calc(var(--u)*.5);
 }
 .q-step__num{
@@ -797,7 +809,10 @@ select.input{
 }
 .q-opt:has(input:checked) .q-opt__key{color:var(--ink)}
 @media (max-width:640px){.q-opt__key{display:none}}
-.q-grid{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u)*2)}
+/* Столбцы прижимаются к верху. Иначе поле без подписи снизу растягивается
+   на высоту соседнего, у которого подпись есть, — и съезжает вниз. */
+.q-grid{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u)*2);align-items:start}
+.q-grid > .field{align-content:start}
 @media (max-width:640px){.q-grid{grid-template-columns:1fr}}
 .q-step--last .check{margin-top:var(--u)}
 .btn--lg{padding:17px 26px;font-size:1rem}

@@ -151,7 +151,14 @@
       at = Math.max(0, Math.min(i, total - 1));
       steps.forEach(function (el, n) { el.classList.toggle('is-now', n === at); });
       if (fill) fill.style.width = ((at + 1) / total * 100) + '%';
-      if (now) now.textContent = Math.min(at + 1, total);
+      // Последний лист — не вопрос, а контакты: считать его шестнадцатым
+      // из пятнадцати было бы враньём.
+      if (now) {
+        var asked = bar ? Number(bar.dataset.questions) : total;
+        now.textContent = (at + 1 > asked)
+          ? 'Последний шаг'
+          : 'Вопрос ' + (at + 1) + ' из ' + asked;
+      }
       if (focus) {
         var first = steps[at].querySelector('input, textarea');
         if (first && first.type !== 'checkbox' && first.type !== 'radio') first.focus();

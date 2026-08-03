@@ -69,9 +69,9 @@
   {% endif %}
 
   {# Полоса прогресса. Без JS не показывается: шагов там нет, форма одна. #}
-  <div class="q-bar" id="q-bar" hidden>
+  <div class="q-bar" id="q-bar" data-questions="{{ total }}" hidden>
     <div class="wrap q-bar__in">
-      <span class="q-bar__num mono">Вопрос <b id="q-now">1</b> из {{ total }}</span>
+      <span class="q-bar__num mono" id="q-now">Вопрос 1 из {{ total }}</span>
       <span class="q-bar__track"><span class="q-bar__fill" id="q-fill"></span></span>
     </div>
   </div>
