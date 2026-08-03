@@ -339,6 +339,55 @@ server {
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
+#### Нужен restart, а не reload
+
+Смена набора протоколов через `systemctl reload nginx` не применяется:
+проверка продолжает показывать `TLSv1.3` при полностью правильном
+конфиге. Помогает только полный перезапуск:
+
+```bash
+sudo systemctl restart nginx
+```
+
+Перерыв в работе — доли секунды.
+
+#### Заодно: лишние конфиги и старые протоколы
+
+`nginx -T` печатает итоговый конфиг со всеми включёнными файлами —
+это единственный надёжный способ увидеть, что на самом деле работает:
+
+```bash
+sudo nginx -T 2>/dev/null | grep -nE 'ssl_protocols|listen .*443'
+```
+
+На сервере нашлось два наследства.
+
+**Мёртвый конфиг старого проекта** `/etc/nginx/sites-enabled/poryadok`:
+слушал порт 80, проксировал в несуществующий
+`/var/www/poryadok_project/poryadok.sock`, да ещё с ошибочным
+`server_name http://s-poryadok.ru/`. Отключён:
+
+```bash
+sudo rm /etc/nginx/sites-enabled/poryadok
+```
+
+Убрана только ссылка, сам файл лежит в `sites-available`.
+
+**Устаревшие протоколы в `/etc/nginx/nginx.conf`**, строка 34:
+
+```nginx
+ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+```
+
+TLSv1 и TLSv1.1 давно небезопасны. На наш сайт это не влияет — блок
+`server` задаёт свой набор и перекрывает общий, — но если появится
+второй сайт без своих настроек, он унаследует именно эту строку.
+Привести к:
+
+```nginx
+ssl_protocols TLSv1.2;
+```
+
 #### Проверка, что применилось
 
 ```bash
