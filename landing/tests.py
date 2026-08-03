@@ -13,6 +13,7 @@ from .forms import LeadForm
 from .models import (Client, ClubSubscription, Lead, Payment, Survey,
                      format_phone, normalize_phone)
 from .services import analysis
+from .services import telegram as tg_service
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / 'templates' / 'landing'
 
@@ -222,3 +223,67 @@ class SurveyTests(TestCase):
         self.assertNotIn('Антон', text)
         self.assertNotIn('9954412021', text)
         self.assertIn('Каждый день что-то теряется', text)
+
+
+class TelegramLoginTests(TestCase):
+    """Вход через Telegram. Проверка подписи — единственное, что отделяет
+    настоящего человека от того, кто просто подставил чужой id в адрес."""
+
+    TOKEN = '123456:TEST-TOKEN'
+
+    def _sign(self, data, token=None):
+        import hashlib, hmac
+        secret = hashlib.sha256((token or self.TOKEN).encode()).digest()
+        checked = '\n'.join(f'{k}={data[k]}' for k in sorted(data))
+        return hmac.new(secret, checked.encode(), hashlib.sha256).hexdigest()
+
+    def _payload(self, **over):
+        import time
+        data = {'id': '77777', 'first_name': 'Антон',
+                'username': 'anton', 'auth_date': str(int(time.time()))}
+        data.update(over)
+        data['hash'] = self._sign({k: v for k, v in data.items() if k != 'hash'})
+        return data
+
+    def test_valid_login_passes(self):
+        with self.settings(TELEGRAM_BOT_TOKEN=self.TOKEN):
+            data = tg_service.verify_login(self._payload())
+        self.assertIsNotNone(data)
+        self.assertEqual(data['id'], 77777)
+
+    def test_tampered_id_rejected(self):
+        """Подменили id, подпись оставили — не должно пройти."""
+        payload = self._payload()
+        payload['id'] = '99999'
+        with self.settings(TELEGRAM_BOT_TOKEN=self.TOKEN):
+            self.assertIsNone(tg_service.verify_login(payload))
+
+    def test_foreign_token_rejected(self):
+        payload = self._payload()
+        with self.settings(TELEGRAM_BOT_TOKEN='999:OTHER'):
+            self.assertIsNone(tg_service.verify_login(payload))
+
+    def test_stale_login_rejected(self):
+        import time
+        old = str(int(time.time()) - 60 * 60 * 30)   # 30 часов назад
+        with self.settings(TELEGRAM_BOT_TOKEN=self.TOKEN):
+            self.assertIsNone(tg_service.verify_login(self._payload(auth_date=old)))
+
+    def test_no_token_rejected(self):
+        with self.settings(TELEGRAM_BOT_TOKEN=None):
+            self.assertIsNone(tg_service.verify_login(self._payload()))
+
+    def test_view_rejects_forgery(self):
+        response = self.client.get(reverse('club_telegram'),
+                                   {'id': '1', 'auth_date': '1', 'hash': 'нет'})
+        self.assertEqual(response.status_code, 400)
+
+    def test_login_remembers_user_id(self):
+        """Найдя клиента по нику, запоминаем числовой id — без него
+        закрыть доступ в канал невозможно."""
+        client_obj = Client.objects.create(name='Антон', phone='+79954412021',
+                                           telegram_username='anton')
+        with self.settings(TELEGRAM_BOT_TOKEN=self.TOKEN):
+            self.client.get(reverse('club_telegram'), self._payload())
+        client_obj.refresh_from_db()
+        self.assertEqual(client_obj.telegram_user_id, 77777)

@@ -10,6 +10,7 @@ from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -111,6 +112,71 @@ def club(request):
         'success': success,
         'prices': {k: f'{v:,}'.replace(',', ' ') for k, v in CLUB_PRICES.items()},
         'payments_enabled': pay.is_enabled(),
+    })
+
+
+def club_telegram(request):
+    """Вход через Telegram: узнаём числовой id человека.
+
+    Ради этого id всё и затевается. Ник для Telegram — просто подпись,
+    её можно сменить за секунду; исключить из канала API умеет только по
+    числовому id. Без входа доступ приходится закрывать руками.
+
+    Данные приходят строкой запроса и потому доверия не заслуживают.
+    Подлинность проверяет tg.verify_login — всё, что она не подтвердила,
+    считаем подделкой.
+    """
+    data = tg.verify_login(request.GET.dict())
+    if not data:
+        return render(request, 'landing/club_access.html',
+                      {'state': 'bad'}, status=400)
+
+    user_id = data['id']
+    username = (data.get('username') or '').lstrip('@')
+    name = ' '.join(x for x in (data.get('first_name'), data.get('last_name')) if x)
+
+    client = Client.objects.filter(telegram_user_id=user_id).first()
+    if not client and username:
+        client = Client.objects.filter(telegram_username__iexact=username).first()
+
+    if client:
+        # Запоминаем id: в следующий раз узнаем человека даже после смены ника.
+        fields = []
+        if client.telegram_user_id != user_id:
+            client.telegram_user_id = user_id
+            fields.append('telegram_user_id')
+        if username and client.telegram_username != username:
+            client.telegram_username = username
+            fields.append('telegram_username')
+        if fields:
+            client.save(update_fields=fields + ['updated_at'])
+
+    subscription = None
+    if client:
+        subscription = client.club_subscriptions.filter(
+            status=ClubSubscription.Status.ACTIVE,
+            ends_at__gt=timezone.now()).order_by('-ends_at').first()
+
+    if not subscription:
+        logger.info('Вход через Telegram: %s (%s) без активной подписки', name, user_id)
+        return render(request, 'landing/club_access.html', {
+            'state': 'no_sub', 'name': name, 'username': username,
+        })
+
+    # Ссылка одноразовая: переслать её другому бессмысленно.
+    if not subscription.invite_link:
+        link = tg.create_club_invite(name or username or str(user_id))
+        if link:
+            subscription.invite_link = link
+            subscription.invite_sent_at = timezone.now()
+            subscription.save(update_fields=['invite_link', 'invite_sent_at', 'updated_at'])
+        else:
+            logger.error('Не удалось создать приглашение для подписки %s', subscription.pk)
+
+    return render(request, 'landing/club_access.html', {
+        'state': 'ok' if subscription.invite_link else 'no_link',
+        'name': name,
+        'subscription': subscription,
     })
 
 

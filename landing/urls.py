@@ -20,6 +20,7 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('club/', views.club, name='club'),
     path('club/done/', views.club_done, name='club_done'),
+    path('club/telegram/', views.club_telegram, name='club_telegram'),
     path('privacy/', views.privacy, name='privacy'),
     path('razbor/', views.survey, name='survey'),
     path('razbor/gotovo/', views.survey_done, name='survey_done'),

@@ -170,6 +170,28 @@
       </div>
 
       <div class="cta__right">
+        {% if TELEGRAM_BOT_USERNAME %}
+        {% comment %}
+          Кнопка входа для тех, кто уже оплатил. Скрипт грузится с серверов
+          Telegram, поэтому появляется не всегда — форма ниже работает
+          независимо от него и остаётся основным путём.
+        {% endcomment %}
+        <div class="tg-login">
+          <p class="tg-login__label mono">Уже в клубе?</p>
+          <script async src="https://telegram.org/js/telegram-widget.js?22"
+                  data-telegram-login="{{ TELEGRAM_BOT_USERNAME }}"
+                  data-size="large"
+                  data-userpic="false"
+                  data-radius="0"
+                  data-auth-url="{{ request.scheme }}://{{ request.get_host }}{% url 'club_telegram' %}"
+                  data-request-access="write"></script>
+          <noscript>
+            <p class="small">Вход через Telegram требует включённых скриптов.
+              Позвоните — выдам доступ вручную.</p>
+          </noscript>
+        </div>
+        {% endif %}
+
         {% if success %}
         <div class="done" role="status">
           <b>Заявка принята</b>

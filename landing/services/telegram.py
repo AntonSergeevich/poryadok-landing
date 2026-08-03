@@ -3,7 +3,10 @@
 Всё общение с ботом собрано здесь, чтобы views не знали про HTTP.
 Любой сбой логируется и возвращается как False — сайт из-за него не падает.
 """
+import hashlib
+import hmac
 import logging
+import time
 
 import requests
 from django.conf import settings
@@ -36,6 +39,56 @@ def _call(method, payload):
         logger.error('Telegram %s: %s', method, data.get('description'))
         return None
     return data.get('result')
+
+
+LOGIN_MAX_AGE = 24 * 60 * 60   # сутки — как рекомендует Telegram
+
+
+def verify_login(params):
+    """Проверяет подпись входа через Telegram.
+
+    Виджет возвращает данные обычной строкой запроса, поэтому подменить
+    их может кто угодно. Подлинность доказывает поле hash: Telegram
+    подписывает им остальные поля ключом, который знает только владелец
+    бота. Считаем ту же подпись у себя и сравниваем.
+
+    Возвращает словарь с данными или None. Никогда не доверяйте params
+    напрямую — только тому, что вернула эта функция.
+    """
+    token = getattr(settings, 'TELEGRAM_BOT_TOKEN', None)
+    if not token:
+        logger.warning('TELEGRAM_BOT_TOKEN не задан — вход через Telegram невозможен')
+        return None
+
+    data = {k: v for k, v in params.items() if k != 'hash'}
+    given = params.get('hash', '')
+    if not given or 'id' not in data or 'auth_date' not in data:
+        return None
+
+    # Поля по алфавиту, каждое с новой строки — так их складывает Telegram.
+    checked = '\n'.join(f'{k}={data[k]}' for k in sorted(data))
+    secret = hashlib.sha256(token.encode()).digest()
+    mine = hmac.new(secret, checked.encode(), hashlib.sha256).hexdigest()
+
+    # Сравнение постоянного времени: обычное == подсказывает подбирающему,
+    # сколько символов он уже угадал.
+    if not hmac.compare_digest(mine, given):
+        logger.warning('Вход через Telegram: подпись не совпала')
+        return None
+
+    try:
+        age = time.time() - int(data['auth_date'])
+    except (TypeError, ValueError):
+        return None
+    if age > LOGIN_MAX_AGE:
+        logger.info('Вход через Telegram: данные просрочены (%.0f с)', age)
+        return None
+
+    try:
+        data['id'] = int(data['id'])
+    except (TypeError, ValueError):
+        return None
+    return data
 
 
 def notify(text):

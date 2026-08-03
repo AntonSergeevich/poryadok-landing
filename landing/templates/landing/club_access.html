@@ -1,0 +1,80 @@
+{% extends "landing/base.html" %}
+
+{% block title %}Доступ в клуб — Системы Порядок{% endblock %}
+{% block description %}Вход в закрытый клуб «Порядок» через Telegram.{% endblock %}
+
+{% block nav %}
+<a href="{% url 'index' %}#what">Что делаю</a>
+<a href="{% url 'index' %}#cases">Кейсы</a>
+<a href="{% url 'index' %}#price">Цена</a>
+<a href="{% url 'club' %}">Клуб</a>
+{% endblock %}
+{% block head_cta_href %}{% url 'club' %}#join{% endblock %}
+{% block head_cta %}В клуб{% endblock %}
+{% block dock_href %}{% url 'club' %}#join{% endblock %}
+{% block dock_cta %}В клуб{% endblock %}
+
+{% block content %}
+<section class="sheet sheet--first">
+  <div class="wrap">
+    <span class="tag tag--ink">Клуб · Доступ</span>
+
+    {% if state == 'ok' %}
+      <h1 class="q-title">Узнал вас{% if name %}, {{ name }}{% endif %}</h1>
+      <p class="lead">
+        Подписка активна до {{ subscription.ends_at|date:"j E Y" }}.
+        Осталось {{ subscription.days_left }} дн.
+      </p>
+      <div class="res-next">
+        <h2>Ссылка на вход</h2>
+        <p class="small">
+          Ссылка одноразовая — сработает у первого, кто по ней зайдёт.
+          Пересылать её кому-то бессмысленно.
+        </p>
+        <p><a class="btn btn--lg" href="{{ subscription.invite_link }}">Войти в канал <span class="arrow" aria-hidden="true">→</span></a></p>
+      </div>
+
+    {% elif state == 'no_link' %}
+      <h1 class="q-title">Подписка есть, ссылка не выдалась</h1>
+      <p class="lead">
+        Telegram не отдал приглашение — так бывает при обрыве связи.
+        Напишите или позвоните, выдам вручную за минуту.
+      </p>
+      <p>
+        <a class="btn btn--lg" href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>
+      </p>
+
+    {% elif state == 'no_sub' %}
+      <h1 class="q-title">Здравствуйте{% if name %}, {{ name }}{% endif %}</h1>
+      <p class="lead">
+        Вход подтвердил, но активной подписки за вами не числится.
+        Если вы только что оплатили — доступ появится сразу после
+        подтверждения от банка, обычно это минута.
+      </p>
+      <p class="small">
+        Если оплаты не было, вступить можно на странице клуба.
+        Клиентам, у которых я собирал систему, доступ идёт бесплатно —
+        просто напишите.
+      </p>
+      <p>
+        <a class="btn btn--lg" href="{% url 'club' %}#join">Вступить в клуб <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn--ghost btn--lg" href="tel:{{ SITE_PHONE }}">Позвонить</a>
+      </p>
+
+    {% else %}
+      <h1 class="q-title">Вход не подтвердился</h1>
+      <p class="lead">
+        Данные входа не прошли проверку подписи или устарели — Telegram
+        считает их действительными сутки.
+      </p>
+      <p class="small">
+        Попробуйте войти заново со страницы клуба. Если повторится —
+        напишите, разберусь.
+      </p>
+      <p>
+        <a class="btn btn--lg" href="{% url 'club' %}#join">На страницу клуба <span class="arrow" aria-hidden="true">→</span></a>
+      </p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

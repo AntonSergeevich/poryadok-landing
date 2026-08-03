@@ -55,6 +55,11 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 # с правом приглашать по ссылке.
 TELEGRAM_CLUB_CHAT_ID = os.getenv('TELEGRAM_CLUB_CHAT_ID')
 
+# Имя бота без @ — его требует виджет входа через Telegram. Домен сайта
+# должен быть привязан к боту у @BotFather (команда /setdomain), иначе
+# виджет не отрисуется.
+TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '')
+
 # --- Эквайринг ЮKassa. Пока пусто — сайт работает в режиме заявок. ---
 YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID')
 YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY')

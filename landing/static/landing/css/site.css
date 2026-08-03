@@ -875,3 +875,15 @@ select.input{
   letter-spacing:.08em;color:var(--muted);margin-top:calc(var(--u)*2);
 }
 .res-answers dd{font-size:var(--t-small);line-height:1.6;margin-top:4px}
+
+
+/* ---------- Вход через Telegram ---------- */
+.tg-login{
+  border:1px solid rgba(242,242,238,.25);padding:16px 18px;
+  margin-bottom:calc(var(--u)*3);display:grid;gap:10px;justify-items:start;
+}
+.tg-login__label{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.12em;color:rgba(242,242,238,.6);
+}
+.tg-login iframe{max-width:100%}
