@@ -95,6 +95,44 @@ echo "   передач данных     [P.]:     $(grep -cE 'Flags \[P' "$RAW"
 echo "   сбросов            [R]:      $(grep -cE 'Flags \[R' "$RAW")"
 
 echo
+echo "-- Каждое соединение по отдельности:"
+awk '
+function ep(s){ sub(/:$/,"",s); return s }
+{
+  if ($3=="In")       { c=ep($5) }
+  else if ($3=="Out") { c=ep($7) }
+  else next
+  if (c=="") next
+  seen[c]=1
+  len=0
+  if (match($0,/length [0-9]+$/)) len=substr($0,RSTART+7)+0
+  if ($0 ~ /Flags \[S[EW]*\]/)  syn[c]++
+  if ($0 ~ /Flags \[S\./)       sak[c]++
+  if ($3=="In")  { inb[c]+=len;  inp[c]++ }
+  else           { outb[c]+=len; outp[c]++ }
+}
+END{
+  printf "   %-24s %4s %4s %9s %9s  %s\n", "посетитель", "зпр", "згл", "от него", "от нас", "чем кончилось"
+  n=0
+  for (c in seen) {
+    if (inb[c]==0 && outb[c]==0) v="соединение без данных"
+    else if (outb[c]==0)         v="СЕРВЕР НЕ ОТВЕТИЛ НИ БАЙТОМ"
+    else if (inb[c]==0)          v="говорил только сервер"
+    else                         v="обмен состоялся"
+    printf "   %-24s %4d %4d %9d %9d  %s\n", c, syn[c], sak[c], inb[c], outb[c], v
+    n++
+    if (n>=25) { print "   ... (показаны первые 25)"; break }
+  }
+}' "$RAW"
+cat <<'TXT'
+   зпр — запросов на соединение, згл — согласий сервера, байты полезных данных.
+
+   «СЕРВЕР НЕ ОТВЕТИЛ НИ БАЙТОМ» у всех соединений подряд — значит до
+   сервера доходит только начало разговора. Если при этом у кого-то
+   другого в том же отчёте «обмен состоялся», сервер точно исправен.
+TXT
+
+echo
 echo "-- Не встают ли все соединения на одном и том же месте:"
 awk '/ Out /{ if (match($0,/ack [0-9]+/)) { a=substr($0,RSTART+4,RLENGTH-4)+0; if (a>1) c[a]++ } }
      END{ n=0; for (k in c) { printf "   подтверждено %s байт — %d раз\n", k, c[k]; n++ }
