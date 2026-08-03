@@ -24,6 +24,11 @@ while true; do
   EXT="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -k https://127.0.0.1/ \
       -H 'Host: s-poryadok.ru' 2>/dev/null || echo 'нет-ответа')"
 
+  # Забанен ли кто-то прямо сейчас: правила блокировки и списки fail2ban
+  BANS="$(iptables -S 2>/dev/null | grep -c -E 'j (DROP|REJECT)')"
+  F2B="$(fail2ban-client banned 2>/dev/null | tr -d '\n' | cut -c1-120)"
+  [ -z "$F2B" ] && F2B='—'
+
   MEM="$(free -m | awk '/^Mem:/{printf "%s/%sМБ доступно %s", $3, $2, $7}')"
   SWAP="$(free -m | awk '/^Swap:/{printf "%s/%s", $3, $2}')"
   LOAD="$(cut -d' ' -f1-3 /proc/loadavg)"
@@ -32,8 +37,8 @@ while true; do
   PROCS="$(pgrep -c -f 'gunicorn' 2>/dev/null || echo 0)"
   CONN="$(ss -H -tan state established 2>/dev/null | wc -l)"
 
-  printf '%s | сокет %s | nginx %s | память %s | swap %s | load %s | диск %s | gunicorn %s (%s проц.) | соединений %s\n' \
-    "$TS" "$CODE_TIME" "$EXT" "$MEM" "$SWAP" "$LOAD" "$DISK" "$GUNI" "$PROCS" "$CONN" >> "$LOG"
+  printf '%s | сокет %s | nginx %s | память %s | swap %s | load %s | диск %s | gunicorn %s (%s проц.) | соединений %s | блокировок %s | забанены %s\n' \
+    "$TS" "$CODE_TIME" "$EXT" "$MEM" "$SWAP" "$LOAD" "$DISK" "$GUNI" "$PROCS" "$CONN" "$BANS" "$F2B" >> "$LOG"
 
   # Файл не должен расти бесконечно
   if [ "$(wc -l < "$LOG")" -gt 20000 ]; then
