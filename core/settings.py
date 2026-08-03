@@ -17,6 +17,13 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Читаем .env ЯВНО, указывая путь. Без вызова load_dotenv файл просто не
+# читается, а всё вокруг продолжает работать на значениях по умолчанию —
+# и это незаметно до первого «почему не приходят уведомления».
+# Путь указан явно, потому что без него dotenv ищет файл от текущей папки,
+# а команды на сервере запускаются откуда придётся.
+load_dotenv(BASE_DIR / '.env')
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -173,6 +180,25 @@ USE_TZ = True
 
 # Путь для сборки статики
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Имена собранных файлов получают отпечаток содержимого: site.a1b2c3.css.
+# Иначе nginx отдаёт статику с кэшем на 30 дней, а браузер посетителя
+# продолжает показывать старые стили после каждого обновления сайта —
+# и «у меня всё поехало» становится нормой. С отпечатком новый файл имеет
+# новое имя, и кэш перестаёт быть проблемой.
+# В разработке отпечатки только мешают: они требуют collectstatic после
+# каждой правки CSS. Поэтому включаются лишь на проде.
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': (
+            'django.contrib.staticfiles.storage.StaticFilesStorage' if DEBUG else
+            'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+        ),
+    },
+}
 STATIC_URL = '/static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

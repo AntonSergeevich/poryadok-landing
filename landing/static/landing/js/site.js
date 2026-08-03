@@ -186,6 +186,38 @@
       });
     });
 
+    // Клавиатура: цифра выбирает вариант, Enter листает дальше.
+    // Мышкой всё то же самое, просто быстрее теми, кто привык печатать.
+    document.addEventListener('keydown', function (e) {
+      if (!quiz.offsetParent) return;
+      var tag = (e.target.tagName || '').toLowerCase();
+      var typing = tag === 'input' && e.target.type === 'text'
+                || tag === 'input' && e.target.type === 'tel'
+                || tag === 'textarea';
+
+      if (e.key === 'Enter' && !e.shiftKey) {
+        if (tag === 'textarea') return;
+        if (at < total - 1) { e.preventDefault(); show(at + 1, true); }
+        return;
+      }
+      if (typing) return;
+
+      if (e.key >= '1' && e.key <= '9') {
+        var opts = steps[at].querySelectorAll('.q-opt input');
+        var pick = opts[Number(e.key) - 1];
+        if (pick) {
+          e.preventDefault();
+          pick.checked = pick.type === 'checkbox' ? !pick.checked : true;
+          pick.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    });
+
+    steps.forEach(function (step) {
+      var keys = step.querySelector('.q-keys');
+      if (keys) keys.hidden = false;
+    });
+
     show(at, false);
   }
 

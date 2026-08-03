@@ -33,6 +33,30 @@
   </div>
 </section>
 
+
+{% comment %}
+  Набор значков. Линии, а не картинки: рисуются цветом текста, весят
+  ничего и не размываются на любом экране. Стиль тот же, что у логотипа —
+  чертёж, а не иллюстрация.
+{% endcomment %}
+<svg class="q-sprite" aria-hidden="true" focusable="false"><defs>
+  <g id="i-shop"><path d="M3 9h18M3 9l2-4h14l2 4M5 9v11h14V9M9.5 20v-6h5v6"/></g>
+  <g id="i-people"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5A4.5 4.5 0 0 1 8 14h2a4.5 4.5 0 0 1 4.5 4.5V20"/><circle cx="17.5" cy="9.5" r="2"/><path d="M17 14a3.5 3.5 0 0 1 3.5 3.5V20"/></g>
+  <g id="i-funnel"><path d="M12 20v-6"/><rect x="8.5" y="20" width="7" height="0.01"/><path d="M12 14 4 5M12 14l8-9M12 14V4"/><circle cx="12" cy="21" r="1.6"/></g>
+  <g id="i-drawers"><rect x="3" y="4" width="18" height="5.5"/><rect x="3" y="12.5" width="18" height="5.5"/><path d="M10 6.75h4M10 15.25h4"/></g>
+  <g id="i-leak"><rect x="3" y="4" width="18" height="10"/><path d="M7 14v3.5M12 14v6M17 14v2.5"/></g>
+  <g id="i-clock"><circle cx="12" cy="12" r="9"/><path d="M12 6.5V12l3.5 2.5"/></g>
+  <g id="i-calendar"><rect x="3" y="5" width="18" height="16"/><path d="M3 10h18M8 2.5v4M16 2.5v4"/></g>
+  <g id="i-noshow"><rect x="3" y="5" width="18" height="16"/><path d="M3 10h18M8 2.5v4M16 2.5v4M9.5 13.5l5 5M14.5 13.5l-5 5"/></g>
+  <g id="i-money"><rect x="2" y="6" width="20" height="12"/><circle cx="12" cy="12" r="2.6"/><path d="M5.5 12h.6M17.9 12h.6"/></g>
+  <g id="i-loop"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 3.5V9H15"/></g>
+  <g id="i-power"><path d="M12 3v9"/><path d="M6.6 6.6a7.6 7.6 0 1 0 10.8 0"/></g>
+  <g id="i-bars"><path d="M4 20.5V13M9.3 20.5V4M14.6 20.5v-9.5M20 20.5V8"/></g>
+  <g id="i-receipt"><path d="M6.5 3h11v18l-1.8-1.4-1.9 1.4-1.8-1.4-1.9 1.4-1.8-1.4L6.5 21z"/><path d="M9.5 8h5M9.5 12h5"/></g>
+  <g id="i-grid"><rect x="4" y="5" width="4" height="4"/><rect x="10" y="5" width="4" height="4"/><rect x="16" y="5" width="4" height="4"/><rect x="4" y="11" width="4" height="4"/><rect x="10" y="11" width="4" height="4"/><rect x="16" y="11" width="4" height="4"/><rect x="4" y="17" width="4" height="4"/><rect x="10" y="17" width="4" height="4"/><rect x="16" y="17" width="4" height="4"/></g>
+  <g id="i-speech"><path d="M3.5 4.5h17v11h-11l-6 5z"/><path d="M7.5 8.5h9M7.5 12h6"/></g>
+</defs></svg>
+
 <form class="q" id="q-start" method="POST" action="{% url 'survey' %}" novalidate>
   {% csrf_token %}
 
@@ -57,7 +81,10 @@
     {% for step in steps %}
     <fieldset class="q-step" data-step="{{ forloop.counter }}">
       <legend class="q-step__legend">
-        <span class="q-step__num mono">{{ forloop.counter }} / {{ total }}</span>
+        {% if step.q.icon %}
+        <svg class="q-step__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-{{ step.q.icon }}"></use></svg>
+        {% endif %}
+        <span class="q-step__num mono">Вопрос {{ forloop.counter }} из {{ total }}</span>
         <span class="q-step__title">{{ step.q.title }}</span>
         {% if step.q.hint %}<span class="q-step__hint">{{ step.q.hint }}</span>{% endif %}
       </legend>
@@ -74,6 +101,7 @@
             <input type="{% if step.many %}checkbox{% else %}radio{% endif %}"
                    name="{{ step.q.id }}" value="{{ opt.value }}"
                    {% if opt.checked %}checked{% endif %}>
+            <span class="q-opt__key" aria-hidden="true">{{ forloop.counter }}</span>
             <span>{{ opt.label }}</span>
           </label>
           {% endfor %}
@@ -90,6 +118,7 @@
       <div class="q-nav">
         <button class="btn btn--ghost q-back" type="button" hidden>Назад</button>
         <button class="btn q-next" type="button" hidden>Дальше <span class="arrow" aria-hidden="true">→</span></button>
+        <span class="q-keys mono" hidden>цифры 1–9 — выбрать, Enter — дальше</span>
       </div>
     </fieldset>
     {% endfor %}
@@ -97,6 +126,7 @@
     {# Последний шаг: контакты. Необязательные. #}
     <fieldset class="q-step q-step--last" data-step="{{ total|add:1 }}">
       <legend class="q-step__legend">
+        <svg class="q-step__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-speech"></use></svg>
         <span class="q-step__num mono">Последний шаг</span>
         <span class="q-step__title">Куда прислать разбор?</span>
         <span class="q-step__hint">Можно пропустить — результат откроется сразу после кнопки</span>

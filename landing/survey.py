@@ -11,6 +11,7 @@
 
     {
       'id':      'lost',                  ключ, под ним ответ ложится в базу
+      'icon':    'leak',                  имя значка из набора в survey.html
       'title':   'Как часто теряется…',   сам вопрос
       'hint':    'подсказка под ним',     необязательно
       'type':    'one' | 'many' | 'text',
@@ -84,6 +85,7 @@ VERDICTS = {
 QUESTIONS = [
     {
         'id': 'area',
+        'icon': 'shop',
         'title': 'Чем вы занимаетесь?',
         'type': 'one',
         'required': True,
@@ -100,6 +102,7 @@ QUESTIONS = [
     },
     {
         'id': 'team',
+        'icon': 'people',
         'title': 'Сколько человек работает, включая вас?',
         'type': 'one',
         'required': True,
@@ -112,6 +115,7 @@ QUESTIONS = [
     },
     {
         'id': 'sources',
+        'icon': 'funnel',
         'title': 'Откуда к вам приходят люди?',
         'hint': 'Можно отметить несколько',
         'type': 'many',
@@ -129,6 +133,7 @@ QUESTIONS = [
     },
     {
         'id': 'storage',
+        'icon': 'drawers',
         'title': 'Где сейчас лежат заявки и контакты клиентов?',
         'type': 'one',
         'required': True,
@@ -148,6 +153,7 @@ QUESTIONS = [
     },
     {
         'id': 'lost',
+        'icon': 'leak',
         'title': 'Как часто заявка теряется?',
         'hint': 'Не перезвонили, забыли, ответили через день',
         'type': 'one',
@@ -166,6 +172,7 @@ QUESTIONS = [
     },
     {
         'id': 'reply',
+        'icon': 'clock',
         'title': 'За сколько обычно отвечаете на новую заявку?',
         'type': 'one',
         'required': True,
@@ -181,6 +188,7 @@ QUESTIONS = [
     },
     {
         'id': 'booking',
+        'icon': 'calendar',
         'title': 'Кто ведёт запись и расписание?',
         'type': 'one',
         'required': True,
@@ -198,6 +206,7 @@ QUESTIONS = [
     },
     {
         'id': 'noshow',
+        'icon': 'noshow',
         'title': 'Сколько клиентов не приходит на запись?',
         'type': 'one',
         'required': True,
@@ -214,6 +223,7 @@ QUESTIONS = [
     },
     {
         'id': 'money_view',
+        'icon': 'money',
         'title': 'Как вы понимаете, сколько заработали за месяц?',
         'type': 'one',
         'required': True,
@@ -230,6 +240,7 @@ QUESTIONS = [
     },
     {
         'id': 'repeat',
+        'icon': 'loop',
         'title': 'Клиенты возвращаются сами или про них надо вспоминать?',
         'type': 'one',
         'required': True,
@@ -245,6 +256,7 @@ QUESTIONS = [
     },
     {
         'id': 'vacation',
+        'icon': 'power',
         'title': 'Что будет, если вы уедете на неделю без связи?',
         'type': 'one',
         'required': True,
@@ -260,6 +272,7 @@ QUESTIONS = [
     },
     {
         'id': 'routine',
+        'icon': 'bars',
         'title': 'Сколько часов в неделю уходит на переписки, напоминания и отчёты?',
         'hint': 'Всё, что не сама работа и не общение с клиентом по делу',
         'type': 'one',
@@ -274,6 +287,7 @@ QUESTIONS = [
     },
     {
         'id': 'check',
+        'icon': 'receipt',
         'title': 'Средний чек — сколько платит один клиент за раз?',
         'hint': 'Нужно, чтобы посчитать потери в деньгах. Достаточно примерно',
         'type': 'one',
@@ -288,6 +302,7 @@ QUESTIONS = [
     },
     {
         'id': 'clients',
+        'icon': 'grid',
         'title': 'Сколько клиентов вы обслуживаете за месяц?',
         'type': 'one',
         'required': True,
@@ -301,6 +316,7 @@ QUESTIONS = [
     },
     {
         'id': 'pain',
+        'icon': 'speech',
         'title': 'Что в работе бесит больше всего?',
         'hint': 'Своими словами. Это самый полезный ответ во всём разборе',
         'type': 'text',

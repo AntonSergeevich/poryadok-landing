@@ -736,7 +736,15 @@ select.input{
 .q-steps{padding-block:calc(var(--u)*5) var(--sec)}
 .q-step{border:0;padding:0;margin:0;max-width:62ch}
 .q-step + .q-step{margin-top:calc(var(--u)*8);padding-top:calc(var(--u)*8);border-top:1px solid var(--line)}
+.q-sprite{position:absolute;width:0;height:0;overflow:hidden}
+.q-sprite g{fill:none;stroke:currentColor;stroke-width:1.4;
+  stroke-linecap:square;stroke-linejoin:miter;vector-effect:non-scaling-stroke}
+
 .q-step__legend{display:grid;gap:8px;margin-bottom:calc(var(--u)*3);padding:0}
+.q-step__icon{
+  width:34px;height:34px;color:var(--ink);
+  margin-bottom:calc(var(--u)*.5);
+}
 .q-step__num{
   font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
   letter-spacing:.12em;color:var(--ink);
@@ -746,6 +754,12 @@ select.input{
 .q-step__hint{font:400 var(--t-small)/1.5 var(--f-sans);color:var(--muted);display:block}
 
 .q-opts{display:grid;gap:10px}
+@media (min-width:720px){
+  /* На широком экране длинные списки идут в два столбца — иначе вопрос
+     с семью вариантами выгоняет кнопку за нижний край экрана. */
+  .q-opts{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .q-other{grid-column:1/-1}
+}
 .q-opt{
   display:flex;align-items:flex-start;gap:12px;cursor:pointer;
   border:1px solid var(--line);background:var(--sheet);
@@ -769,7 +783,20 @@ select.input{
 .q-other{margin-top:2px}
 .q-text{min-height:120px;resize:vertical;font-family:var(--f-sans)}
 
-.q-nav{display:flex;flex-wrap:wrap;gap:var(--u);margin-top:calc(var(--u)*3)}
+.q-nav{display:flex;flex-wrap:wrap;align-items:center;gap:var(--u);margin-top:calc(var(--u)*3)}
+.q-keys{
+  font:400 var(--t-tag)/1.4 var(--f-mono);color:var(--muted);
+  letter-spacing:.04em;
+}
+@media (max-width:640px){.q-keys{display:none}}
+
+/* Номер варианта — как на чертеже, слева от подписи */
+.q-opt__key{
+  flex:0 0 auto;font:500 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  min-width:1.1em;padding-top:3px;
+}
+.q-opt:has(input:checked) .q-opt__key{color:var(--ink)}
+@media (max-width:640px){.q-opt__key{display:none}}
 .q-grid{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u)*2)}
 @media (max-width:640px){.q-grid{grid-template-columns:1fr}}
 .q-step--last .check{margin-top:var(--u)}
