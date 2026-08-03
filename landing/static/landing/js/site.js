@@ -73,7 +73,7 @@
       var open = head.classList.toggle('is-open');
       burger.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
-    head.querySelectorAll('.nav a, .head .btn--sm').forEach(function (a) {
+    head.querySelectorAll('.head__menu a').forEach(function (a) {
       a.addEventListener('click', close);
     });
     document.addEventListener('keydown', function (e) {

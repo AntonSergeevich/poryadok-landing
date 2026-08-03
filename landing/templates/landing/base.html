@@ -54,20 +54,22 @@ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
       </svg>
       <span class="logo__word"><i>Системы</i><b>Порядок</b></span>
     </a>
-    <nav class="nav" id="nav" aria-label="Разделы сайта">
-      {% block nav %}
-      <a href="#pains">Боли</a>
-      <a href="#what">Что делаю</a>
-      <a href="#cases">Кейсы</a>
-      <a href="#how">Как работаем</a>
-      <a href="#price">Цена</a>
-      <a href="#faq">Вопросы</a>
-      <a href="{% url 'club' %}">Клуб</a>
-      {% endblock %}
-    </nav>
-    <a class="head__tel" href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>
-    <a class="btn btn--sm" href="{% block head_cta_href %}#cta{% endblock %}">{% block head_cta %}Бесплатный разбор{% endblock %}</a>
-    <button class="burger" id="burger" type="button" aria-expanded="false" aria-controls="nav" aria-label="Меню">
+    <div class="head__menu" id="head-menu">
+      <nav class="nav" aria-label="Разделы сайта">
+        {% block nav %}
+        <a href="#pains">Боли</a>
+        <a href="#what">Что делаю</a>
+        <a href="#cases">Кейсы</a>
+        <a href="#how">Как работаем</a>
+        <a href="#price">Цена</a>
+        <a href="#faq">Вопросы</a>
+        <a href="{% url 'club' %}">Клуб</a>
+        {% endblock %}
+      </nav>
+      <a class="head__tel" href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>
+      <a class="btn btn--sm" href="{% block head_cta_href %}#cta{% endblock %}">{% block head_cta %}Бесплатный разбор{% endblock %}</a>
+    </div>
+    <button class="burger" id="burger" type="button" aria-expanded="false" aria-controls="head-menu" aria-label="Меню">
       <span></span>
     </button>
   </div>

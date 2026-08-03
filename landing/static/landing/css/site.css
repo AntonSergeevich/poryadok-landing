@@ -221,16 +221,39 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .burger[aria-expanded="true"] span::before{top:0;transform:rotate(45deg)}
 .burger[aria-expanded="true"] span::after{top:0;transform:rotate(-45deg)}
 
+/* Меню, телефон и кнопка живут в одной обёртке: на широком экране — строка,
+   на телефоне — выпадающая панель под шапкой. Отдельно позиционировать их
+   нельзя: absolute считается от самой шапки высотой 64px, и кнопка садилась
+   поверх крестика закрытия. */
+.head__menu{display:flex;align-items:center;gap:clamp(14px,1.6vw,26px)}
+
 @media (max-width:960px){
-  .head__in .nav,.head__in .btn--sm{display:none}
   .burger{display:flex}
-  .head.is-open .nav{
-    display:flex;flex-direction:column;gap:0;
+  .head__menu{
+    display:none;
     position:absolute;left:0;right:0;top:100%;
-    background:var(--paper);border-bottom:1px solid var(--line);padding:var(--u) var(--pad) calc(var(--u)*3);
+    flex-direction:column;align-items:stretch;gap:0;
+    background:var(--paper);
+    border-bottom:1px solid var(--graphite);
+    padding:0 var(--pad) calc(var(--u)*3);
+    max-height:calc(100vh - 64px);
+    max-height:calc(100dvh - 64px);
+    overflow-y:auto;
+    box-shadow:0 14px 26px rgba(13,15,14,.10);
   }
-  .head.is-open .nav a{padding:14px 0;border-top:1px solid var(--line);font-size:.8125rem}
-  .head.is-open .btn--sm{display:inline-flex;position:absolute;left:var(--pad);right:var(--pad);bottom:0;justify-content:center}
+  .head.is-open .head__menu{display:flex}
+  .head__menu .nav{flex-direction:column;gap:0}
+  .head__menu .nav a{padding:15px 0;border-top:1px solid var(--line);font-size:.8125rem}
+  .head__menu .nav a::after{display:none}
+  .head__menu .head__tel{
+    display:block;padding:16px 0;
+    border-top:1px solid var(--line);border-bottom:0;
+    font-size:1.0625rem;
+  }
+  .head__menu .btn--sm{
+    justify-content:center;margin-top:calc(var(--u)*2);
+    padding-block:17px;font-size:var(--t-small);
+  }
 }
 
 /* ---------- Первый экран ---------- */
@@ -527,13 +550,9 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   border-bottom:1px solid var(--line);padding-bottom:2px;
 }
 .head__tel:hover{color:var(--ink);border-color:var(--ink)}
+/* На узком десктопе телефон прячется, чтобы не ломать строку.
+   На телефоне он снова появляется — уже внутри выпадающей панели. */
 @media (max-width:1200px){.head__tel{display:none}}
-@media (max-width:960px){
-  .head.is-open .head__tel{
-    display:block;position:absolute;left:var(--pad);bottom:64px;border:0;
-    font-size:1rem;
-  }
-}
 
 /* ---------- Липкая кнопка на телефоне ---------- */
 .dock{
