@@ -4,6 +4,7 @@ import re
 from django import forms
 
 from .models import Lead
+from .survey import QUESTIONS
 
 CONSENT_ERROR = 'Без согласия на обработку данных я не смогу вам позвонить.'
 
@@ -69,21 +70,76 @@ class ClubForm(PhoneMixin, forms.ModelForm):
         return value
 
 
-class AuditForm(PhoneMixin, forms.Form):
-    """Экспресс-проверка выгрузки продаж."""
+class SurveyForm(forms.Form):
+    """Разбор процессов.
 
-    ALLOWED = ('.xlsx', '.xls', '.csv')
-    MAX_BYTES = 5 * 1024 * 1024
+    Поля строятся из landing/survey.py, а не перечисляются здесь: набор
+    вопросов будет меняться, и правка формулировки не должна требовать
+    правки формы. Телефон необязателен — человек может пройти разбор
+    и не оставлять контакт; результат он всё равно увидит.
+    """
 
-    phone = forms.CharField(max_length=32)
-    sales_file = forms.FileField()
+    name = forms.CharField(max_length=120, required=False)
+    phone = forms.CharField(max_length=32, required=False)
+    telegram_username = forms.CharField(max_length=64, required=False)
     consent = forms.BooleanField(required=True, error_messages={'required': CONSENT_ERROR})
+    allow_stories = forms.BooleanField(required=False)
 
-    def clean_sales_file(self):
-        uploaded = self.cleaned_data['sales_file']
-        name = (uploaded.name or '').lower()
-        if not name.endswith(self.ALLOWED):
-            raise forms.ValidationError('Нужен файл .xlsx, .xls или .csv.')
-        if uploaded.size > self.MAX_BYTES:
-            raise forms.ValidationError('Файл больше 5 МБ — пришлите выгрузку поменьше.')
-        return uploaded
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for q in QUESTIONS:
+            self.fields[q['id']] = self._build(q)
+            if q.get('other'):
+                self.fields[q['id'] + '_other'] = forms.CharField(
+                    max_length=300, required=False, strip=True)
+
+    @staticmethod
+    def _build(q):
+        common = {'required': q.get('required', False), 'label': q['title']}
+        common['error_messages'] = {'required': 'Выберите ответ, чтобы идти дальше.'}
+        if q['type'] == 'text':
+            return forms.CharField(max_length=2000, required=q.get('required', False),
+                                   strip=True, label=q['title'],
+                                   widget=forms.Textarea)
+        choices = [(o['value'], o['label']) for o in q['options']]
+        if q.get('other'):
+            choices.append(('other', 'Другое'))
+        if q['type'] == 'many':
+            return forms.MultipleChoiceField(choices=choices, **common)
+        return forms.ChoiceField(choices=choices, **common)
+
+    def clean_phone(self):
+        raw = (self.cleaned_data.get('phone') or '').strip()
+        if not raw:
+            return ''
+        digits = re.sub(r'\D', '', raw)
+        if len(digits) == 11 and digits[0] in '78':
+            digits = digits[1:]
+        if len(digits) != 10:
+            raise forms.ValidationError('Введите номер целиком — 10 цифр после +7.')
+        return '+7' + digits
+
+    def clean(self):
+        data = super().clean()
+        # «Другое» без пояснения — это не ответ.
+        for q in QUESTIONS:
+            if not q.get('other'):
+                continue
+            chosen = data.get(q['id'])
+            picked_other = ('other' == chosen) or (
+                isinstance(chosen, list) and 'other' in chosen)
+            if picked_other and not data.get(q['id'] + '_other'):
+                self.add_error(q['id'] + '_other', 'Напишите свой вариант.')
+        return data
+
+    def answers(self):
+        """Только ответы на вопросы, без имени и контактов."""
+        out = {}
+        for q in QUESTIONS:
+            value = self.cleaned_data.get(q['id'])
+            if value:
+                out[q['id']] = value
+            other = self.cleaned_data.get(q['id'] + '_other')
+            if other:
+                out[q['id'] + '_other'] = other
+        return out

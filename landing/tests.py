@@ -8,9 +8,11 @@ from pathlib import Path
 from django.test import TestCase
 from django.urls import reverse
 
+from . import survey as survey_logic
 from .forms import LeadForm
-from .models import (Client, ClubSubscription, Lead, Payment,
+from .models import (Client, ClubSubscription, Lead, Payment, Survey,
                      format_phone, normalize_phone)
+from .services import analysis
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / 'templates' / 'landing'
 
@@ -122,10 +124,101 @@ class PageTests(TestCase):
             with self.subTest(page=name):
                 self.assertEqual(self.client.get(reverse(name)).status_code, 200)
 
-    def test_audit_result_redirects_when_empty(self):
-        self.assertEqual(self.client.get(reverse('audit_result')).status_code, 302)
+    def test_survey_opens(self):
+        self.assertEqual(self.client.get(reverse('survey')).status_code, 200)
+
+    def test_survey_done_redirects_when_empty(self):
+        self.assertEqual(self.client.get(reverse('survey_done')).status_code, 302)
 
     def test_webhook_rejects_garbage(self):
         response = self.client.post(reverse('yookassa_webhook'),
                                     data='не json', content_type='application/json')
         self.assertEqual(response.status_code, 400)
+
+
+class SurveyTests(TestCase):
+    """Разбор процессов: ответы, подсчёт и оценка потерь."""
+
+    def _answers(self, **over):
+        base = {
+            'area': 'beauty', 'team': '2_5', 'sources': ['word', 'maps'],
+            'storage': 'head', 'lost': 'day', 'reply': 'later',
+            'booking': 'me', 'noshow': 'few3', 'money_view': 'rest',
+            'repeat': 'none', 'vacation': 'stop', 'routine': 'h25',
+            'check': 'c2000', 'clients': 'n100', 'consent': '1',
+        }
+        base.update(over)
+        return base
+
+    def test_survey_saved_without_contacts(self):
+        """Телефон необязателен: человек имеет право просто посмотреть."""
+        response = self.client.post(reverse('survey'), self._answers())
+        self.assertEqual(response.status_code, 302)
+        entry = Survey.objects.get()
+        self.assertEqual(entry.phone, '')
+        self.assertEqual(entry.answers['lost'], 'day')
+        self.assertFalse(Lead.objects.exists())
+
+    def test_phone_creates_lead(self):
+        self.client.post(reverse('survey'),
+                         self._answers(name='Антон', phone='89954412021'))
+        lead = Lead.objects.get()
+        self.assertEqual(lead.source, Lead.Source.SURVEY)
+        self.assertEqual(lead.phone, '+79954412021')
+        self.assertEqual(Survey.objects.get().lead, lead)
+
+    def test_other_needs_explanation(self):
+        """«Другое» без пояснения — не ответ."""
+        response = self.client.post(reverse('survey'), self._answers(area='other'))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Survey.objects.exists())
+
+        self.client.post(reverse('survey'),
+                         self._answers(area='other', area_other='Автосервис'))
+        self.assertEqual(Survey.objects.get().area, 'Автосервис')
+
+    def test_result_page_shown_once(self):
+        self.client.post(reverse('survey'), self._answers())
+        self.assertEqual(self.client.get(reverse('survey_done')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('survey_done')).status_code, 302)
+
+    def test_worst_answers_give_high_scores(self):
+        result = survey_logic.diagnose(self._answers())
+        self.assertEqual(len(result['top']), 3)
+        self.assertTrue(all(item['level'] == 'high' for item in result['top']))
+
+    def test_calm_answers_give_nothing(self):
+        calm = self._answers(storage='crm', lost='never', reply='min15',
+                             booking='online', noshow='few', money_view='report',
+                             repeat='auto', vacation='ok', routine='h3')
+        result = survey_logic.diagnose(calm)
+        self.assertEqual(result['top'], [])
+        self.assertEqual(len(result['healthy']), len(survey_logic.AREAS))
+
+    def test_money_estimate_counts_on_top_of_revenue(self):
+        """Если теряется каждая пятая заявка, теряется не пятая часть
+        выручки, а ещё четверть сверх заработанного."""
+        answers = self._answers(lost='day', noshow='na')  # 20% и без неявок
+        est = survey_logic.estimate(answers)
+        self.assertEqual(est['revenue'], 200000)          # 2000 × 100
+        self.assertEqual(est['lost_money'], 50000)        # 200000 × .2 / .8
+        self.assertEqual(est['noshow_money'], 0)
+
+    def test_estimate_needs_numbers(self):
+        answers = self._answers()
+        answers.pop('check')
+        self.assertIsNone(survey_logic.estimate(answers))
+
+    def test_readable_uses_human_words(self):
+        pairs = dict(survey_logic.readable(self._answers()))
+        self.assertEqual(pairs['Как часто заявка теряется?'],
+                         'Каждый день что-то теряется')
+
+    def test_export_hides_personal_data(self):
+        """В выгрузку для нейросети не должны попадать имя и телефон."""
+        self.client.post(reverse('survey'),
+                         self._answers(name='Антон', phone='89954412021'))
+        text = analysis.as_text(Survey.objects.all())
+        self.assertNotIn('Антон', text)
+        self.assertNotIn('9954412021', text)
+        self.assertIn('Каждый день что-то теряется', text)

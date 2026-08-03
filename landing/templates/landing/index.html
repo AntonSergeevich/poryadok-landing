@@ -404,53 +404,32 @@
   <div class="wrap">
     <div class="tool rv">
       <div class="tool__head">
-        <span class="tag tag--ink">Лист 08 · Если у вас уже есть выгрузка</span>
-        <h2>Посмотреть цифры прямо сейчас</h2>
+        <span class="tag tag--ink">Лист 08 · Разбор за три минуты</span>
+        <h2>Посмотреть на свой бизнес со стороны</h2>
         <p class="small">
-          Загрузите таблицу продаж или выгрузку из CRM (.xlsx или .csv). Посчитаю конверсию
-          и сумму по сделкам, которые не дошли до оплаты. Файл нигде не сохраняется —
-          он разбирается в памяти и сразу забывается.
+          Пятнадцать вопросов о том, как у вас устроены заявки, запись, деньги и время.
+          В конце — где именно утекают деньги и часы, с оценкой в рублях.
+          Отвечать можно без имени и телефона: результат вы увидите в любом случае.
         </p>
       </div>
 
-      <form class="tool__body form" method="POST" action="{% url 'express_audit' %}" enctype="multipart/form-data" novalidate>
-        {% csrf_token %}
-
-        <div class="field">
-          <label for="sales-file">Файл продаж</label>
-          <div class="drop" id="drop" role="button" tabindex="0" aria-controls="sales-file">
-            <input type="file" id="sales-file" name="sales_file" required accept=".xlsx,.xls,.csv" hidden>
-            <div id="drop-idle">
-              <p class="drop__mark" aria-hidden="true">↓</p>
-              <p>Перетащите файл сюда или <u>выберите на компьютере</u></p>
-              <p class="small mono" style="margin-top:6px">.xlsx · .xls · .csv · нужны столбцы «Сумма» и «Статус»</p>
-            </div>
-            <p id="drop-filled" class="mono" hidden>Файл: <b id="drop-name"></b></p>
-          </div>
-        </div>
-
+      <div class="tool__body">
+        <ul class="tool__list">
+          <li>Пятнадцать вопросов, все с готовыми ответами — три минуты</li>
+          <li>Сразу видно, какие три вещи чинить первыми</li>
+          <li>Оценка потерь в рублях и часах по вашим же цифрам</li>
+          <li>Это и есть начало бесплатного разбора — мне не придётся спрашивать заново</li>
+        </ul>
         <div class="tool__row">
-          <div class="field" data-validate="phone">
-            <label for="check-phone">Телефон — пришлю разбор цифр</label>
-            <input class="input" type="tel" id="check-phone" name="phone" required
-                   inputmode="tel" autocomplete="tel" placeholder="+7 (___) ___-__-__"
-                   aria-describedby="check-phone-err">
-            <p class="err" id="check-phone-err">Введите номер полностью — 10 цифр после +7.</p>
-          </div>
-          <button class="btn" type="submit">Посчитать <span class="arrow" aria-hidden="true">→</span></button>
+          <a class="btn" href="{% url 'survey' %}">Пройти разбор <span class="arrow" aria-hidden="true">→</span></a>
         </div>
-
-        <label class="check">
-          <input type="checkbox" name="consent" value="1" required>
-          <span>Согласен на обработку персональных данных и с <a href="{% url 'privacy' %}">политикой конфиденциальности</a></span>
-        </label>
-      </form>
+      </div>
     </div>
 
     <div class="stamp" aria-hidden="true">
       <span class="s-num">Лист 08</span>
-      <span class="s-name">Экспресс-проверка</span>
-      <span class="s-scale">.xlsx / .csv</span>
+      <span class="s-name">Разбор процессов</span>
+      <span class="s-scale">15 вопросов</span>
       <span class="s-org">С-Порядок</span>
     </div>
   </div>

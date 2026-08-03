@@ -1,0 +1,137 @@
+{% extends "landing/base.html" %}
+
+{% block title %}Что показал разбор — Системы Порядок{% endblock %}
+{% block description %}Результат разбора процессов: где утекают деньги и часы и что чинить первым.{% endblock %}
+
+{% block nav %}
+<a href="{% url 'index' %}#what">Что делаю</a>
+<a href="{% url 'index' %}#cases">Кейсы</a>
+<a href="{% url 'index' %}#price">Цена</a>
+<a href="{% url 'club' %}">Клуб</a>
+{% endblock %}
+{% block head_cta_href %}{% url 'index' %}#cta{% endblock %}
+
+{% block content %}
+<section class="sheet sheet--first">
+  <div class="wrap">
+    <span class="tag tag--ink">Лист 00 · Результат</span>
+    <h1 class="q-title">
+      {% if result.top %}Вот что видно по вашим ответам{% else %}У вас на удивление ровно{% endif %}
+    </h1>
+
+    {% if result.top %}
+    <p class="lead">
+      Это не приговор и не продажа. Это то, что я увидел бы на первой встрече —
+      только без встречи.
+    </p>
+    {% else %}
+    <p class="lead">
+      По ответам выраженных провалов не набралось. Такое бывает редко и обычно
+      означает, что порядок вы уже навели сами.
+    </p>
+    {% endif %}
+  </div>
+</section>
+
+{% if result.estimate and result.estimate.total_money %}
+<section class="sheet">
+  <div class="wrap">
+    <div class="res-money rv">
+      <p class="res-money__label mono">Оценка потерь, грубо</p>
+      <p class="res-money__fig">≈ {{ result.estimate.total_money|floatformat:0 }} ₽ <span>в месяц</span></p>
+      <ul class="res-money__parts">
+        {% if result.estimate.lost_money %}
+        <li><b>{{ result.estimate.lost_money|floatformat:0 }} ₽</b> — на заявках, до которых не дошли руки</li>
+        {% endif %}
+        {% if result.estimate.noshow_money %}
+        <li><b>{{ result.estimate.noshow_money|floatformat:0 }} ₽</b> — на клиентах, которые записались и не пришли</li>
+        {% endif %}
+        {% if result.estimate.hours_month %}
+        <li><b>{{ result.estimate.hours_month }} часов</b> вашего времени уходит на рутину</li>
+        {% endif %}
+      </ul>
+      <p class="small">
+        Считал по вашим же цифрам — среднему чеку и числу клиентов. Оценка грубая:
+        она нужна не для точности, а чтобы увидеть порядок величины. На встрече
+        посчитаем по факту.
+      </p>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if result.top %}
+<section class="sheet">
+  <div class="wrap">
+    <h2 class="res-h">Что чинить, по порядку</h2>
+    <ol class="res-list">
+      {% for item in result.top %}
+      <li class="res-item rv">
+        <span class="res-item__num mono">{{ forloop.counter }}</span>
+        <div>
+          <h3>{{ item.title }}</h3>
+          <p>{{ item.text }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+
+    {% if result.healthy %}
+    <p class="small res-ok">
+      Держится хорошо: {% for name in result.healthy %}{{ name|lower }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+      Это не мелочь — значит трогать там нечего.
+    </p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="sheet" id="cta">
+  <div class="wrap">
+    <div class="res-next rv">
+      {% if left_contact %}
+      <h2>Записал. Позвоню сам</h2>
+      <p class="lead">
+        {{ entry.name|default:"Ваши" }} ответы у меня. Свяжусь по номеру
+        {{ entry.phone_pretty }} — обычно в тот же день, максимум на следующий.
+      </p>
+      <p class="small">
+        На разборе не будет презентации. Разберём ваш первый пункт —
+        {% if result.first_step %}«{{ result.first_step|lower }}»{% else %}то, что мешает больше всего{% endif %} —
+        и скажу честно, нужна вам система или хватит навести порядок руками.
+        Второе бывает чаще, чем кажется.
+      </p>
+      {% else %}
+      <h2>Хотите разобрать это вживую?</h2>
+      <p class="lead">
+        Сорок пять минут, бесплатно, без презентации. Разберём ваш первый пункт
+        {% if result.first_step %}— «{{ result.first_step|lower }}» —{% endif %}
+        и я скажу честно, нужна вам система или хватит навести порядок руками.
+      </p>
+      <p>
+        <a class="btn btn--lg" href="{% url 'index' %}#cta">Оставить заявку <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn--ghost btn--lg" href="tel:{{ SITE_PHONE }}">Позвонить: {{ SITE_PHONE_PRETTY }}</a>
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="wrap">
+    <details class="res-dump">
+      <summary>Показать мои ответы</summary>
+      <dl class="res-answers">
+        {% for question, said in entry.readable %}
+        <dt>{{ question }}</dt>
+        <dd>{{ said }}</dd>
+        {% endfor %}
+      </dl>
+      <p class="small">
+        Ответы сохранены. Удалить их можно в любой момент — напишите или позвоните,
+        уберу и подтвержу.
+      </p>
+    </details>
+  </div>
+</section>
+{% endblock %}

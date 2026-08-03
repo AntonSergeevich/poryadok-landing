@@ -393,14 +393,6 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .tool__head{padding:clamp(22px,3vw,34px);border-bottom:1px solid var(--line)}
 .tool__head h2{font-size:clamp(1.35rem,1.05rem + 1.2vw,1.875rem);margin:calc(var(--u)*2) 0 10px}
 .tool__body{padding:clamp(22px,3vw,34px);display:grid;gap:calc(var(--u)*2)}
-.drop{
-  border:1px dashed var(--line);background:var(--paper);padding:clamp(24px,4vw,40px) 20px;
-  text-align:center;cursor:pointer;transition:border-color .16s,background .16s;
-}
-.drop:hover,.drop.is-over{border-color:var(--ink);background:var(--ink-wash)}
-.drop__mark{font:500 1.25rem/1 var(--f-mono);color:var(--ink);margin-bottom:10px}
-.drop p{font:400 var(--t-small)/1.5 var(--f-mono);color:var(--muted)}
-.drop u{color:var(--ink)}
 .tool__row{display:grid;grid-template-columns:1fr auto;gap:var(--u) calc(var(--u)*2);align-items:end}
 @media (max-width:640px){.tool__row{grid-template-columns:1fr}}
 
@@ -699,3 +691,145 @@ select.input{
 }
 .doc__list li::before{content:"—";position:absolute;left:0;color:var(--graphite)}
 .note b{font-weight:500}
+
+
+/* ---------- Разбор процессов: тест ---------- */
+/* Логика такая же, как у чертежа: один вопрос — один лист, номер слева,
+   выбранный вариант обведён синим. Без JS все листы просто идут подряд. */
+
+.tool__list{display:grid;gap:10px;margin:0}
+.tool__list li{
+  position:relative;padding-left:22px;
+  font-size:var(--t-small);line-height:1.6;color:var(--muted);
+}
+.tool__list li::before{
+  content:"—";position:absolute;left:0;color:var(--ink);font-family:var(--f-mono);
+}
+
+.q-title{font-size:var(--t-h1);
+  font-weight:600;line-height:1.04;letter-spacing:-.025em;margin-bottom:calc(var(--u)*3)}
+.q-alert{
+  border:1px solid var(--ink);background:var(--ink-wash);color:var(--ink);
+  padding:14px 16px;font:400 var(--t-small)/1.5 var(--f-mono);
+  margin-bottom:calc(var(--u)*3);
+}
+.err--on{display:block}
+
+/* Полоса прогресса — прилипает под шапкой */
+.q-bar{
+  position:sticky;top:64px;z-index:40;
+  background:var(--paper);border-bottom:1px solid var(--line);
+  padding-block:12px;
+}
+.q-bar__in{display:flex;align-items:center;gap:calc(var(--u)*2)}
+.q-bar__num{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted);white-space:nowrap;
+}
+.q-bar__num b{color:var(--graphite)}
+.q-bar__track{flex:1;height:2px;background:var(--line);position:relative}
+.q-bar__fill{
+  position:absolute;inset:0 auto 0 0;width:0;background:var(--ink);
+  transition:width .22s ease;
+}
+
+.q-steps{padding-block:calc(var(--u)*5) var(--sec)}
+.q-step{border:0;padding:0;margin:0;max-width:62ch}
+.q-step + .q-step{margin-top:calc(var(--u)*8);padding-top:calc(var(--u)*8);border-top:1px solid var(--line)}
+.q-step__legend{display:grid;gap:8px;margin-bottom:calc(var(--u)*3);padding:0}
+.q-step__num{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.12em;color:var(--ink);
+}
+.q-step__title{font-size:clamp(1.25rem,1rem + 1.1vw,1.75rem);font-weight:600;
+  line-height:1.2;letter-spacing:-.015em;display:block}
+.q-step__hint{font:400 var(--t-small)/1.5 var(--f-sans);color:var(--muted);display:block}
+
+.q-opts{display:grid;gap:10px}
+.q-opt{
+  display:flex;align-items:flex-start;gap:12px;cursor:pointer;
+  border:1px solid var(--line);background:var(--sheet);
+  padding:14px 16px;transition:border-color .14s ease,background .14s ease;
+}
+.q-opt:hover{border-color:var(--graphite)}
+.q-opt input{
+  appearance:none;-webkit-appearance:none;flex:0 0 auto;
+  width:18px;height:18px;margin-top:1px;border:1px solid var(--graphite);
+  background:var(--sheet);cursor:pointer;position:relative;
+}
+.q-opt input[type=radio]{border-radius:50%}
+.q-opt input:checked{border-color:var(--ink)}
+.q-opt input:checked::after{
+  content:"";position:absolute;inset:3px;background:var(--ink);
+}
+.q-opt input[type=radio]:checked::after{border-radius:50%}
+.q-opt input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.q-opt span{font-size:1rem;line-height:1.4}
+.q-opt:has(input:checked){border-color:var(--ink);background:var(--ink-wash)}
+.q-other{margin-top:2px}
+.q-text{min-height:120px;resize:vertical;font-family:var(--f-sans)}
+
+.q-nav{display:flex;flex-wrap:wrap;gap:var(--u);margin-top:calc(var(--u)*3)}
+.q-grid{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u)*2)}
+@media (max-width:640px){.q-grid{grid-template-columns:1fr}}
+.q-step--last .check{margin-top:var(--u)}
+.btn--lg{padding:17px 26px;font-size:1rem}
+
+/* Со скриптом виден один лист за раз */
+.q-js .q-step{display:none}
+.q-js .q-step.is-now{display:block;animation:q-in .2s ease}
+.q-js .q-step + .q-step{margin-top:0;padding-top:0;border-top:0}
+@keyframes q-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .q-js .q-step.is-now{animation:none}
+  .q-bar__fill{transition:none}
+}
+
+/* ---------- Разбор процессов: результат ---------- */
+.res-money{border:1px solid var(--graphite);background:var(--sheet);padding:clamp(24px,4vw,44px)}
+.res-money__label{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.12em;color:var(--muted);
+}
+.res-money__fig{
+  font-family:var(--f-sans);font-weight:600;letter-spacing:-.03em;line-height:1;
+  font-size:clamp(2.2rem,1.2rem + 4.4vw,4.5rem);
+  color:var(--ink);margin:calc(var(--u)*2) 0 calc(var(--u)*3);
+}
+.res-money__fig span{font-size:.3em;font-weight:400;color:var(--muted);letter-spacing:0}
+.res-money__parts{display:grid;gap:10px;margin-bottom:calc(var(--u)*3)}
+.res-money__parts li{
+  position:relative;padding-left:22px;font-size:var(--t-small);
+  line-height:1.6;color:var(--muted);
+}
+.res-money__parts li::before{content:"—";position:absolute;left:0;color:var(--graphite);font-family:var(--f-mono)}
+.res-money__parts b{color:var(--graphite);font-weight:600}
+
+.res-h{margin-bottom:calc(var(--u)*4)}
+.res-list{display:grid;gap:calc(var(--u)*3);counter-reset:none;list-style:none}
+.res-item{
+  display:grid;grid-template-columns:auto 1fr;gap:calc(var(--u)*2);
+  border-left:2px solid var(--ink);padding-left:calc(var(--u)*2);
+}
+.res-item__num{
+  font:500 1.25rem/1 var(--f-mono);color:var(--ink);
+}
+.res-item h3{font-size:1.125rem;font-weight:600;margin-bottom:8px}
+.res-item p{color:var(--muted);line-height:1.65;font-size:var(--t-small)}
+.res-ok{margin-top:calc(var(--u)*4)}
+
+.res-next{border:1px solid var(--graphite);background:var(--sheet);padding:clamp(24px,4vw,44px)}
+.res-next h2{margin-bottom:calc(var(--u)*2)}
+.res-next .btn{margin-top:calc(var(--u)*2);margin-right:var(--u)}
+
+.res-dump summary{
+  cursor:pointer;font:500 var(--t-tag)/1 var(--f-mono);
+  text-transform:uppercase;letter-spacing:.12em;color:var(--ink);
+  padding:14px 0;
+}
+.res-answers{margin-top:calc(var(--u)*2);max-width:74ch}
+.res-answers dt{
+  font:500 var(--t-tag)/1.4 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);margin-top:calc(var(--u)*2);
+}
+.res-answers dd{font-size:var(--t-small);line-height:1.6;margin-top:4px}

@@ -1,0 +1,143 @@
+{% extends "landing/base.html" %}
+{% load static %}
+
+{% block title %}Разбор процессов — Системы Порядок{% endblock %}
+{% block description %}Пятнадцать вопросов о заявках, записи, деньгах и времени. В конце — где утекают деньги и часы, с оценкой в рублях. Три минуты, без имени и телефона.{% endblock %}
+{% block og_title %}Посмотреть на свой бизнес со стороны — за три минуты{% endblock %}
+{% block og_description %}Пятнадцать вопросов о том, как устроены заявки, запись, деньги и время. В конце — что чинить первым.{% endblock %}
+
+{% block nav %}
+<a href="{% url 'index' %}#pains">Боли</a>
+<a href="{% url 'index' %}#what">Что делаю</a>
+<a href="{% url 'index' %}#cases">Кейсы</a>
+<a href="{% url 'index' %}#price">Цена</a>
+<a href="{% url 'club' %}">Клуб</a>
+{% endblock %}
+{% block head_cta_href %}#q-start{% endblock %}
+{% block head_cta %}Начать разбор{% endblock %}
+{% block dock_href %}#q-start{% endblock %}
+{% block dock_cta %}Начать разбор{% endblock %}
+
+{% block content %}
+<section class="sheet sheet--first">
+  <div class="wrap">
+    <span class="tag tag--ink">Лист 00 · Разбор процессов</span>
+    <h1 class="q-title">Пятнадцать вопросов о том,<br>как у вас всё устроено</h1>
+    <p class="lead">
+      Про заявки, запись, деньги и время. Все ответы готовые — нажимать, не писать.
+      В конце покажу, где утекают деньги и часы, и что чинить первым.
+    </p>
+    <p class="small">
+      Три минуты. Имя и телефон в конце — по желанию: результат вы увидите в любом случае.
+    </p>
+  </div>
+</section>
+
+<form class="q" id="q-start" method="POST" action="{% url 'survey' %}" novalidate>
+  {% csrf_token %}
+
+  {% if form.errors %}
+  <div class="wrap">
+    <p class="q-alert" role="alert">
+      Кое-где не хватает ответа — отмечены ниже.
+    </p>
+  </div>
+  {% endif %}
+
+  {# Полоса прогресса. Без JS не показывается: шагов там нет, форма одна. #}
+  <div class="q-bar" id="q-bar" hidden>
+    <div class="wrap q-bar__in">
+      <span class="q-bar__num mono">Вопрос <b id="q-now">1</b> из {{ total }}</span>
+      <span class="q-bar__track"><span class="q-bar__fill" id="q-fill"></span></span>
+    </div>
+  </div>
+
+  <div class="wrap q-steps" id="q-steps">
+
+    {% for step in steps %}
+    <fieldset class="q-step" data-step="{{ forloop.counter }}">
+      <legend class="q-step__legend">
+        <span class="q-step__num mono">{{ forloop.counter }} / {{ total }}</span>
+        <span class="q-step__title">{{ step.q.title }}</span>
+        {% if step.q.hint %}<span class="q-step__hint">{{ step.q.hint }}</span>{% endif %}
+      </legend>
+
+      {% if step.field.errors %}<p class="err err--on">{{ step.field.errors.0 }}</p>{% endif %}
+
+      {% if step.is_text %}
+        <textarea class="input q-text" name="{{ step.q.id }}" rows="4"
+                  placeholder="Своими словами, как есть">{{ step.field.value|default_if_none:'' }}</textarea>
+      {% else %}
+        <div class="q-opts">
+          {% for opt in step.options %}
+          <label class="q-opt{% if opt.is_other %} q-opt--other{% endif %}">
+            <input type="{% if step.many %}checkbox{% else %}radio{% endif %}"
+                   name="{{ step.q.id }}" value="{{ opt.value }}"
+                   {% if opt.checked %}checked{% endif %}>
+            <span>{{ opt.label }}</span>
+          </label>
+          {% endfor %}
+
+          {% if step.other_name %}
+          {% if step.other_error %}<p class="err err--on">{{ step.other_error.0 }}</p>{% endif %}
+          <input class="input q-other" type="text" name="{{ step.other_name }}"
+                 placeholder="Напишите свой вариант" value="{{ step.other_value }}"
+                 aria-label="Свой вариант ответа на вопрос «{{ step.q.title }}»">
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <div class="q-nav">
+        <button class="btn btn--ghost q-back" type="button" hidden>Назад</button>
+        <button class="btn q-next" type="button" hidden>Дальше <span class="arrow" aria-hidden="true">→</span></button>
+      </div>
+    </fieldset>
+    {% endfor %}
+
+    {# Последний шаг: контакты. Необязательные. #}
+    <fieldset class="q-step q-step--last" data-step="{{ total|add:1 }}">
+      <legend class="q-step__legend">
+        <span class="q-step__num mono">Последний шаг</span>
+        <span class="q-step__title">Куда прислать разбор?</span>
+        <span class="q-step__hint">Можно пропустить — результат откроется сразу после кнопки</span>
+      </legend>
+
+      <div class="q-grid">
+        <div class="field">
+          <label for="s-name">Имя</label>
+          <input class="input" type="text" id="s-name" name="name" maxlength="120"
+                 autocomplete="given-name" placeholder="Как к вам обращаться"
+                 value="{{ form.name.value|default_if_none:'' }}">
+        </div>
+
+        <div class="field{% if form.phone.errors %} is-bad{% endif %}" data-validate="phone-soft">
+          <label for="s-phone">Телефон</label>
+          <input class="input" type="tel" id="s-phone" name="phone" inputmode="tel"
+                 autocomplete="tel" placeholder="+7 (___) ___-__-__"
+                 value="{{ form.phone.value|default_if_none:'' }}">
+          {% if form.phone.errors %}<p class="err err--on">{{ form.phone.errors.0 }}</p>{% endif %}
+          <p class="small">Оставите — позвоню и разберём вживую. Не оставите — просто увидите результат.</p>
+        </div>
+      </div>
+
+      <label class="check{% if form.consent.errors %} is-bad{% endif %}">
+        <input type="checkbox" name="consent" value="1" {% if form.consent.value %}checked{% endif %}>
+        <span>Согласен на обработку персональных данных и с
+          <a href="{% url 'privacy' %}">политикой конфиденциальности</a></span>
+      </label>
+      {% if form.consent.errors %}<p class="err err--on">{{ form.consent.errors.0 }}</p>{% endif %}
+
+      <label class="check">
+        <input type="checkbox" name="allow_stories" value="1" {% if form.allow_stories.value %}checked{% endif %}>
+        <span>Разрешаю использовать мои ответы как обезличенный пример —
+          без имени, названия и контактов</span>
+      </label>
+
+      <div class="q-nav">
+        <button class="btn btn--ghost q-back" type="button" hidden>Назад</button>
+        <button class="btn btn--lg" type="submit">Показать разбор <span class="arrow" aria-hidden="true">→</span></button>
+      </div>
+    </fieldset>
+  </div>
+</form>
+{% endblock %}

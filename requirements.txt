@@ -3,6 +3,4 @@
 Django>=5.2,<7.0
 requests>=2.32
 python-dotenv>=1.0
-pandas>=2.2
-openpyxl>=3.1
 gunicorn>=23.0

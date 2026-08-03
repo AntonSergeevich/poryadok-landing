@@ -14,15 +14,12 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-# pandas сознательно НЕ импортируется здесь. Он тянет за собой numpy и стоит
-# около 50 МБ в каждом воркере gunicorn — а нужен ровно одной странице,
-# экспресс-проверке файла. Импорт живёт внутри express_audit, поэтому обычные
-# посетители за него не платят. См. DEPLOY.md, раздел про память.
-
-from .forms import AuditForm, ClubForm, LeadForm
-from .models import Client, ClubSubscription, Lead, Payment, normalize_phone
+from .forms import ClubForm, LeadForm, SurveyForm
+from .models import (Client, ClubSubscription, Lead, Payment, Survey,
+                     normalize_phone)
 from .services import payments as pay
 from .services import telegram as tg
+from .survey import QUESTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -205,93 +202,102 @@ def _grant_club_access(payment):
     )
 
 
-def express_audit(request):
-    """Быстрый расчёт по выгрузке продаж.
+def survey(request):
+    """Разбор процессов: тест из landing/survey.py.
 
-    pandas импортируется здесь, а не наверху файла: иначе он висел бы
-    в памяти каждого воркера ради страницы, которую открывают редко.
+    Работает и без JS: тогда это одна длинная форма. Со скриптом вопросы
+    показываются по одному. Контакт необязателен — человек имеет право
+    просто посмотреть на себя со стороны, и это честнее, чем держать
+    результат в заложниках.
     """
-    if request.method != 'POST':
-        return redirect('index')
+    form = SurveyForm(request.POST or None)
 
-    import pandas as pd
+    if request.method == 'POST' and form.is_valid():
+        entry = Survey.objects.create(
+            name=form.cleaned_data.get('name', '').strip(),
+            phone=form.cleaned_data.get('phone', ''),
+            telegram_username=form.cleaned_data.get('telegram_username', ''),
+            answers=form.answers(),
+            allow_stories=form.cleaned_data.get('allow_stories', False),
+        )
 
-    form = AuditForm(request.POST, request.FILES)
-    if not form.is_valid():
-        first_error = next(iter(form.errors.values()))[0]
-        request.session['audit_error'] = first_error
-        return redirect('audit_result')
+        # Заявку заводим только если оставили телефон — иначе звонить некуда.
+        if entry.phone:
+            lead = Lead.objects.create(
+                name=entry.name, phone=entry.phone,
+                telegram_username=entry.telegram_username,
+                area=entry.area, source=Lead.Source.SURVEY,
+                comment='Прошёл разбор процессов на сайте.')
+            entry.lead = lead
+            entry.save(update_fields=['lead', 'updated_at'])
 
-    uploaded = form.cleaned_data['sales_file']
-    phone = form.cleaned_data['phone']
+        try:
+            entry.delivered_to_telegram = tg.notify_survey(entry)
+        except Exception:
+            logger.exception('Не удалось уведомить о разборе %s', entry.pk)
+            entry.delivered_to_telegram = False
+        entry.save(update_fields=['delivered_to_telegram', 'updated_at'])
+        if entry.lead:
+            entry.lead.delivered_to_telegram = entry.delivered_to_telegram
+            entry.lead.save(update_fields=['delivered_to_telegram', 'updated_at'])
 
+        request.session['survey_id'] = entry.pk
+        return redirect('survey_done')
+
+    return render(request, 'landing/survey.html', {
+        'form': form,
+        'steps': _survey_steps(form),
+        'total': len(QUESTIONS),
+    })
+
+
+def _survey_steps(form):
+    """Готовит вопросы к отрисовке.
+
+    Разметку вариантов пишем руками, а не через {{ field }}, — значит
+    отметку «выбрано» надо посчитать здесь. В шаблоне логике не место.
+    """
+    data = form.data if form.is_bound else {}
+    steps = []
+    for q in QUESTIONS:
+        chosen = data.getlist(q['id']) if hasattr(data, 'getlist') else []
+        options = [{
+            'value': o['value'],
+            'label': o['label'],
+            'checked': o['value'] in chosen,
+        } for o in q.get('options', [])]
+        if q.get('other'):
+            options.append({'value': 'other', 'label': 'Другое',
+                            'checked': 'other' in chosen, 'is_other': True})
+        steps.append({
+            'q': q,
+            'field': form[q['id']],
+            'many': q['type'] == 'many',
+            'is_text': q['type'] == 'text',
+            'options': options,
+            'other_name': q['id'] + '_other' if q.get('other') else '',
+            'other_value': data.get(q['id'] + '_other', '') if data else '',
+            'other_error': (form[q['id'] + '_other'].errors
+                            if q.get('other') and form.is_bound else None),
+        })
+    return steps
+
+
+def survey_done(request):
+    """Результат разбора. Показывается один раз, по метке в сессии."""
+    entry_id = request.session.pop('survey_id', None)
+    if not entry_id:
+        return redirect('survey')
     try:
-        if uploaded.name.lower().endswith('.csv'):
-            df = pd.read_csv(uploaded)
-        else:
-            df = pd.read_excel(uploaded)
+        entry = Survey.objects.get(pk=entry_id)
+    except Survey.DoesNotExist:
+        return redirect('survey')
 
-        df.columns = [str(col).strip().lower() for col in df.columns]
-        col_sum = next((c for c in df.columns
-                        if 'сумма' in c or 'чек' in c or 'amount' in c), None)
-        col_status = next((c for c in df.columns
-                           if 'статус' in c or 'этап' in c or 'status' in c), None)
-        col_manager = next((c for c in df.columns
-                            if 'менеджер' in c or 'ответственный' in c), None)
-
-        if not col_sum or not col_status:
-            request.session['audit_error'] = (
-                'Не нашёл нужных столбцов. Назовите их «Сумма» и «Статус» — '
-                'и загрузите файл заново.')
-            return redirect('audit_result')
-
-        df[col_sum] = pd.to_numeric(
-            df[col_sum].astype(str).str.replace(r'[^\d.]', '', regex=True),
-            errors='coerce').fillna(0)
-
-        total_leads = len(df)
-        won = df[col_status].astype(str).str.contains(
-            'оплач|успеш|закрыт|продано', case=False, na=False)
-        lost = df[col_status].astype(str).str.contains(
-            'отказ|отмен|слив|потер|брак', case=False, na=False)
-
-        metrics = {
-            'total_leads': total_leads,
-            'total_revenue': f'{float(df[won][col_sum].sum()):,.0f}'.replace(',', ' '),
-            'lost_revenue': f'{float(df[lost][col_sum].sum()):,.0f}'.replace(',', ' '),
-            'conversion': round(won.sum() / total_leads * 100, 1) if total_leads else 0,
-            'top_loser': (str(df[lost].groupby(col_manager)[col_sum].sum().idxmax())
-                          if col_manager and lost.any() else 'Не определён'),
-        }
-    except Exception:
-        logger.exception('Не удалось разобрать файл %s', uploaded.name)
-        request.session['audit_error'] = (
-            'Файл не удалось прочитать. Проверьте, что это обычная таблица '
-            'с заголовками в первой строке.')
-        return redirect('audit_result')
-
-    lead = Lead.objects.create(
-        phone=phone, source=Lead.Source.AUDIT,
-        comment=(f'Файл: {uploaded.name}. Обращений {metrics["total_leads"]}, '
-                 f'конверсия {metrics["conversion"]}%, '
-                 f'не дошло до оплаты {metrics["lost_revenue"]} ₽.'))
-    try:
-        lead.delivered_to_telegram = tg.notify_lead(lead)
-        lead.save(update_fields=['delivered_to_telegram', 'updated_at'])
-    except Exception:
-        logger.exception('Не удалось уведомить о проверке %s', lead.pk)
-
-    request.session['audit_result'] = metrics
-    request.session.pop('audit_error', None)
-    return redirect('audit_result')
-
-
-def audit_result_view(request):
-    result = request.session.pop('audit_result', None)
-    error = request.session.pop('audit_error', None)
-    if not result and not error:
-        return redirect('index')
-    return render(request, 'landing/audit_result.html', {'result': result, 'error': error})
+    return render(request, 'landing/survey_done.html', {
+        'entry': entry,
+        'result': entry.diagnose(),
+        'left_contact': bool(entry.phone),
+    })
 
 
 def privacy(request):
@@ -308,7 +314,7 @@ def robots_txt(request):
     lines = [
         'User-agent: *',
         'Disallow: /admin/',
-        'Disallow: /audit-result/',
+        'Disallow: /razbor/gotovo/',
         'Allow: /',
         f'Sitemap: {request.scheme}://{host}/sitemap.xml',
     ]
@@ -316,7 +322,7 @@ def robots_txt(request):
 
 
 def sitemap_xml(request):
-    paths = ['', 'club/', 'privacy/']
+    paths = ['', 'razbor/', 'club/', 'privacy/']
     base = f'{request.scheme}://{request.get_host()}/'
     urls = ''.join(f'<url><loc>{base}{p}</loc></url>' for p in paths)
     xml = ('<?xml version="1.0" encoding="UTF-8"?>'

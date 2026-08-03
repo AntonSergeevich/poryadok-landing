@@ -71,6 +71,49 @@ def notify_lead(lead):
     return notify('\n'.join(lines))
 
 
+def notify_survey(entry):
+    """Уведомление о пройденном разборе.
+
+    В сообщение идут главные боли и оценка потерь — то, с чего начинать
+    разговор. Полные ответы лежат в админке, дублировать их в чат незачем.
+    """
+    result = entry.diagnose()
+    lines = [
+        'ПОРЯДОК // РАЗБОР ПРОЦЕССОВ',
+        '-' * 32,
+        f'Имя: {entry.name or "не назвал"}',
+        f'Телефон: {entry.phone_pretty or "не оставил"}',
+    ]
+    if entry.telegram_username:
+        lines.append(f'Telegram: @{entry.telegram_username}')
+    if entry.area:
+        lines.append(f'Сфера: {entry.area}')
+
+    lines += ['-' * 32, 'Главные боли:']
+    if result['top']:
+        for i, item in enumerate(result['top'], 1):
+            lines.append(f'{i}. {item["title"]} ({item["points"]})')
+    else:
+        lines.append('— выраженных не набралось')
+
+    money = result.get('estimate')
+    if money and money['total_money']:
+        lines += [
+            '-' * 32,
+            f'Оценка потерь: около {money["total_money"]:,.0f} руб. в месяц'.replace(',', ' '),
+            f'Рутина: около {money["hours_month"]} часов в месяц',
+        ]
+
+    pain = entry.answers.get('pain')
+    if pain:
+        lines += ['-' * 32, 'Своими словами:', pain[:600]]
+
+    lines += ['-' * 32]
+    lines.append('Примеры разрешил' if entry.allow_stories else 'Примеры НЕ разрешил')
+    lines.append('Полные ответы — в админке.')
+    return notify('\n'.join(lines))
+
+
 def create_club_invite(name_hint=''):
     """Одноразовая ссылка-приглашение в закрытый канал.
 

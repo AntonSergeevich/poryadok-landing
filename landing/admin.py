@@ -8,7 +8,8 @@ from django.contrib import admin, messages
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import Client, ClubSubscription, Lead, Payment, Project, format_phone
+from .models import (Client, ClubSubscription, Lead, Payment, Project, Survey,
+                     format_phone)
 from .services import telegram as tg
 
 admin.site.site_header = 'Порядок — рабочий стол'
@@ -241,3 +242,106 @@ class ClubSubscriptionAdmin(admin.ModelAdmin):
             self.message_user(request,
                               'Ни одной ссылки создать не вышло — проверьте настройки бота.',
                               level=messages.ERROR)
+
+
+@admin.register(Survey)
+class SurveyAdmin(admin.ModelAdmin):
+    """Разборы процессов.
+
+    Смотреть их приходится перед звонком, поэтому главное — увидеть три
+    боли и оценку потерь прямо в списке, не открывая карточку.
+    """
+
+    list_display = ('created_short', 'name', 'phone_link', 'area_short',
+                    'top_pains', 'money_short', 'stories_icon', 'delivered_icon')
+    list_display_links = ('name',)
+    list_filter = ('allow_stories', 'delivered_to_telegram', 'created_at')
+    search_fields = ('name', 'phone', 'telegram_username')
+    date_hierarchy = 'created_at'
+    readonly_fields = ('created_at', 'updated_at', 'delivered_to_telegram',
+                       'answers_table', 'diagnosis')
+    list_per_page = 50
+    actions = ('copy_for_analysis',)
+
+    fieldsets = (
+        ('Кто', {'fields': ('name', 'phone', 'telegram_username', 'lead')}),
+        ('Разбор', {'fields': ('diagnosis', 'answers_table')}),
+        ('Служебное', {'fields': ('allow_stories', 'delivered_to_telegram',
+                                  'answers', 'created_at', 'updated_at'),
+                       'classes': ('collapse',)}),
+    )
+
+    @admin.display(description='когда', ordering='created_at')
+    def created_short(self, obj):
+        return obj.created_at.strftime('%d.%m %H:%M')
+
+    @admin.display(description='телефон')
+    def phone_link(self, obj):
+        return _phone_link(obj.phone)
+
+    @admin.display(description='сфера')
+    def area_short(self, obj):
+        return obj.area or '—'
+
+    @admin.display(description='главные боли')
+    def top_pains(self, obj):
+        top = obj.diagnose()['top']
+        if not top:
+            return '—'
+        return ', '.join(f'{i["title"].lower()} ({i["points"]})' for i in top)
+
+    @admin.display(description='потери в месяц')
+    def money_short(self, obj):
+        money = obj.diagnose()['estimate']
+        if not money or not money['total_money']:
+            return '—'
+        return f'{money["total_money"]:,.0f} ₽'.replace(',', ' ')
+
+    @admin.display(description='примеры', boolean=True)
+    def stories_icon(self, obj):
+        return obj.allow_stories
+
+    @admin.display(description='в Telegram', boolean=True)
+    def delivered_icon(self, obj):
+        return obj.delivered_to_telegram
+
+    @admin.display(description='Что показал разбор')
+    def diagnosis(self, obj):
+        result = obj.diagnose()
+        rows = []
+        for i, item in enumerate(result['top'], 1):
+            rows.append(f'<p><b>{i}. {item["title"]}</b><br>{item["text"]}</p>')
+        money = result['estimate']
+        if money and money['total_money']:
+            rows.append(
+                '<p><b>Оценка потерь:</b> около {} ₽ в месяц, из них {} ₽ на '
+                'потерянных заявках и {} ₽ на неявках. Рутина — {} часов '
+                'в месяц.</p>'.format(
+                    f'{money["total_money"]:,.0f}'.replace(',', ' '),
+                    f'{money["lost_money"]:,.0f}'.replace(',', ' '),
+                    f'{money["noshow_money"]:,.0f}'.replace(',', ' '),
+                    money['hours_month']))
+        return format_html(''.join(rows) or '—')
+
+    @admin.display(description='Ответы целиком')
+    def answers_table(self, obj):
+        rows = ''.join(
+            f'<tr><td style="padding:4px 12px 4px 0;color:#666;vertical-align:top">'
+            f'{question}</td><td style="padding:4px 0"><b>{said}</b></td></tr>'
+            for question, said in obj.readable())
+        return format_html(f'<table>{rows}</table>') if rows else '—'
+
+    @admin.action(description='Собрать текст для разбора нейросетью')
+    def copy_for_analysis(self, request, queryset):
+        """Складывает обезличенные ответы в один текст.
+
+        Пока клиентов немного, платить за обращения к нейросети незачем:
+        проще скопировать этот текст и вставить в чат руками.
+        """
+        from .services.analysis import as_text
+        text = as_text(queryset)
+        self.message_user(
+            request,
+            format_html('<pre style="white-space:pre-wrap;max-height:60vh;'
+                        'overflow:auto;font-size:12px">{}</pre>', text),
+            level=messages.INFO)

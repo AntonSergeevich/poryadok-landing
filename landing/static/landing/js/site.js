@@ -97,6 +97,13 @@
     return out;
   }
 
+  document.querySelectorAll('[data-validate="phone-soft"] input').forEach(function (input) {
+    input.addEventListener('input', function () {
+      input.value = mask(input.value);
+      input.closest('.field').classList.remove('is-bad');
+    });
+  });
+
   document.querySelectorAll('[data-validate="phone"] input').forEach(function (input) {
     var field = input.closest('.field');
     input.addEventListener('input', function () {
@@ -121,43 +128,65 @@
     });
   });
 
-  /* ---------- Загрузка файла ---------- */
-  var drop = document.getElementById('drop');
-  var file = document.getElementById('sales-file');
-  if (drop && file) {
-    var idle = document.getElementById('drop-idle');
-    var filled = document.getElementById('drop-filled');
-    var nameEl = document.getElementById('drop-name');
+  /* ---------- Разбор процессов: один вопрос за раз ---------- */
+  /* Без скрипта форма работает как есть — все вопросы подряд и одна кнопка.
+     Скрипт лишь показывает их по одному: так короче и не пугает длиной. */
+  var quiz = document.getElementById('q-steps');
+  if (quiz) {
+    var steps = Array.prototype.slice.call(quiz.querySelectorAll('.q-step'));
+    var bar = document.getElementById('q-bar');
+    var fill = document.getElementById('q-fill');
+    var now = document.getElementById('q-now');
+    var total = steps.length;
+    var at = 0;
 
-    var show = function (name) {
-      idle.hidden = true;
-      filled.hidden = false;
-      nameEl.textContent = name;
+    // Если сервер вернул форму с ошибками, открываем первый спорный вопрос.
+    var bad = quiz.querySelector('.err--on');
+    if (bad) {
+      var owner = bad.closest('.q-step');
+      if (owner) at = steps.indexOf(owner);
+    }
+
+    var show = function (i, focus) {
+      at = Math.max(0, Math.min(i, total - 1));
+      steps.forEach(function (el, n) { el.classList.toggle('is-now', n === at); });
+      if (fill) fill.style.width = ((at + 1) / total * 100) + '%';
+      if (now) now.textContent = Math.min(at + 1, total);
+      if (focus) {
+        var first = steps[at].querySelector('input, textarea');
+        if (first && first.type !== 'checkbox' && first.type !== 'radio') first.focus();
+      }
+      var head = document.getElementById('head');
+      var top = quiz.getBoundingClientRect().top + window.scrollY
+              - (head ? head.offsetHeight + 56 : 80);
+      if (window.scrollY > top) window.scrollTo({ top: top, behavior: reduced ? 'auto' : 'smooth' });
     };
 
-    drop.addEventListener('click', function () { file.click(); });
-    drop.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); }
-    });
-    file.addEventListener('change', function () {
-      if (file.files.length) show(file.files[0].name);
+    document.documentElement.classList.add('q-js');
+    if (bar) bar.hidden = false;
+
+    steps.forEach(function (step, n) {
+      var next = step.querySelector('.q-next');
+      var back = step.querySelector('.q-back');
+      if (next) { next.hidden = false; next.addEventListener('click', function () { show(n + 1, true); }); }
+      if (back && n > 0) { back.hidden = false; back.addEventListener('click', function () { show(n - 1, false); }); }
+
+      // Один вариант из списка — ответ дан, идём дальше сами.
+      // Для нескольких вариантов и для «Другое» так делать нельзя:
+      // человек ещё не закончил отвечать.
+      step.querySelectorAll('input[type=radio]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+          if (radio.value === 'other') {
+            var own = step.querySelector('.q-other');
+            if (own) own.focus();
+            return;
+          }
+          setTimeout(function () { show(n + 1, false); }, 180);
+        });
+      });
     });
 
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function (ev) {
-      drop.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); });
-    });
-    ['dragenter', 'dragover'].forEach(function (ev) {
-      drop.addEventListener(ev, function () { drop.classList.add('is-over'); });
-    });
-    ['dragleave', 'drop'].forEach(function (ev) {
-      drop.addEventListener(ev, function () { drop.classList.remove('is-over'); });
-    });
-    drop.addEventListener('drop', function (e) {
-      if (e.dataTransfer.files.length) {
-        file.files = e.dataTransfer.files;
-        show(e.dataTransfer.files[0].name);
-      }
-    });
+    show(at, false);
   }
 
   /* ---------- Портрет: аккуратная заглушка, если файла ещё нет ---------- */

@@ -90,7 +90,7 @@ class Lead(TimeStamped):
 
     class Source(models.TextChoices):
         FORM = 'form', 'Форма на сайте'
-        AUDIT = 'audit', 'Экспресс-проверка файла'
+        SURVEY = 'survey', 'Разбор процессов'
         CLUB = 'club', 'Заявка в клуб'
 
     name = models.CharField('имя', max_length=120, blank=True)
@@ -274,3 +274,62 @@ class ClubSubscription(TimeStamped):
         if not self.ends_at:
             return None
         return max(0, (self.ends_at - timezone.now()).days)
+
+
+class Survey(TimeStamped):
+    """Ответы на разбор процессов.
+
+    Ответы лежат одним полем JSON, а не двадцатью столбцами: набор вопросов
+    будет меняться, и каждая правка иначе тянула бы миграцию. Разбор по ним
+    считается на лету в landing/survey.py — храним сырые ответы, чтобы
+    пересчитать по новым правилам в любой момент.
+    """
+
+    name = models.CharField('имя', max_length=120, blank=True)
+    phone = models.CharField('телефон', max_length=32, blank=True, db_index=True)
+    telegram_username = models.CharField('telegram', max_length=64, blank=True)
+
+    answers = models.JSONField('ответы', default=dict)
+
+    allow_stories = models.BooleanField(
+        'разрешил обезличенные примеры', default=False,
+        help_text='Согласие использовать ответы в примерах без имени и контактов')
+
+    lead = models.ForeignKey('Lead', verbose_name='заявка', null=True, blank=True,
+                             on_delete=models.SET_NULL, related_name='surveys')
+    delivered_to_telegram = models.BooleanField('ушёл в Telegram', default=False)
+
+    class Meta:
+        verbose_name = 'разбор процессов'
+        verbose_name_plural = 'разборы процессов'
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        who = self.name or 'без имени'
+        return f'{who} · {self.created_at:%d.%m.%Y}' if self.created_at else who
+
+    def save(self, *args, **kwargs):
+        if self.phone:
+            self.phone = normalize_phone(self.phone)
+        self.telegram_username = self.telegram_username.lstrip('@').strip()
+        super().save(*args, **kwargs)
+
+    @property
+    def phone_pretty(self):
+        return format_phone(self.phone) if self.phone else ''
+
+    @property
+    def area(self):
+        """Сфера словами — она нужна и в списке, и в уведомлении."""
+        from .survey import _label
+        value = self.answers.get('area')
+        other = self.answers.get('area_other')
+        return other or (_label('area', value) if value else '')
+
+    def diagnose(self):
+        from .survey import diagnose
+        return diagnose(self.answers)
+
+    def readable(self):
+        from .survey import readable
+        return readable(self.answers)
