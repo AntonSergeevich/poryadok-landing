@@ -19,7 +19,9 @@ set -u
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CAP="$DIR/logs/cap"
 PIDF="$DIR/logs/record.pid"
+ERRF="$DIR/logs/record.err"
 CMD="${1:-status}"
+mkdir -p "$DIR/logs"
 
 running() { [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF")" 2>/dev/null; }
 
@@ -28,11 +30,14 @@ case "$CMD" in
     if running; then echo "Запись уже идёт, номер процесса $(cat "$PIDF")"; exit 0; fi
     command -v tcpdump >/dev/null 2>&1 || { echo "Нужен tcpdump: sudo apt install tcpdump"; exit 1; }
     mkdir -p "$CAP"
-    nohup tcpdump -i any -nn -s 128 -W 6 -C 20 \
+    # -Z root обязателен: на Debian и Ubuntu tcpdump после запуска сам
+    # понижает права до пользователя tcpdump, и тот не может писать в
+    # каталог проекта. Без этого запись падает с «Permission denied».
+    nohup tcpdump -i any -nn -s 128 -W 6 -C 20 -Z root \
           -w "$CAP/web.pcap" 'tcp port 443 or tcp port 80' \
-          >/dev/null 2>&1 &
+          >/dev/null 2>"$ERRF" &
     echo $! > "$PIDF"
-    sleep 1
+    sleep 2
     if running; then
       echo "Запись пошла. Номер процесса $(cat "$PIDF")."
       echo "Файлы: $CAP/web.pcap*  (6 штук по 20 МБ, по кругу)"
@@ -40,7 +45,12 @@ case "$CMD" in
       echo "Когда сайт в следующий раз отвалится — заходите по ssh и выполняйте:"
       echo "  sudo bash scripts/record.sh save"
     else
-      echo "Не запустилось."; rm -f "$PIDF"; exit 1
+      echo "Не запустилось. Что сказал tcpdump:"
+      echo "-----"
+      cat "$ERRF" 2>/dev/null || echo "(ничего не сказал)"
+      echo "-----"
+      rm -f "$PIDF"
+      exit 1
     fi
     ;;
 
@@ -65,6 +75,10 @@ case "$CMD" in
       echo "Запись идёт, номер процесса $(cat "$PIDF")."
     else
       echo "Запись НЕ идёт. Запустить: sudo bash scripts/record.sh start"
+      if [ -s "$ERRF" ]; then
+        echo "Прошлая попытка закончилась так:"
+        cat "$ERRF"
+      fi
     fi
     du -sh "$CAP" 2>/dev/null || true
     ls -lh "$CAP" 2>/dev/null | tail -8 || true
