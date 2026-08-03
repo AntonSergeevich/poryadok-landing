@@ -83,7 +83,24 @@ sudo tail -n 50 /var/log/nginx/error.log
 
 ## 4. Конфигурация Nginx
 
-`/etc/nginx/sites-available/default` — рабочая версия:
+Рабочая версия конфига хранится в репозитории:
+**`deploy/nginx/s-poryadok.conf`**. Обновление на сервере:
+
+```bash
+cd /var/www/s-poryadok && git pull origin main
+sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default.bak
+sudo cp deploy/nginx/s-poryadok.conf /etc/nginx/sites-available/default
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Откатиться, если что-то пошло не так:
+
+```bash
+sudo cp /etc/nginx/sites-available/default.bak /etc/nginx/sites-available/default
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Ниже — сокращённый вид того же конфига для быстрого просмотра:
 
 ```nginx
 # HTTPS: Django + SSL
