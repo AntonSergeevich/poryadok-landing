@@ -24,15 +24,25 @@ echo "Смотреть на dropped и errors в строках RX. Ноль —
 say "Потери в очередях ядра"
 if command -v nstat >/dev/null 2>&1; then
   nstat -az 2>/dev/null | grep -E \
-    'ListenOverflows|ListenDrops|RcvPruned|OfoPruned|TCPRcvQDrop|TCPBacklogDrop|TCPOFODrop|NoPorts|InCsumErrors' \
+    'ListenOverflows|ListenDrops|RcvPruned|OfoPruned|TCPRcvQDrop|TCPBacklogDrop|TCPOFODrop|NoPorts|InCsumErrors|ReqQFullDoCookies|ReqQFullDrop|TCPRetransSegs|InErrs' \
     | awk '{ printf "   %-28s %s\n", $1, $2 }'
+  CSUM=$(nstat -az 2>/dev/null | awk '/TcpInCsumErrors/{print $2}')
+  if [ "${CSUM:-0}" -gt 0 ] 2>/dev/null; then
+    echo
+    echo "   ВНИМАНИЕ: TcpInCsumErrors = $CSUM"
+    echo "   Столько пакетов пришло ПОВРЕЖДЁННЫМИ и было молча выброшено."
+    echo "   У исправного канала здесь ноль. Повреждённый пакет для"
+    echo "   отправителя неотличим от потерянного — и симптом получается"
+    echo "   ровно тот, что мы ловим. Это довод для хостера."
+  fi
 else
-  netstat -s 2>/dev/null | grep -i -E 'listen|pruned|overflow|discard' | sed 's/^/   /'
+  netstat -s 2>/dev/null | grep -i -E 'listen|pruned|overflow|discard|checksum' | sed 's/^/   /'
 fi
 echo
 echo "Все нули — ядро ничего не отбрасывает, и потеря происходит ДО сервера."
 echo "Ненулевые ListenOverflows или BacklogDrop — сервер не успевает"
 echo "принимать соединения, и это уже чинится на месте."
+echo "Ненулевой TcpInCsumErrors — канал портит данные, чинится у хостера."
 
 say "Очередь ожидающих соединений"
 echo "   somaxconn = $(sysctl -n net.core.somaxconn 2>/dev/null)"
