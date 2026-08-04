@@ -316,10 +316,15 @@ def getplatinum_webhook(request):
     except (ValueError, UnicodeDecodeError):
         return HttpResponseBadRequest('bad json')
 
-    if not gp.verify(body) and gp.checksum_required():
+    signed = gp.verify(body)
+    if not signed and gp.checksum_required():
         return HttpResponseBadRequest('bad checksum')
 
     deal_id = body.get('dealId')
+    # Пишем в журнал каждое уведомление — и удачное тоже. Пока подпись
+    # совещательная, это единственный способ узнать, сходится ли она.
+    logger.info('GetPlatinum: уведомление по заказу %s, подпись %s',
+                deal_id, 'сошлась' if signed else 'НЕ СОШЛАСЬ')
     if not deal_id:
         return JsonResponse({'ok': True})
 
