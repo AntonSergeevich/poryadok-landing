@@ -44,9 +44,38 @@ PREFIX_CLUB = 7
 VAT_NONE = 'none'
 
 
+def base_url():
+    """Адрес API. Собирается из чего угодно, что похоже на правду.
+
+    В личном кабинете GetPlatinum готового адреса нет — он строится из
+    имени аккаунта, а имя видно только в адресной строке кабинета.
+    Ошибиться при сборке легко, а ошибка выглядит как «ключ не принят»,
+    хотя ключ верный. Поэтому принимаем любой из вариантов:
+
+        poryadok
+        poryadok.getplatinum.ru
+        https://poryadok.getplatinum.ru
+        https://poryadok.getplatinum.ru/api/public/pay
+
+    и приводим к последнему. Если задан GETPLATINUM_ACCOUNT — берём его.
+    """
+    raw = (getattr(settings, 'GETPLATINUM_BASE_URL', None)
+           or getattr(settings, 'GETPLATINUM_ACCOUNT', None) or '').strip()
+    if not raw:
+        return ''
+
+    raw = raw.rstrip('/')
+    if '://' not in raw:
+        # Голое имя аккаунта или имя с доменом.
+        host = raw if '.' in raw else f'{raw}.getplatinum.ru'
+        raw = f'https://{host}'
+    if not raw.endswith('/api/public/pay'):
+        raw = raw.split('/api/')[0].rstrip('/') + '/api/public/pay'
+    return raw
+
+
 def is_enabled():
-    return bool(getattr(settings, 'GETPLATINUM_API_KEY', None)
-                and getattr(settings, 'GETPLATINUM_BASE_URL', None))
+    return bool(getattr(settings, 'GETPLATINUM_API_KEY', None) and base_url())
 
 
 def _call(method, payload):
@@ -55,7 +84,7 @@ def _call(method, payload):
         logger.info('GetPlatinum не настроен — вызов %s пропущен', method)
         return None
 
-    base = settings.GETPLATINUM_BASE_URL.rstrip('/')
+    base = base_url()
     try:
         response = requests.post(
             f'{base}/{method}',

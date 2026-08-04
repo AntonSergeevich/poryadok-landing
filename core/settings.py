@@ -64,6 +64,9 @@ TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '')
 # GetPlatinum. Адрес свой у каждого аккаунта: https://ИМЯ.getplatinum.ru/api/public/pay
 GETPLATINUM_API_KEY = os.getenv('GETPLATINUM_API_KEY')
 GETPLATINUM_BASE_URL = os.getenv('GETPLATINUM_BASE_URL')
+# Достаточно указать что-то одно: либо полный адрес выше, либо просто имя
+# аккаунта — оно видно в адресной строке личного кабинета GetPlatinum.
+GETPLATINUM_ACCOUNT = os.getenv('GETPLATINUM_ACCOUNT')
 # Отвергать уведомления с неверной подписью. Включать только после того,
 # как подпись подтвердилась настоящим уведомлением: пример в документации
 # GetPlatinum противоречив. Подробности — в landing/services/getplatinum.py.

@@ -7,7 +7,6 @@
 остаётся неоплаченным и ни на что не влияет — по ссылке можно просто
 посмотреть, что платёжная форма открывается и на ней ваше название.
 """
-import requests
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
@@ -34,7 +33,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         key = getattr(settings, 'GETPLATINUM_API_KEY', None)
-        base = getattr(settings, 'GETPLATINUM_BASE_URL', None)
 
         self.stdout.write('\n=== 1. Настройки в .env ===')
         if not key:
@@ -43,16 +41,15 @@ class Command(BaseCommand):
             return
         self.ok(f'ключ задан (…{key[-6:]})')
 
+        base = gp.base_url()
         if not base:
-            self.bad('GETPLATINUM_BASE_URL пуст.')
-            self.info('Вид: https://ВАШ_АККАУНТ.getplatinum.ru/api/public/pay')
+            self.bad('Не задан ни GETPLATINUM_ACCOUNT, ни GETPLATINUM_BASE_URL.')
+            self.info('Проще всего указать имя аккаунта — оно видно')
+            self.info('в адресной строке личного кабинета GetPlatinum.')
+            self.info('Например, для https://poryadok.getplatinum.ru/ это:')
+            self.info('  GETPLATINUM_ACCOUNT=poryadok')
             return
-        self.ok(f'адрес: {base}')
-
-        if not base.rstrip('/').endswith('/api/public/pay'):
-            self.bad('Адрес должен оканчиваться на /api/public/pay')
-            self.info('Иначе все запросы уйдут не туда и вернут 404.')
-            return
+        self.ok(f'адрес API: {base}')
 
         self.stdout.write('\n=== 2. Ключ принят, организация видна ===')
         org = gp._call('get-organization', {})

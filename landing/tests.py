@@ -414,8 +414,31 @@ class GetPlatinumTests(TestCase):
                                         content_type='application/json')
         self.assertEqual(response.status_code, 200)
 
+    def test_base_url_built_from_anything_sensible(self):
+        """Адрес собирается из имени аккаунта в любом виде.
+
+        В личном кабинете готового адреса нет, и собрать его руками —
+        отдельный повод ошибиться. Ошибка при этом выглядит как «ключ не
+        принят», хотя ключ верный, и человек ищет не там.
+        """
+        want = 'https://poryadok.getplatinum.ru/api/public/pay'
+        for given in ('poryadok',
+                      'poryadok.getplatinum.ru',
+                      'https://poryadok.getplatinum.ru',
+                      'https://poryadok.getplatinum.ru/',
+                      'https://poryadok.getplatinum.ru/api/public/pay'):
+            with self.subTest(given=given):
+                with self.settings(GETPLATINUM_BASE_URL=given,
+                                   GETPLATINUM_ACCOUNT=None):
+                    self.assertEqual(gp.base_url(), want)
+
+        with self.settings(GETPLATINUM_BASE_URL=None,
+                           GETPLATINUM_ACCOUNT='poryadok'):
+            self.assertEqual(gp.base_url(), want)
+
     def test_disabled_without_settings(self):
-        with self.settings(GETPLATINUM_API_KEY=None, GETPLATINUM_BASE_URL=None):
+        with self.settings(GETPLATINUM_API_KEY=None, GETPLATINUM_BASE_URL=None,
+                           GETPLATINUM_ACCOUNT=None):
             self.assertFalse(gp.is_enabled())
 
 
