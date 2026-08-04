@@ -1,0 +1,108 @@
+"""Проверка связи с GetPlatinum по шагам.
+
+    python manage.py check_getplatinum          проверить настройки и ключ
+    python manage.py check_getplatinum --link   и создать пробную ссылку на оплату
+
+Пробная ссылка создаётся на 10 ₽ с выдуманным номером заказа. Заказ
+остаётся неоплаченным и ни на что не влияет — по ссылке можно просто
+посмотреть, что платёжная форма открывается и на ней ваше название.
+"""
+import requests
+from django.conf import settings
+from django.core.management.base import BaseCommand
+
+from landing.services import getplatinum as gp
+
+
+class Command(BaseCommand):
+    help = 'Проверяет подключение к GetPlatinum'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--link', action='store_true',
+                            help='создать пробную ссылку на оплату 10 ₽')
+        parser.add_argument('--site', default='https://s-poryadok.ru',
+                            help='адрес сайта для обратных ссылок')
+
+    def ok(self, text):
+        self.stdout.write(self.style.SUCCESS(f'  ХОРОШО  {text}'))
+
+    def bad(self, text):
+        self.stdout.write(self.style.ERROR(f'  ПРОБЛЕМА  {text}'))
+
+    def info(self, text):
+        self.stdout.write(f'          {text}')
+
+    def handle(self, *args, **options):
+        key = getattr(settings, 'GETPLATINUM_API_KEY', None)
+        base = getattr(settings, 'GETPLATINUM_BASE_URL', None)
+
+        self.stdout.write('\n=== 1. Настройки в .env ===')
+        if not key:
+            self.bad('GETPLATINUM_API_KEY пуст.')
+            self.info('Личный кабинет → Настройки → шестерёнка у организации.')
+            return
+        self.ok(f'ключ задан (…{key[-6:]})')
+
+        if not base:
+            self.bad('GETPLATINUM_BASE_URL пуст.')
+            self.info('Вид: https://ВАШ_АККАУНТ.getplatinum.ru/api/public/pay')
+            return
+        self.ok(f'адрес: {base}')
+
+        if not base.rstrip('/').endswith('/api/public/pay'):
+            self.bad('Адрес должен оканчиваться на /api/public/pay')
+            self.info('Иначе все запросы уйдут не туда и вернут 404.')
+            return
+
+        self.stdout.write('\n=== 2. Ключ принят, организация видна ===')
+        org = gp._call('get-organization', {})
+        if org is None:
+            self.bad('Организацию получить не удалось.')
+            self.info('Частые причины:')
+            self.info('  • заявка на подключение организации ещё не одобрена —')
+            self.info('    до одобрения API не работает;')
+            self.info('  • ключ скопирован не полностью или от другой организации;')
+            self.info('  • в адресе не то имя аккаунта.')
+            self.info('Подробности — в logs/app.log.')
+            return
+        name = org.get('name') or org.get('title') or '—'
+        self.ok(f'организация: {name}')
+        for field in ('inn', 'status', 'isActive'):
+            if field in org:
+                self.info(f'{field}: {org[field]}')
+
+        if not options['link']:
+            self.stdout.write('\nЧтобы создать пробную ссылку на оплату, добавьте --link\n')
+            return
+
+        self.stdout.write('\n=== 3. Пробная ссылка на оплату ===')
+        site = options['site'].rstrip('/')
+        deal_id, url = gp.create_payment(
+            deal_id='TEST-CHECK-1',
+            amount=10,
+            title='Проверка связи',
+            client_id='TEST-CLIENT',
+            notification_url=f'{site}/pay/getplatinum/webhook/',
+            success_url=f'{site}/club/done/',
+            phone=getattr(settings, 'SITE_PHONE', '') or '+79954412021',
+            name=getattr(settings, 'SITE_OWNER', ''),
+        )
+        if not url:
+            self.bad('Ссылку создать не удалось — смотрите logs/app.log.')
+            return
+        self.ok('ссылка получена, форма оплаты работает:')
+        self.info(url)
+        self.stdout.write(
+            '\nОткройте её в браузере. Должна открыться платёжная форма\n'
+            'с вашим названием и суммой 10 ₽. Платить не обязательно —\n'
+            'неоплаченный заказ ни на что не влияет.\n'
+            '\nЕсли всё же оплатите, придёт уведомление на webhook,\n'
+            'и в logs/app.log будет видно, сошлась ли подпись:\n'
+            '  grep -i "подпись не совпала" logs/app.log\n')
+
+        self.stdout.write('=== 4. Что видит GetPlatinum об этом заказе ===')
+        status = gp.fetch_status(deal_id)
+        if status is None:
+            self.bad('Статус получить не удалось.')
+        else:
+            self.ok(f'оплачен: {"да" if gp.is_paid(status) else "нет, как и ожидалось"}')
