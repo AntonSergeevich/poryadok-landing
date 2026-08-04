@@ -26,25 +26,19 @@
 
     {% if TELEGRAM_BOT_USERNAME %}
     {% comment %}
-      Самый подходящий момент попросить войти через Telegram: человек
-      только что заплатил и ждёт ссылку. Без этого входа бот не знает
-      его числового идентификатора, а значит не сможет ни напомнить об
-      окончании срока, ни закрыть доступ — всё придётся делать руками.
+      Самый подходящий момент: человек только что заплатил и ждёт ссылку.
+      Через бота, а не через виджет входа — Telegram объявил виджет
+      устаревшим, его страница авторизации отвечает «deprecated».
     {% endcomment %}
     <div class="tg-login" style="margin-top:calc(var(--u)*5);max-width:60ch">
-      <p class="tg-login__label mono">Один шаг, чтобы всё работало само</p>
+      <p class="tg-login__label mono">Шаг, после которого всё работает само</p>
       <p class="small" style="margin-bottom:var(--u)">
-        Нажмите — и бот сможет писать вам напрямую: пришлёт ссылку на вход,
-        предупредит за три дня до окончания доступа и подскажет, как продлить.
-        Без этого напоминания придётся отправлять вручную.
+        Откройте бота и поделитесь номером — тем же, что указывали при оплате.
+        Он сразу пришлёт ссылку на вход в канал, а за три дня до окончания
+        доступа напомнит и подскажет, как продлить.
       </p>
-      <script async src="https://telegram.org/js/telegram-widget.js?22"
-              data-telegram-login="{{ TELEGRAM_BOT_USERNAME }}"
-              data-size="large"
-              data-userpic="false"
-              data-radius="0"
-              data-auth-url="{{ request.scheme }}://{{ request.get_host }}{% url 'club_telegram' %}"
-              data-request-access="write"></script>
+      <a class="btn" href="https://t.me/{{ TELEGRAM_BOT_USERNAME }}?start=club"
+         target="_blank" rel="noopener">Открыть бота <span class="arrow" aria-hidden="true">→</span></a>
     </div>
     {% endif %}
 

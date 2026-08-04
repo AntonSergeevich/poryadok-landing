@@ -3,6 +3,7 @@
 Правило одно: заявка сначала попадает в базу, и только потом мы пытаемся
 что-то отправить в Telegram. Если Telegram лежит — заявка всё равно наша.
 """
+import hmac
 import json
 import logging
 
@@ -95,6 +96,133 @@ def club(request):
         'prices': {k: f'{v:,}'.replace(',', ' ') for k, v in CLUB_PRICES.items()},
         'payments_enabled': gp.is_enabled() or pay.is_enabled(),
     })
+
+
+@csrf_exempt
+@require_POST
+def telegram_bot_webhook(request, secret):
+    """Сообщения, приходящие боту.
+
+    Заменяет виджет входа на сайте: Telegram объявил его устаревшим, и
+    его страница авторизации отвечает «deprecated». Здесь всё происходит
+    внутри Telegram, сторонние скрипты в браузере не участвуют — а с
+    учётом здешних проблем с фильтрацией трафика это ещё и надёжнее.
+
+    Смысл ровно один: узнать числовой идентификатор человека. По нику
+    Telegram не даёт ни писать, ни исключать из канала; по номеру
+    телефона мы находим его у себя, потому что номер он оставлял
+    при оплате.
+
+    Подлинность запроса проверяется дважды: секрет в адресе и секрет
+    в заголовке. Оба ставит Telegram при подписке на сообщения.
+    """
+    expected = getattr(settings, 'TELEGRAM_WEBHOOK_SECRET', '')
+    # Сравниваем байты, а не строки: compare_digest со строками падает на
+    # любом символе вне ASCII. В секрете вполне может оказаться кириллица,
+    # а в адресе — что угодно от постороннего. Ошибка 500 вместо отказа
+    # тут ни к чему.
+    if not expected \
+            or not hmac.compare_digest(secret.encode(), expected.encode()) \
+            or not hmac.compare_digest(
+                request.headers.get('X-Telegram-Bot-Api-Secret-Token', '').encode(),
+                expected.encode()):
+        logger.warning('Бот: запрос с неверным секретом')
+        return HttpResponseBadRequest('nope')
+
+    try:
+        update = json.loads(request.body.decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        return HttpResponseBadRequest('bad json')
+
+    message = update.get('message') or {}
+    chat_id = (message.get('chat') or {}).get('id')
+    if not chat_id:
+        return JsonResponse({'ok': True})
+
+    contact = message.get('contact')
+    if contact:
+        _bot_link_by_phone(chat_id, contact, message.get('from') or {})
+        return JsonResponse({'ok': True})
+
+    text = (message.get('text') or '').strip()
+    if text.startswith('/start'):
+        tg.ask_contact(chat_id,
+                       'Здравствуйте! Это бот клуба «Порядок».\n\n'
+                       'Чтобы я мог прислать ссылку на вход и предупреждать '
+                       'об окончании доступа, поделитесь номером телефона — '
+                       'тем же, что указывали при оплате.\n\n'
+                       'Нажмите кнопку ниже, вводить ничего не нужно.')
+        return JsonResponse({'ok': True})
+
+    tg.reply(chat_id,
+             'Чтобы получить доступ в клуб, отправьте команду /start '
+             'и поделитесь номером телефона.')
+    return JsonResponse({'ok': True})
+
+
+def _bot_link_by_phone(chat_id, contact, sender):
+    """Связывает пришедший номер с клиентом и выдаёт доступ."""
+    # Telegram отдаёт user_id вместе с контактом только если человек
+    # поделился СВОИМ номером. Чужую карточку подсунуть можно, но там
+    # user_id не будет — значит и связывать нечего.
+    if contact.get('user_id') != sender.get('id'):
+        tg.reply(chat_id, 'Поделитесь, пожалуйста, своим номером — '
+                          'кнопкой «Поделиться номером».')
+        return
+
+    phone = normalize_phone(contact.get('phone_number') or '')
+    client = Client.objects.filter(phone=phone).first()
+    if client is None:
+        tg.reply(chat_id,
+                 'По этому номеру оплаты не нашёл.\n\n'
+                 'Если вы оплачивали с другого номера — напишите его '
+                 f'мне на {settings.SITE_PHONE_PRETTY}, разберусь вручную.')
+        return
+
+    user_id = sender.get('id')
+    username = (sender.get('username') or '').lstrip('@')
+    fields = []
+    if client.telegram_user_id != user_id:
+        client.telegram_user_id = user_id
+        fields.append('telegram_user_id')
+    if username and client.telegram_username != username:
+        client.telegram_username = username
+        fields.append('telegram_username')
+    if fields:
+        client.save(update_fields=fields + ['updated_at'])
+    logger.info('Бот: клиент %s связан с telegram id %s', client.pk, user_id)
+
+    subscription = client.club_subscriptions.filter(
+        status=ClubSubscription.Status.ACTIVE,
+        ends_at__gt=timezone.now()).order_by('-ends_at').first()
+
+    if subscription is None:
+        tg.reply(chat_id,
+                 f'Узнал вас, {client.name}. Активной подписки на клуб пока нет.\n\n'
+                 'Оформить можно здесь:\n' + club_service.club_url())
+        return
+
+    if not subscription.invite_link:
+        link = tg.create_club_invite(name_hint=client.name)
+        if link:
+            subscription.invite_link = link
+            subscription.invite_sent_at = timezone.now()
+            subscription.save(update_fields=['invite_link', 'invite_sent_at',
+                                             'updated_at'])
+
+    if subscription.invite_link:
+        tg.reply(chat_id,
+                 f'Готово, {client.name}. Доступ до '
+                 f'{subscription.ends_at:%d.%m.%Y}.\n\n'
+                 'Ссылка на вход в канал — одноразовая, работает только '
+                 'на ваш аккаунт:\n' + subscription.invite_link + '\n\n'
+                 'За три дня до окончания я напомню.')
+    else:
+        tg.reply(chat_id,
+                 'Узнал вас, подписка активна, но ссылку создать не вышло. '
+                 f'Напишите или позвоните: {settings.SITE_PHONE_PRETTY}')
+        tg.notify(f'ПОРЯДОК // КЛУБ\nНе выдалась ссылка для {client.name} '
+                  f'({client.phone_pretty}) — выдайте вручную.')
 
 
 def _start_club_payment(request, lead, plan):

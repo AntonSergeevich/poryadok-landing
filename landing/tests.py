@@ -682,3 +682,86 @@ class ClubLifecycleTests(TestCase):
         renewal.refresh_from_db()
         # 7 оставшихся дней + 30 новых, а не 30 от сегодня.
         self.assertGreater(renewal.days_left, 35)
+
+
+class BotWebhookTests(TestCase):
+    """Вход через бота — замена устаревшему виджету Telegram.
+
+    Ради одного: узнать числовой id человека. По нику Telegram не даёт
+    ни писать, ни исключать из канала.
+    """
+
+    SECRET = 'секрет-подлиннее-и-без-пробелов'
+
+    def _post(self, payload, secret=None, header=None):
+        return self.client.post(
+            reverse('telegram_bot_webhook', args=[secret or self.SECRET]),
+            data=json.dumps(payload), content_type='application/json',
+            headers={'X-Telegram-Bot-Api-Secret-Token': header or self.SECRET})
+
+    def test_wrong_secret_rejected(self):
+        with self.settings(TELEGRAM_WEBHOOK_SECRET=self.SECRET):
+            self.assertEqual(self._post({}, secret='чужой').status_code, 400)
+            self.assertEqual(self._post({}, header='чужой').status_code, 400)
+
+    def test_no_secret_configured_rejects_everything(self):
+        """Пока секрет не задан, обработчик не должен принимать ничего."""
+        with self.settings(TELEGRAM_WEBHOOK_SECRET=''):
+            self.assertEqual(self._post({}, secret='', header='').status_code, 400)
+
+    def test_start_asks_for_phone(self):
+        from unittest.mock import patch
+        with self.settings(TELEGRAM_WEBHOOK_SECRET=self.SECRET), \
+             patch('landing.services.telegram.ask_contact', return_value=True) as ask:
+            self._post({'message': {'chat': {'id': 42}, 'text': '/start club'}})
+        self.assertTrue(ask.called)
+
+    def test_contact_links_client_and_sends_invite(self):
+        from unittest.mock import patch
+        client_obj = Client.objects.create(name='Пётр', phone='+79001234567')
+        ClubSubscription.objects.create(
+            client=client_obj, plan=ClubSubscription.Plan.MONTH, price=3900,
+            status=ClubSubscription.Status.ACTIVE,
+            ends_at=timezone.now() + timedelta(days=20))
+
+        with self.settings(TELEGRAM_WEBHOOK_SECRET=self.SECRET), \
+             patch('landing.services.telegram.create_club_invite',
+                   return_value='https://t.me/+abc') as invite, \
+             patch('landing.services.telegram.reply', return_value=True) as answer:
+            self._post({'message': {
+                'chat': {'id': 42},
+                'from': {'id': 777, 'username': 'petr'},
+                'contact': {'phone_number': '89001234567', 'user_id': 777},
+            }})
+
+        client_obj.refresh_from_db()
+        self.assertEqual(client_obj.telegram_user_id, 777)
+        self.assertEqual(client_obj.telegram_username, 'petr')
+        self.assertTrue(invite.called)
+        self.assertIn('t.me/+abc', answer.call_args[0][1])
+
+    def test_someone_elses_contact_ignored(self):
+        """Переслать чужую карточку можно, но user_id в ней не совпадёт
+        с отправителем — значит связывать нечего."""
+        from unittest.mock import patch
+        client_obj = Client.objects.create(name='Пётр', phone='+79001234567')
+        with self.settings(TELEGRAM_WEBHOOK_SECRET=self.SECRET), \
+             patch('landing.services.telegram.reply', return_value=True):
+            self._post({'message': {
+                'chat': {'id': 42},
+                'from': {'id': 999},
+                'contact': {'phone_number': '89001234567', 'user_id': 777},
+            }})
+        client_obj.refresh_from_db()
+        self.assertIsNone(client_obj.telegram_user_id)
+
+    def test_unknown_phone_gets_polite_answer(self):
+        from unittest.mock import patch
+        with self.settings(TELEGRAM_WEBHOOK_SECRET=self.SECRET), \
+             patch('landing.services.telegram.reply', return_value=True) as answer:
+            self._post({'message': {
+                'chat': {'id': 42},
+                'from': {'id': 777},
+                'contact': {'phone_number': '89998887766', 'user_id': 777},
+            }})
+        self.assertIn('не нашёл', answer.call_args[0][1])

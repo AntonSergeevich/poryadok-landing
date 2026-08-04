@@ -61,6 +61,11 @@ TELEGRAM_CLUB_CHAT_ID = os.getenv('TELEGRAM_CLUB_CHAT_ID')
 # виджет не отрисуется.
 TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '')
 
+# Секрет для приёма сообщений бота. Придумывается один раз, любая длинная
+# строка без пробелов. Ставится и в адрес обработчика, и в заголовок,
+# которым Telegram подписывает каждый запрос.
+TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET', '')
+
 # --- Эквайринг ЮKassa. Пока пусто — сайт работает в режиме заявок. ---
 # GetPlatinum. Адрес свой у каждого аккаунта: https://ИМЯ.getplatinum.ru/api/public/pay
 GETPLATINUM_API_KEY = os.getenv('GETPLATINUM_API_KEY')

@@ -5,6 +5,7 @@
 """
 import hashlib
 import hmac
+import json
 import logging
 import time
 
@@ -105,6 +106,68 @@ def notify(text):
         'text': text,
         'disable_web_page_preview': True,
     }) is not None
+
+
+def bot_link(payload='club'):
+    """Ссылка «открыть бота». По ней человек попадает в диалог с ботом.
+
+    Пришла на смену виджету входа на сайте: Telegram объявил его
+    устаревшим, и его страница авторизации теперь отвечает «deprecated».
+    Через бота надёжнее и по другой причине — всё происходит внутри
+    Telegram, никакие сторонние скрипты в браузере не участвуют.
+    """
+    username = (getattr(settings, 'TELEGRAM_BOT_USERNAME', '') or '').lstrip('@')
+    if not username:
+        return ''
+    return f'https://t.me/{username}?start={payload}'
+
+
+def ask_contact(chat_id, text):
+    """Просит поделиться номером телефона — одной кнопкой.
+
+    По номеру мы и узнаём человека: он же указан при оплате. Кнопка
+    Telegram отдаёт номер сама, вводить руками ничего не нужно, и
+    подделать чужой номер через неё нельзя.
+    """
+    return _call('sendMessage', {
+        'chat_id': chat_id,
+        'text': text,
+        'reply_markup': json.dumps({
+            'keyboard': [[{'text': 'Поделиться номером', 'request_contact': True}]],
+            'resize_keyboard': True,
+            'one_time_keyboard': True,
+        }),
+    }) is not None
+
+
+def reply(chat_id, text):
+    """Ответ в диалоге с ботом, с уборкой клавиатуры."""
+    return _call('sendMessage', {
+        'chat_id': chat_id,
+        'text': text,
+        'disable_web_page_preview': True,
+        'reply_markup': json.dumps({'remove_keyboard': True}),
+    }) is not None
+
+
+def set_webhook(url, secret):
+    """Просит Telegram присылать сообщения бота на наш адрес."""
+    return _call('setWebhook', {
+        'url': url,
+        'secret_token': secret,
+        # Ограничиваем то, что нам нужно: меньше лишнего трафика и
+        # меньше поводов ошибиться в обработчике.
+        'allowed_updates': json.dumps(['message']),
+        'drop_pending_updates': True,
+    })
+
+
+def webhook_info():
+    return _call('getWebhookInfo', {})
+
+
+def delete_webhook():
+    return _call('deleteWebhook', {'drop_pending_updates': True})
 
 
 def send_to(user_id, text):
