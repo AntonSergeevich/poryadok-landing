@@ -275,27 +275,31 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 /* Бумажки — левая половина мысли «хаос → порядок». Раньше две из четырёх
    уходили под карточку системы и не читались: смысл терялся, оставалась
    просто фактура. Теперь все четыре лежат выше и читаются целиком. */
-/* Бумажки лежат ПОВЕРХ карточки системы и выглядывают из-за её краёв:
-   так они не отрывают на себя весь первый экран и остаются тем, чем
-   должны быть, — фоном к главному. z-index выше карточки, иначе текст
-   на них снова уйдёт под неё. */
-.flow{position:relative;padding-top:34px}
-.flow__slips{position:absolute;inset:0 0 auto 0;height:100%;pointer-events:none;z-index:3}
+/* Бумажки торчат ИЗ-ЗА верхнего края карточки системы — веером, как
+   листки, засунутые в коробку. Нижняя часть каждой уходит под карточку,
+   наверху остаётся ровно столько, чтобы прочесть надпись.
+   z-index ниже карточки (у неё 2), иначе они лягут поверх и всё закроют. */
+.flow{position:relative;padding-top:74px}
+.flow__slips{position:absolute;inset:0 0 auto 0;height:210px;pointer-events:none;z-index:1}
 .slip{
   position:absolute;background:var(--paper);border:1px solid var(--line);
-  padding:8px 11px;font:400 var(--t-tag)/1.3 var(--f-mono);color:var(--muted);
-  box-shadow:2px 3px 0 rgba(13,15,14,.05);max-width:168px;
+  padding:8px 10px;font:400 var(--t-tag)/1.3 var(--f-mono);color:var(--muted);
+  box-shadow:2px 3px 0 rgba(13,15,14,.05);
+  width:min(46%,152px);min-height:130px;
   /* Свой угол поворота у каждой — чтобы дрейф не сбивал наклон. */
   --tilt:0deg;
+  /* Вращение вокруг нижнего края: тогда верхушки расходятся веером,
+     а низ остаётся на месте — под карточкой, где его не видно. */
+  transform-origin:50% 100%;
   transform:rotate(var(--tilt));
 }
-/* Две сверху выглядывают из-за верхнего края, две снизу — из-за нижнего.
-   Отрицательные отступы выводят их за габариты карточки: получается,
-   что записки насыпаны на экран, а не встроены в него. */
-.slip:nth-child(1){left:-14px; top:0;      --tilt:-6deg}
-.slip:nth-child(2){right:-10px;top:22px;   --tilt:5deg}
-.slip:nth-child(3){left:-8px;  bottom:-16px;--tilt:-3deg}
-.slip:nth-child(4){right:-16px;bottom:16px;--tilt:7deg}
+/* Веер: крайние наклонены сильнее и сидят ниже, средние стоят прямее и
+   торчат выше. Порядок в разметке — не порядок на экране: длинной записке
+   в две строки нужна средняя позиция, где видно больше. */
+.slip:nth-child(1){left:21%;  top:0;   --tilt:-6deg}   /* Ира — две строки */
+.slip:nth-child(2){left:0;    top:28px;--tilt:-15deg}
+.slip:nth-child(3){right:22%; top:4px; --tilt:7deg}
+.slip:nth-child(4){right:0;   top:32px;--tilt:16deg}
 
 /* Лёгкий дрейф. Периоды нарочно разные и не кратные друг другу — иначе
    бумажки начинают качаться в такт, и вместо беспорядка получается
@@ -544,10 +548,9 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
    чуть вверх, чтобы стало видно надписи». */
 .js-anim .slip{transition:transform .8s cubic-bezier(.2,.7,.25,1),opacity .5s ease}
 .js-anim .flow:not(.is-set) .slip{opacity:0}
-.js-anim .flow:not(.is-set) .slip:nth-child(1){transform:rotate(-17deg) translate(-16px,26px)}
-.js-anim .flow:not(.is-set) .slip:nth-child(2){transform:rotate(13deg) translate(14px,30px)}
-.js-anim .flow:not(.is-set) .slip:nth-child(3){transform:rotate(-11deg) translate(-10px,34px)}
-.js-anim .flow:not(.is-set) .slip:nth-child(4){transform:rotate(18deg) translate(18px,28px)}
+/* До появления записки утоплены в карточку и почти без наклона — потом
+   выезжают вверх и расходятся веером. */
+.js-anim .flow:not(.is-set) .slip{transform:rotate(0deg) translateY(64px)}
 .js-anim .flow:not(.is-set) .order{opacity:0;transform:translateY(16px)}
 .js-anim .order{transition:opacity .6s ease .25s,transform .6s cubic-bezier(.2,.7,.3,1) .25s}
 
@@ -561,12 +564,14 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 /* ---------- Узкие экраны (360px и ниже) ---------- */
 @media (max-width:400px){
   :root{--pad:16px}
-  .flow{padding-top:28px}
-  .slip{max-width:126px;padding:6px 8px}
-  .slip:nth-child(1){left:-6px; top:0}
-  .slip:nth-child(2){left:auto; right:-6px;top:16px}
-  .slip:nth-child(3){left:-4px; top:auto;bottom:-10px}
-  .slip:nth-child(4){right:-6px;top:auto;bottom:12px}
+  /* На узком экране четыре веера не помещаются: крайняя убирается,
+     остальные жмутся. Три записки читаются, четыре — превращаются в кашу. */
+  .flow{padding-top:62px}
+  .slip{width:min(52%,124px);min-height:112px;padding:6px 8px}
+  .slip:nth-child(1){left:14%;  top:0}
+  .slip:nth-child(2){left:0;    top:22px}
+  .slip:nth-child(3){right:0;   top:6px}
+  .slip:nth-child(4){display:none}
   .order__row{grid-template-columns:auto 1fr}
   .order__row i{grid-column:2;justify-self:start}
 }
