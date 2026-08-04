@@ -18,7 +18,11 @@ from io import StringIO
 
 from django.core.management import call_command
 
+from django.utils import timezone
+from datetime import timedelta
+
 from .services import analysis
+from .services import club as club_service
 from .services import getplatinum as gp
 from .services import telegram as tg_service
 
@@ -584,3 +588,97 @@ class SettlePaymentTests(TestCase):
 
         subscription.refresh_from_db()
         self.assertEqual(subscription.ends_at, first_end)
+
+
+class ClubLifecycleTests(TestCase):
+    """Срок доступа: напоминание, закрытие, продление.
+
+    Три вещи, которые дороже всего сломать: не напомнить, не закрыть
+    и сжечь оплаченные дни при досрочном продлении.
+    """
+
+    def _subscription(self, days_left=2, **over):
+        client = Client.objects.create(
+            name='Пётр', phone='+79001234567', telegram_user_id=555, **over)
+        return ClubSubscription.objects.create(
+            client=client, plan=ClubSubscription.Plan.MONTH, price=3900,
+            status=ClubSubscription.Status.ACTIVE,
+            starts_at=timezone.now(),
+            ends_at=timezone.now() + timedelta(days=days_left))
+
+    def test_reminder_goes_to_member_and_owner(self):
+        from unittest.mock import patch
+        subscription = self._subscription(days_left=2)
+        with patch('landing.services.telegram.send_to', return_value=True) as to_member, \
+             patch('landing.services.telegram.notify', return_value=True) as to_owner:
+            call_command('club_reminders', stdout=StringIO())
+
+        self.assertTrue(to_member.called)
+        self.assertTrue(to_owner.called)
+        subscription.refresh_from_db()
+        self.assertIsNotNone(subscription.reminded_at)
+
+    def test_reminder_not_repeated_next_day(self):
+        """Ежедневный запуск не должен слать одно и то же каждый день."""
+        from unittest.mock import patch
+        self._subscription(days_left=2)
+        with patch('landing.services.telegram.send_to', return_value=True), \
+             patch('landing.services.telegram.notify', return_value=True):
+            call_command('club_reminders', stdout=StringIO())
+            out = StringIO()
+            call_command('club_reminders', stdout=out)
+        self.assertIn('Некого предупреждать', out.getvalue())
+
+    def test_far_away_subscription_left_alone(self):
+        from unittest.mock import patch
+        self._subscription(days_left=20)
+        out = StringIO()
+        with patch('landing.services.telegram.send_to') as to_member:
+            call_command('club_reminders', stdout=out)
+        self.assertFalse(to_member.called)
+        self.assertIn('Некого предупреждать', out.getvalue())
+
+    def test_expired_subscription_closed_and_member_told(self):
+        from unittest.mock import patch
+        subscription = self._subscription(days_left=-1)
+        with patch('landing.services.telegram.remove_from_club',
+                   return_value=True) as kick, \
+             patch('landing.services.telegram.send_to', return_value=True) as bye, \
+             patch('landing.services.telegram.notify', return_value=True):
+            call_command('expire_club', stdout=StringIO())
+
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.status, ClubSubscription.Status.EXPIRED)
+        kick.assert_called_once_with(555)
+        self.assertTrue(bye.called)
+
+    def test_dry_run_changes_nothing(self):
+        from unittest.mock import patch
+        subscription = self._subscription(days_left=-1)
+        with patch('landing.services.telegram.remove_from_club') as kick:
+            call_command('expire_club', '--dry-run', stdout=StringIO())
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.status, ClubSubscription.Status.ACTIVE)
+        self.assertFalse(kick.called)
+
+    def test_early_renewal_does_not_burn_paid_days(self):
+        """Продлил за неделю до конца — эта неделя должна остаться."""
+        from unittest.mock import patch
+        running = self._subscription(days_left=7)
+        client = running.client
+
+        renewal = ClubSubscription.objects.create(
+            client=client, plan=ClubSubscription.Plan.MONTH, price=3900)
+        payment = Payment.objects.create(
+            client=client, amount=3900, purpose=Payment.Purpose.CLUB,
+            provider='getplatinum', provider_payment_id='CLUB-99')
+        renewal.payment = payment
+        renewal.save(update_fields=['payment', 'updated_at'])
+
+        with patch('landing.services.telegram.create_club_invite', return_value=None), \
+             patch('landing.services.telegram.notify', return_value=True):
+            club_service.grant_access(payment)
+
+        renewal.refresh_from_db()
+        # 7 оставшихся дней + 30 новых, а не 30 от сегодня.
+        self.assertGreater(renewal.days_left, 35)

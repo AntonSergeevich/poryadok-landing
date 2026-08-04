@@ -244,6 +244,8 @@ class ClubSubscription(TimeStamped):
     ends_at = models.DateTimeField('окончание', null=True, blank=True, db_index=True)
     invite_link = models.URLField('ссылка-приглашение', blank=True, max_length=300)
     invite_sent_at = models.DateTimeField('приглашение выдано', null=True, blank=True)
+    reminded_at = models.DateTimeField('напоминание отправлено', null=True, blank=True,
+                                       help_text='Чтобы не напомнить дважды за один срок')
     payment = models.OneToOneField(Payment, verbose_name='оплата', null=True, blank=True,
                                    on_delete=models.SET_NULL, related_name='club_subscription')
 

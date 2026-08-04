@@ -40,6 +40,7 @@ SITE_PHONE = os.getenv('SITE_PHONE', '+79954412021')
 SITE_PHONE_PRETTY = os.getenv('SITE_PHONE_PRETTY', '+7 (995) 441-20-21')
 SITE_EMAIL = os.getenv('SITE_EMAIL', 'glukhovas@yandex.ru')
 SITE_CITY = os.getenv('SITE_CITY', 'Красноярск')
+SITE_HOST = os.getenv('SITE_HOST', 's-poryadok.ru')  # для ссылок в письмах и Telegram
 SITE_REGION = os.getenv('SITE_REGION', 'Красноярский край')
 SITE_TELEGRAM = os.getenv('SITE_TELEGRAM', '')       # ник без @, для кнопки «написать»
 SITE_INN = os.getenv('SITE_INN', '382800965145')     # ИНН — подставится в политику

@@ -107,6 +107,24 @@ def notify(text):
     }) is not None
 
 
+def send_to(user_id, text):
+    """Личное сообщение участнику клуба.
+
+    Написать первым бот не может — Telegram разрешает это только тем, кто
+    сам начал с ним диалог. У нас такое разрешение появляется при входе
+    через Telegram на странице клуба: у виджета выставлен request-access.
+    Если человек входил не так, id мы не знаем и написать не сможем —
+    поэтому обо всех сроках дублируется уведомление владельцу.
+    """
+    if not user_id:
+        return False
+    return _call('sendMessage', {
+        'chat_id': user_id,
+        'text': text,
+        'disable_web_page_preview': True,
+    }) is not None
+
+
 def notify_lead(lead):
     """Уведомление о новой заявке."""
     lines = [

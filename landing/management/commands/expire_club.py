@@ -10,6 +10,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from landing.models import ClubSubscription
+from landing.services import club as club_service
 from landing.services import telegram as tg
 
 
@@ -47,9 +48,19 @@ class Command(BaseCommand):
                 removed = tg.remove_from_club(client.telegram_user_id)
                 note = 'исключён из канала' if removed else 'из канала убрать не вышло'
             else:
+                removed = False
                 note = 'telegram ID неизвестен — уберите из канала вручную'
+
+            # Человек должен узнать, что доступ кончился, и как вернуться.
+            # Молча исключить — верный способ больше его не увидеть.
+            club_service.farewell(subscription, removed)
             self.stdout.write(f'Доступ закрыт: {label} — {note}')
 
         if not dry:
-            tg.notify(f'ПОРЯДОК // КЛУБ\nЗакрыт доступ по истечении: {len(expired)}')
+            tg.notify(
+                'ПОРЯДОК // КЛУБ\n'
+                + '-' * 32 + '\n'
+                + f'Закрыт доступ по истечении: {len(expired)}\n'
+                + '\n'.join(f'· {s.client.name} (@{s.client.telegram_username or "—"})'
+                            for s in expired))
         self.stdout.write(self.style.SUCCESS('Готово.'))
