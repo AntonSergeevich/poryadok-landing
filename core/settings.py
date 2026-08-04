@@ -200,7 +200,7 @@ STORAGES = {
     'staticfiles': {
         'BACKEND': (
             'django.contrib.staticfiles.storage.StaticFilesStorage' if DEBUG else
-            'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+            'core.storage.ForgivingManifestStaticFilesStorage'
         ),
     },
 }

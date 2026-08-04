@@ -287,3 +287,28 @@ class TelegramLoginTests(TestCase):
             self.client.get(reverse('club_telegram'), self._payload())
         client_obj.refresh_from_db()
         self.assertEqual(client_obj.telegram_user_id, 77777)
+
+
+class StaticManifestTests(TestCase):
+    """Отсутствие собранной статики не должно ронять сайт целиком.
+
+    Историю стоит помнить: маршруты иконок вычисляли адрес при загрузке
+    модуля, и одна ненайденная запись в справочнике отпечатков обрушивала
+    импорт URLconf, а с ним все страницы разом. Собрать статику при этом
+    тоже не выходило — collectstatic падал на тех же проверках.
+    """
+
+    def test_pages_open_without_manifest(self):
+        storage = 'core.storage.ForgivingManifestStaticFilesStorage'
+        with self.settings(STORAGES={
+            'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+            'staticfiles': {'BACKEND': storage},
+        }):
+            for name in ('index', 'survey', 'club', 'privacy'):
+                with self.subTest(page=name):
+                    self.assertEqual(self.client.get(reverse(name)).status_code, 200)
+
+    def test_icon_route_redirects(self):
+        response = self.client.get('/favicon.ico')
+        self.assertEqual(response.status_code, 301)
+        self.assertIn('favicon', response['Location'])

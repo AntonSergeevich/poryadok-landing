@@ -1,7 +1,7 @@
 # landing/urls.py
 from django.templatetags.static import static as static_url
+from django.shortcuts import redirect
 from django.urls import path
-from django.views.generic.base import RedirectView
 
 from . import views
 
@@ -13,8 +13,16 @@ def _icon(name):
     написано в <head>. Без этих маршрутов каждый заход с айфона давал
     несколько 404 подряд — а такая серия выглядит как перебор адресов
     и может привести к блокировке адреса посетителя защитой сервера.
+
+    Адрес вычисляется при обращении, а не при загрузке этого файла.
+    Разница принципиальная: static() читает справочник отпечатков, и
+    если справочника ещё нет — не собрана статика после обновления, —
+    то при вычислении на этапе загрузки падает весь URLconf, а с ним и
+    весь сайт. При вычислении в момент запроса страдает одна иконка.
     """
-    return RedirectView.as_view(url=static_url(f'landing/img/{name}'), permanent=True)
+    def view(request, *args, **kwargs):
+        return redirect(static_url(f'landing/img/{name}'), permanent=True)
+    return view
 
 urlpatterns = [
     path('', views.index, name='index'),
