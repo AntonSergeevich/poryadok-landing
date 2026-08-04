@@ -160,6 +160,12 @@ class Command(BaseCommand):
             payment.delete()
             return
 
+        # Без этого уведомление об оплате не с чем связать: обработчик ищет
+        # платёж именно по provider_payment_id и, не найдя, честно пропускает
+        # уведомление мимо. Ровно на этом первая боевая проверка и сорвалась.
+        payment.provider_payment_id = deal_id
+        payment.save(update_fields=['provider_payment_id', 'updated_at'])
+
         self.stdout.write('\n=== 3. Боевая проверка цепочки ===')
         self.ok(f'заказ {deal_id} заведён, подписка №{subscription.pk} ждёт оплаты')
         self.info(url)

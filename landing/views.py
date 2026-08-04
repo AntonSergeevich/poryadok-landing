@@ -18,6 +18,7 @@ from django.views.decorators.http import require_POST
 from .forms import ClubForm, LeadForm, SurveyForm
 from .models import (Client, ClubSubscription, Lead, Payment, Survey,
                      normalize_phone)
+from .services import club as club_service
 from .services import getplatinum as gp
 from .services import payments as pay
 from .services import telegram as tg
@@ -277,7 +278,7 @@ def yookassa_webhook(request):
         with transaction.atomic():
             newly_paid = payment.mark_succeeded()
         if newly_paid:
-            _grant_club_access(payment)
+            club_service.grant_access(payment)
     elif status == 'canceled':
         payment.status = Payment.Status.CANCELED
         payment.save(update_fields=['status', 'updated_at'])
@@ -345,40 +346,13 @@ def getplatinum_webhook(request):
         with transaction.atomic():
             newly_paid = payment.mark_succeeded()
         if newly_paid:
-            _grant_club_access(payment)
+            club_service.grant_access(payment)
     else:
         payment.status = Payment.Status.CANCELED
         payment.save(update_fields=['status', 'updated_at'])
         logger.info('GetPlatinum: заказ %s не оплачен', deal_id)
 
     return JsonResponse({'ok': True})
-
-
-def _grant_club_access(payment):
-    """После успешной оплаты включает подписку и выдаёт ссылку в канал."""
-    subscription = getattr(payment, 'club_subscription', None)
-    if subscription is None:
-        return
-    subscription.activate()
-
-    link = tg.create_club_invite(name_hint=subscription.client.name)
-    if link:
-        subscription.invite_link = link
-        subscription.invite_sent_at = subscription.updated_at
-        subscription.save(update_fields=['invite_link', 'invite_sent_at', 'updated_at'])
-
-    tg.notify(
-        'ПОРЯДОК // ОПЛАЧЕН КЛУБ\n'
-        + '-' * 32 + '\n'
-        + f'Клиент: {subscription.client.name}\n'
-        + f'Телефон: {subscription.client.phone_pretty}\n'
-        + f'Telegram: @{subscription.client.telegram_username or "—"}\n'
-        + f'Тариф: {subscription.get_plan_display()} · {subscription.price:.0f} ₽\n'
-        + f'Доступ до: {subscription.ends_at:%d.%m.%Y}\n'
-        + '-' * 32 + '\n'
-        + (f'Ссылка-приглашение: {link}' if link
-           else 'Ссылку создать не удалось — выдайте доступ вручную.')
-    )
 
 
 def survey(request):

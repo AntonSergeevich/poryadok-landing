@@ -14,6 +14,9 @@ from .models import (Client, ClubSubscription, Lead, Payment, Survey,
                      format_phone, normalize_phone)
 import json
 from decimal import Decimal
+from io import StringIO
+
+from django.core.management import call_command
 
 from .services import analysis
 from .services import getplatinum as gp
@@ -469,3 +472,83 @@ class SignatureRobustnessTests(TestCase):
             self.assertIsNone(tg_service.verify_login(
                 {'id': '1', 'auth_date': '1', 'hash': 'подпись'}))
             self.assertIsNone(tg_service.verify_login({}))
+
+
+class SettlePaymentTests(TestCase):
+    """Ручное проведение платежа, когда уведомление потерялось.
+
+    Уведомление ненадёжно по своей природе, а GetPlatinum повторных
+    попыток не делает: деньги списаны, доступ не выдан. Значит должен
+    быть способ спросить платёжную систему напрямую.
+    """
+
+    def _payment(self, deal_id='CLUB-77'):
+        client = Client.objects.create(name='Антон', phone='+79954412021')
+        subscription = ClubSubscription.objects.create(
+            client=client, plan=ClubSubscription.Plan.MONTH, price=10)
+        payment = Payment.objects.create(
+            client=client, amount=10, purpose=Payment.Purpose.CLUB,
+            provider='getplatinum', provider_payment_id=deal_id)
+        subscription.payment = payment
+        subscription.save(update_fields=['payment', 'updated_at'])
+        return payment, subscription
+
+    def test_paid_order_activates_subscription(self):
+        from unittest.mock import patch
+        payment, subscription = self._payment()
+        out = StringIO()
+        with self.settings(GETPLATINUM_API_KEY='k', GETPLATINUM_ACCOUNT='test'), \
+             patch('landing.services.getplatinum.fetch_status',
+                   return_value={'isSuccess': True, 'amount': 1000}), \
+             patch('landing.services.telegram.create_club_invite',
+                   return_value='https://t.me/+test'), \
+             patch('landing.services.telegram.notify', return_value=True):
+            call_command('settle_payment', 'CLUB-77', '--apply', stdout=out)
+
+        payment.refresh_from_db()
+        subscription.refresh_from_db()
+        self.assertEqual(payment.status, Payment.Status.SUCCEEDED)
+        self.assertEqual(subscription.status, ClubSubscription.Status.ACTIVE)
+        self.assertEqual(subscription.invite_link, 'https://t.me/+test')
+
+    def test_without_apply_nothing_changes(self):
+        """Без --apply команда только показывает. Случайно провести
+        неоплаченное или чужое не должно быть возможно одной опечаткой."""
+        from unittest.mock import patch
+        payment, subscription = self._payment()
+        with self.settings(GETPLATINUM_API_KEY='k', GETPLATINUM_ACCOUNT='test'), \
+             patch('landing.services.getplatinum.fetch_status',
+                   return_value={'isSuccess': True}):
+            call_command('settle_payment', 'CLUB-77', stdout=StringIO())
+
+        payment.refresh_from_db()
+        subscription.refresh_from_db()
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+        self.assertEqual(subscription.status, ClubSubscription.Status.PENDING)
+
+    def test_unpaid_order_left_alone(self):
+        from unittest.mock import patch
+        payment, _ = self._payment()
+        with self.settings(GETPLATINUM_API_KEY='k', GETPLATINUM_ACCOUNT='test'), \
+             patch('landing.services.getplatinum.fetch_status',
+                   return_value={'isSuccess': False}):
+            call_command('settle_payment', 'CLUB-77', '--apply', stdout=StringIO())
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+
+    def test_second_run_does_not_extend_twice(self):
+        """Повторный запуск не должен продлевать подписку ещё раз."""
+        from unittest.mock import patch
+        payment, subscription = self._payment()
+        with self.settings(GETPLATINUM_API_KEY='k', GETPLATINUM_ACCOUNT='test'), \
+             patch('landing.services.getplatinum.fetch_status',
+                   return_value={'isSuccess': True}), \
+             patch('landing.services.telegram.create_club_invite', return_value=None), \
+             patch('landing.services.telegram.notify', return_value=True):
+            call_command('settle_payment', 'CLUB-77', '--apply', stdout=StringIO())
+            subscription.refresh_from_db()
+            first_end = subscription.ends_at
+            call_command('settle_payment', 'CLUB-77', '--apply', stdout=StringIO())
+
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.ends_at, first_end)
