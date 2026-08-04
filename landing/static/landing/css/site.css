@@ -275,8 +275,12 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 /* Бумажки — левая половина мысли «хаос → порядок». Раньше две из четырёх
    уходили под карточку системы и не читались: смысл терялся, оставалась
    просто фактура. Теперь все четыре лежат выше и читаются целиком. */
-.flow{position:relative;padding-top:176px}
-.flow__slips{position:absolute;inset:0 0 auto 0;height:168px;pointer-events:none}
+/* Бумажки лежат ПОВЕРХ карточки системы и выглядывают из-за её краёв:
+   так они не отрывают на себя весь первый экран и остаются тем, чем
+   должны быть, — фоном к главному. z-index выше карточки, иначе текст
+   на них снова уйдёт под неё. */
+.flow{position:relative;padding-top:34px}
+.flow__slips{position:absolute;inset:0 0 auto 0;height:100%;pointer-events:none;z-index:3}
 .slip{
   position:absolute;background:var(--paper);border:1px solid var(--line);
   padding:8px 11px;font:400 var(--t-tag)/1.3 var(--f-mono);color:var(--muted);
@@ -285,10 +289,13 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   --tilt:0deg;
   transform:rotate(var(--tilt));
 }
-.slip:nth-child(1){left:0;    top:0;   --tilt:-6deg}
-.slip:nth-child(2){right:0;   top:14px;--tilt:5deg}
-.slip:nth-child(3){left:22px; top:80px;--tilt:-3deg}
-.slip:nth-child(4){right:14px;top:98px;--tilt:7deg}
+/* Две сверху выглядывают из-за верхнего края, две снизу — из-за нижнего.
+   Отрицательные отступы выводят их за габариты карточки: получается,
+   что записки насыпаны на экран, а не встроены в него. */
+.slip:nth-child(1){left:-14px; top:0;      --tilt:-6deg}
+.slip:nth-child(2){right:-10px;top:22px;   --tilt:5deg}
+.slip:nth-child(3){left:-8px;  bottom:-16px;--tilt:-3deg}
+.slip:nth-child(4){right:-16px;bottom:16px;--tilt:7deg}
 
 /* Лёгкий дрейф. Периоды нарочно разные и не кратные друг другу — иначе
    бумажки начинают качаться в такт, и вместо беспорядка получается
@@ -554,13 +561,12 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 /* ---------- Узкие экраны (360px и ниже) ---------- */
 @media (max-width:400px){
   :root{--pad:16px}
-  .flow{padding-top:150px}
-  .flow__slips{height:142px}
-  .slip{max-width:130px;padding:6px 8px}
-  .slip:nth-child(1){left:0;    top:0}
-  .slip:nth-child(2){left:auto; right:0;top:10px}
-  .slip:nth-child(3){left:6px;  top:66px}
-  .slip:nth-child(4){right:0;   top:84px}
+  .flow{padding-top:28px}
+  .slip{max-width:126px;padding:6px 8px}
+  .slip:nth-child(1){left:-6px; top:0}
+  .slip:nth-child(2){left:auto; right:-6px;top:16px}
+  .slip:nth-child(3){left:-4px; top:auto;bottom:-10px}
+  .slip:nth-child(4){right:-6px;top:auto;bottom:12px}
   .order__row{grid-template-columns:auto 1fr}
   .order__row i{grid-column:2;justify-self:start}
 }

@@ -18,6 +18,7 @@ from django.views.decorators.http import require_POST
 from .forms import ClubForm, LeadForm, SurveyForm
 from .models import (Client, ClubSubscription, Lead, Payment, Survey,
                      normalize_phone)
+from .services import getplatinum as gp
 from .services import payments as pay
 from .services import telegram as tg
 from .survey import QUESTIONS
@@ -76,29 +77,9 @@ def club(request):
         lead = _save_lead(form, Lead.Source.CLUB,
                           comment=f'Тариф: {CLUB_PRICES.get(plan, 0)} ₽ ({plan})')
 
-        if pay.is_enabled():
-            client = _client_from_lead(lead)
-            subscription = ClubSubscription.objects.create(
-                client=client, plan=plan, price=CLUB_PRICES.get(plan, 0))
-            payment = Payment.objects.create(
-                client=client, amount=subscription.price,
-                purpose=Payment.Purpose.CLUB, provider='yookassa',
-                payer_phone=lead.phone, payer_telegram=lead.telegram_username)
-            subscription.payment = payment
-            subscription.save(update_fields=['payment', 'updated_at'])
-
-            payment_id, confirmation_url = pay.create_payment(
-                amount=subscription.price,
-                description=f'Клуб «Порядок», {subscription.get_plan_display().lower()}',
-                return_url=request.build_absolute_uri(reverse('club_done')),
-                metadata={'payment_pk': str(payment.pk)},
-            )
-            if payment_id and confirmation_url:
-                payment.provider_payment_id = payment_id
-                payment.save(update_fields=['provider_payment_id', 'updated_at'])
-                return redirect(confirmation_url)
-            # Эквайринг не ответил — не теряем человека, ведём по обычному пути.
-            logger.error('Не удалось создать платёж, заявка %s остаётся ручной', lead.pk)
+        url = _start_club_payment(request, lead, plan)
+        if url:
+            return redirect(url)
 
         request.session['club_sent'] = True
         return redirect(reverse('club') + '?ok=1#join')
@@ -111,8 +92,71 @@ def club(request):
         'form': form,
         'success': success,
         'prices': {k: f'{v:,}'.replace(',', ' ') for k, v in CLUB_PRICES.items()},
-        'payments_enabled': pay.is_enabled(),
+        'payments_enabled': gp.is_enabled() or pay.is_enabled(),
     })
+
+
+def _start_club_payment(request, lead, plan):
+    """Заводит подписку и платёж, возвращает адрес формы оплаты.
+
+    Поставщиков два, и выбор простой: если настроен GetPlatinum — платим
+    через него, иначе через ЮKassa, иначе оплаты нет вовсе и человек
+    идёт обычным путём заявки. Возврат None означает именно это: не
+    ошибку, а «оплату сейчас не провести, ведите как заявку».
+    """
+    provider = 'getplatinum' if gp.is_enabled() else ('yookassa' if pay.is_enabled() else None)
+    if not provider:
+        return None
+
+    client = _client_from_lead(lead)
+    subscription = ClubSubscription.objects.create(
+        client=client, plan=plan, price=CLUB_PRICES.get(plan, 0))
+    payment = Payment.objects.create(
+        client=client, amount=subscription.price,
+        purpose=Payment.Purpose.CLUB, provider=provider,
+        payer_phone=lead.phone, payer_telegram=lead.telegram_username)
+    subscription.payment = payment
+    subscription.save(update_fields=['payment', 'updated_at'])
+
+    title = f'Клуб «Порядок», {subscription.get_plan_display().lower()}'
+    done_url = request.build_absolute_uri(reverse('club_done'))
+
+    if provider == 'getplatinum':
+        # Идентификатор заказа придумываем сами и до обращения к API:
+        # по нему потом найдём платёж, когда придёт уведомление.
+        deal_id = f'CLUB-{payment.pk}'
+        _, form_url = gp.create_payment(
+            deal_id=deal_id,
+            amount=subscription.price,
+            title=title,
+            client_id=f'CLIENT-{client.pk}',
+            notification_url=request.build_absolute_uri(reverse('getplatinum_webhook')),
+            success_url=done_url,
+            fail_url=request.build_absolute_uri(reverse('club')) + '?pay=fail#join',
+            phone=lead.phone,
+            name=lead.name,
+            custom={'payment_pk': str(payment.pk)},
+        )
+        if form_url:
+            payment.provider_payment_id = deal_id
+            payment.save(update_fields=['provider_payment_id', 'updated_at'])
+            return form_url
+    else:
+        payment_id, confirmation_url = pay.create_payment(
+            amount=subscription.price,
+            description=title,
+            return_url=done_url,
+            metadata={'payment_pk': str(payment.pk)},
+        )
+        if payment_id and confirmation_url:
+            payment.provider_payment_id = payment_id
+            payment.save(update_fields=['provider_payment_id', 'updated_at'])
+            return confirmation_url
+
+    # Платёжная система не ответила — человека не теряем, ведём заявкой.
+    logger.error('Не удалось создать платёж (%s), заявка %s остаётся ручной',
+                 provider, lead.pk)
+    return None
 
 
 def club_telegram(request):
@@ -237,6 +281,70 @@ def yookassa_webhook(request):
     elif status == 'canceled':
         payment.status = Payment.Status.CANCELED
         payment.save(update_fields=['status', 'updated_at'])
+
+    return JsonResponse({'ok': True})
+
+
+@csrf_exempt
+@require_POST
+def getplatinum_webhook(request):
+    """Уведомление об оплате от GetPlatinum.
+
+    Две проверки подряд, и обе нужны:
+
+    1. Подпись. Уведомление подписано нашим ключом API — без него
+       подделать его нельзя. Это отсекает всех посторонних.
+    2. Переспрос статуса. Даже подписанному уведомлению не верим
+       на слово: спрашиваем у GetPlatinum, что с платежом на самом
+       деле. Так советует и сама документация.
+
+    Порядок именно такой, и это важно. Решает второй шаг, а не первый:
+    пример подписи в документации GetPlatinum противоречив, и пока она
+    не подтверждена настоящим уведомлением, несовпадение только пишется
+    в журнал. Подделать же ответ /status нельзя — он приходит с их
+    сервера по нашему ключу API. Когда подпись подтвердится, в .env
+    ставится GETPLATINUM_STRICT_CHECKSUM=True, и первый шаг становится
+    обязательным. Подробности — в landing/services/getplatinum.py.
+
+    В ответ обязательно 200: при любом другом коде GetPlatinum
+    повторную попытку не делает, и оплата останется неучтённой.
+    Поэтому «не знаю такой платёж» — тоже 200, иначе мы просто
+    потеряем уведомление навсегда.
+    """
+    try:
+        body = json.loads(request.body.decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        return HttpResponseBadRequest('bad json')
+
+    if not gp.verify(body) and gp.checksum_required():
+        return HttpResponseBadRequest('bad checksum')
+
+    deal_id = body.get('dealId')
+    if not deal_id:
+        return JsonResponse({'ok': True})
+
+    payment = Payment.objects.filter(provider='getplatinum',
+                                     provider_payment_id=str(deal_id)).first()
+    if payment is None:
+        logger.warning('GetPlatinum: уведомление по неизвестному заказу %s', deal_id)
+        return JsonResponse({'ok': True})
+
+    status = gp.fetch_status(deal_id)
+    if status is None:
+        # Статус не подтвердили — платёж не трогаем. Повтора не будет,
+        # поэтому оставляем след в журнале: разберём вручную.
+        logger.error('GetPlatinum: не удалось подтвердить статус заказа %s', deal_id)
+        return JsonResponse({'ok': True})
+
+    if gp.is_paid(status):
+        with transaction.atomic():
+            newly_paid = payment.mark_succeeded()
+        if newly_paid:
+            _grant_club_access(payment)
+    else:
+        payment.status = Payment.Status.CANCELED
+        payment.save(update_fields=['status', 'updated_at'])
+        logger.info('GetPlatinum: заказ %s не оплачен', deal_id)
 
     return JsonResponse({'ok': True})
 

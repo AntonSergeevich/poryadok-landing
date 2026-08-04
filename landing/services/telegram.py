@@ -71,8 +71,10 @@ def verify_login(params):
     mine = hmac.new(secret, checked.encode(), hashlib.sha256).hexdigest()
 
     # Сравнение постоянного времени: обычное == подсказывает подбирающему,
-    # сколько символов он уже угадал.
-    if not hmac.compare_digest(mine, given):
+    # сколько символов он уже угадал. Сравниваем байты: со строками
+    # compare_digest падает на любом символе вне ASCII, а подпись
+    # приходит из адресной строки и может содержать что угодно.
+    if not hmac.compare_digest(mine.encode(), str(given).encode()):
         logger.warning('Вход через Telegram: подпись не совпала')
         return None
 

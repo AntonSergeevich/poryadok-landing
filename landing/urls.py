@@ -33,6 +33,7 @@ urlpatterns = [
     path('razbor/', views.survey, name='survey'),
     path('razbor/gotovo/', views.survey_done, name='survey_done'),
     path('pay/yookassa/webhook/', views.yookassa_webhook, name='yookassa_webhook'),
+    path('pay/getplatinum/webhook/', views.getplatinum_webhook, name='getplatinum_webhook'),
     path('robots.txt', views.robots_txt, name='robots'),
     path('sitemap.xml', views.sitemap_xml, name='sitemap'),
 

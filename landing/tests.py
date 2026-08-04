@@ -12,7 +12,11 @@ from . import survey as survey_logic
 from .forms import LeadForm
 from .models import (Client, ClubSubscription, Lead, Payment, Survey,
                      format_phone, normalize_phone)
+import json
+from decimal import Decimal
+
 from .services import analysis
+from .services import getplatinum as gp
 from .services import telegram as tg_service
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / 'templates' / 'landing'
@@ -312,3 +316,128 @@ class StaticManifestTests(TestCase):
         response = self.client.get('/favicon.ico')
         self.assertEqual(response.status_code, 301)
         self.assertIn('favicon', response['Location'])
+
+
+class GetPlatinumTests(TestCase):
+    """Оплата через GetPlatinum: подпись и деньги.
+
+    Проверяем ровно то, что дороже всего ошибиться: подсчёт подписи
+    и перевод рублей в копейки. Первое пропускает чужие уведомления,
+    второе списывает не ту сумму.
+    """
+
+    KEY = 'TestApiKey'
+
+    def test_checksum_follows_described_algorithm(self):
+        """Подпись считается по описанию, а не по примеру.
+
+        Пример в документации GetPlatinum противоречив: он заявляет длину
+        строки 122 символа, показывает строку в 140, а приведённая
+        контрольная сумма не получается ни из показанной строки, ни из
+        честно отсортированной. Поэтому сверяем реализацию с описанным
+        алгоритмом: сортировка ключей без учёта регистра, «ключ;значение;»,
+        HMAC-SHA256, верхний регистр.
+        """
+        import hashlib, hmac
+        params = {'mdOrder': 53082785, 'dealId': 'DEAL-12345',
+                  'isSuccess': True, 'amount': 10000, 'currency': 'RUB'}
+        line = ('amount;10000;currency;RUB;dealId;DEAL-12345;'
+                'isSuccess;1;mdOrder;53082785;')
+        expected = hmac.new(self.KEY.encode(), line.encode(),
+                            hashlib.sha256).hexdigest().upper()
+        self.assertEqual(gp.checksum(params, self.KEY), expected)
+
+    def test_booleans_become_digits(self):
+        """true → 1, false → 0. Иначе подпись не сойдётся никогда."""
+        self.assertEqual(gp.checksum({'a': True}, self.KEY),
+                         gp.checksum({'a': 1}, self.KEY))
+        self.assertEqual(gp.checksum({'a': False}, self.KEY),
+                         gp.checksum({'a': 0}, self.KEY))
+
+    def test_bad_checksum_passes_when_not_strict(self):
+        """Пока подпись не подтверждена, несовпадение не должно лишать
+        человека доступа: деньги списаны, решает /status."""
+        params = {'dealId': 'НЕТ-ТАКОГО', 'checksum': 'подделка'}
+        with self.settings(GETPLATINUM_API_KEY=self.KEY,
+                           GETPLATINUM_STRICT_CHECKSUM=False):
+            response = self.client.post(reverse('getplatinum_webhook'),
+                                        data=json.dumps(params),
+                                        content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+
+    def test_verify_rejects_tampered_amount(self):
+        params = {'dealId': 'DEAL-1', 'amount': 10000, 'isSuccess': True}
+        params['checksum'] = gp.checksum(params, self.KEY)
+        params['amount'] = 1          # подменили сумму, подпись оставили
+        with self.settings(GETPLATINUM_API_KEY=self.KEY):
+            self.assertFalse(gp.verify(params))
+
+    def test_verify_accepts_honest_notification(self):
+        params = {'dealId': 'DEAL-1', 'amount': 10000, 'isSuccess': True}
+        params['checksum'] = gp.checksum(params, self.KEY)
+        with self.settings(GETPLATINUM_API_KEY=self.KEY):
+            self.assertTrue(gp.verify(params))
+
+    def test_custom_params_excluded_from_signature(self):
+        """customParams в подсчёт не входит — иначе подпись не сойдётся."""
+        base = {'dealId': 'DEAL-1', 'amount': 100}
+        with_custom = dict(base, customParams={'payment_pk': '7'})
+        self.assertEqual(gp.checksum(base, self.KEY),
+                         gp.checksum(with_custom, self.KEY))
+
+    def test_roubles_to_kopecks(self):
+        self.assertEqual(gp.to_kopecks(3900), 390000)
+        self.assertEqual(gp.to_kopecks(3900.50), 390050)
+        # Округление вверх, а не отбрасывание: 39.995 в двоичной дроби
+        # хранится чуть меньше себя, и через float вышло бы 3999.
+        self.assertEqual(gp.to_kopecks('39.995'), 4000)
+        self.assertEqual(gp.to_kopecks(Decimal('3900.00')), 390000)
+
+    def test_webhook_rejects_bad_signature_when_strict(self):
+        with self.settings(GETPLATINUM_API_KEY=self.KEY,
+                           GETPLATINUM_STRICT_CHECKSUM=True):
+            response = self.client.post(
+                reverse('getplatinum_webhook'),
+                data=json.dumps({'dealId': 'X', 'checksum': 'подделка'}),
+                content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_webhook_answers_200_on_unknown_deal(self):
+        """GetPlatinum не повторяет попытку при коде, отличном от 200.
+        Значит даже на незнакомый заказ надо ответить 200, иначе
+        уведомление потеряется навсегда."""
+        params = {'dealId': 'НЕТ-ТАКОГО', 'isSuccess': True}
+        params['checksum'] = gp.checksum(params, self.KEY)
+        with self.settings(GETPLATINUM_API_KEY=self.KEY):
+            response = self.client.post(reverse('getplatinum_webhook'),
+                                        data=json.dumps(params),
+                                        content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+
+    def test_disabled_without_settings(self):
+        with self.settings(GETPLATINUM_API_KEY=None, GETPLATINUM_BASE_URL=None):
+            self.assertFalse(gp.is_enabled())
+
+
+class SignatureRobustnessTests(TestCase):
+    """Проверка подписи не должна падать от чужого мусора.
+
+    Подпись приходит снаружи: в теле уведомления или в адресной строке.
+    Прислать туда можно что угодно, включая кириллицу и пустоту. Ошибка
+    500 в ответ — это подсказка тому, кто щупает сайт, и повод для
+    платёжной системы считать наш обработчик сломанным.
+    """
+
+    def test_getplatinum_survives_non_ascii_checksum(self):
+        with self.settings(GETPLATINUM_API_KEY='ключ'):
+            self.assertFalse(gp.verify({'a': 1, 'checksum': 'подпись'}))
+            self.assertFalse(gp.verify({'a': 1, 'checksum': '🙂'}))
+            self.assertFalse(gp.verify({'checksum': ''}))
+            self.assertFalse(gp.verify({}))
+            self.assertFalse(gp.verify(None))
+
+    def test_telegram_survives_non_ascii_hash(self):
+        with self.settings(TELEGRAM_BOT_TOKEN='123:ABC'):
+            self.assertIsNone(tg_service.verify_login(
+                {'id': '1', 'auth_date': '1', 'hash': 'подпись'}))
+            self.assertIsNone(tg_service.verify_login({}))

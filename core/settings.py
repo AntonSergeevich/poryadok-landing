@@ -61,6 +61,14 @@ TELEGRAM_CLUB_CHAT_ID = os.getenv('TELEGRAM_CLUB_CHAT_ID')
 TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '')
 
 # --- Эквайринг ЮKassa. Пока пусто — сайт работает в режиме заявок. ---
+# GetPlatinum. Адрес свой у каждого аккаунта: https://ИМЯ.getplatinum.ru/api/public/pay
+GETPLATINUM_API_KEY = os.getenv('GETPLATINUM_API_KEY')
+GETPLATINUM_BASE_URL = os.getenv('GETPLATINUM_BASE_URL')
+# Отвергать уведомления с неверной подписью. Включать только после того,
+# как подпись подтвердилась настоящим уведомлением: пример в документации
+# GetPlatinum противоречив. Подробности — в landing/services/getplatinum.py.
+GETPLATINUM_STRICT_CHECKSUM = os.getenv('GETPLATINUM_STRICT_CHECKSUM', 'False') == 'True'
+
 YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID')
 YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY')
 
