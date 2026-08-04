@@ -19,6 +19,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--link', action='store_true',
                             help='создать пробную ссылку на оплату 10 ₽')
+        parser.add_argument('--full', action='store_true',
+                            help='боевая проверка: настоящая подписка на 10 ₽')
         parser.add_argument('--site', default='https://s-poryadok.ru',
                             help='адрес сайта для обратных ссылок')
 
@@ -68,8 +70,15 @@ class Command(BaseCommand):
             if field in org:
                 self.info(f'{field}: {org[field]}')
 
+        if options['full']:
+            self._full(options)
+            return
+
         if not options['link']:
-            self.stdout.write('\nЧтобы создать пробную ссылку на оплату, добавьте --link\n')
+            self.stdout.write(
+                '\nДальше:\n'
+                '  --link  создать пробную ссылку на оплату 10 ₽ (платить не нужно)\n'
+                '  --full  завести настоящую подписку на 10 ₽ и проверить всю цепочку\n')
             return
 
         self.stdout.write('\n=== 3. Пробная ссылка на оплату ===')
@@ -103,3 +112,75 @@ class Command(BaseCommand):
             self.bad('Статус получить не удалось.')
         else:
             self.ok(f'оплачен: {"да" if gp.is_paid(status) else "нет, как и ожидалось"}')
+
+    def _full(self, options):
+        """Боевая проверка всей цепочки за 10 рублей.
+
+        Пробная ссылка из --link проверяет только связь: заказ с выдуманным
+        номером в базе не заведён, и уведомление о его оплате наш обработчик
+        честно пропустит мимо. А сломаться может как раз то, что дальше:
+        нашёлся ли платёж, включилась ли подписка, выдалась ли ссылка в
+        канал. Поэтому здесь заводится настоящая подписка — просто на 10 ₽
+        вместо тарифной цены.
+
+        Деньги возвращаются вам же, теряется только комиссия.
+        """
+        from landing.models import Client, ClubSubscription, Payment
+
+        site = options['site'].rstrip('/')
+        client, _ = Client.objects.get_or_create(
+            phone=getattr(settings, 'SITE_PHONE', '+79954412021'),
+            defaults={'name': 'Проверка оплаты', 'note': 'Заведён командой check_getplatinum'})
+
+        subscription = ClubSubscription.objects.create(
+            client=client, plan=ClubSubscription.Plan.MONTH, price=10)
+        payment = Payment.objects.create(
+            client=client, amount=10, purpose=Payment.Purpose.CLUB,
+            provider='getplatinum', payer_phone=client.phone)
+        subscription.payment = payment
+        subscription.save(update_fields=['payment', 'updated_at'])
+
+        deal_id = f'CLUB-{payment.pk}'
+        _, url = gp.create_payment(
+            deal_id=deal_id,
+            amount=10,
+            title='Клуб «Порядок», проверка',
+            client_id=f'CLIENT-{client.pk}',
+            notification_url=f'{site}/pay/getplatinum/webhook/',
+            success_url=f'{site}/club/done/',
+            phone=client.phone,
+            name=client.name,
+            custom={'payment_pk': str(payment.pk)},
+        )
+        if not url:
+            self.bad('Ссылку создать не удалось — смотрите logs/app.log.')
+            subscription.delete()
+            payment.delete()
+            return
+
+        self.stdout.write('\n=== 3. Боевая проверка цепочки ===')
+        self.ok(f'заказ {deal_id} заведён, подписка №{subscription.pk} ждёт оплаты')
+        self.info(url)
+        self.stdout.write(f'''
+Оплатите эту ссылку на 10 ₽ — деньги придут вам же, потеряется только
+комиссия. После оплаты проверьте, что сработала вся цепочка:
+
+  python manage.py shell -c "from landing.models import ClubSubscription as C; \\
+    s=C.objects.get(pk={subscription.pk}); \\
+    print('статус:', s.get_status_display()); \\
+    print('до:', s.ends_at); \\
+    print('ссылка в канал:', s.invite_link or 'НЕ ВЫДАНА')"
+
+Должно быть: статус «Активна», дата через месяц, ссылка выдана.
+
+И отдельно — сошлась ли подпись уведомления:
+
+  grep -i "подпись не совпала" logs/app.log
+
+Пусто — можно включать GETPLATINUM_STRICT_CHECKSUM=True в .env.
+
+Убрать проверочную запись потом:
+
+  python manage.py shell -c "from landing.models import ClubSubscription as C; \\
+    C.objects.filter(pk={subscription.pk}).delete()"
+''')
