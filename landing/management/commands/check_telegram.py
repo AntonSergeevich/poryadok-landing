@@ -96,6 +96,21 @@ class Command(BaseCommand):
         bot = data['result']
         self.ok(f'бот @{bot.get("username")} на связи')
 
+        self.stdout.write('\n=== 3a. Вход через Telegram на сайте ===')
+        username = getattr(settings, 'TELEGRAM_BOT_USERNAME', '') or ''
+        if not username:
+            self.info('TELEGRAM_BOT_USERNAME не задан — кнопка входа не показывается.')
+        elif username.lstrip('@').lower() != (bot.get('username') or '').lower():
+            self.bad(f'TELEGRAM_BOT_USERNAME = {username}, а бот на самом деле '
+                     f'@{bot.get("username")}')
+            self.info('Виджет входа не заработает, пока имена не совпадут.')
+        else:
+            self.ok(f'имя бота совпадает: @{bot.get("username")}')
+            self.info('Если на сайте вместо кнопки написано «Bot domain invalid» —')
+            self.info('домен не привязан к боту. У @BotFather: /setdomain,')
+            self.info('выбрать этого бота и отправить РОВНО:  s-poryadok.ru')
+            self.info('Без https://, без www, без косой черты в конце.')
+
         if not chat:
             self.stdout.write('\nДальше проверять нечего: не задан TELEGRAM_CHAT_ID.')
             return

@@ -24,6 +24,30 @@
       <a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>. Открою доступ вручную.
     </div>
 
+    {% if TELEGRAM_BOT_USERNAME %}
+    {% comment %}
+      Самый подходящий момент попросить войти через Telegram: человек
+      только что заплатил и ждёт ссылку. Без этого входа бот не знает
+      его числового идентификатора, а значит не сможет ни напомнить об
+      окончании срока, ни закрыть доступ — всё придётся делать руками.
+    {% endcomment %}
+    <div class="tg-login" style="margin-top:calc(var(--u)*5);max-width:60ch">
+      <p class="tg-login__label mono">Один шаг, чтобы всё работало само</p>
+      <p class="small" style="margin-bottom:var(--u)">
+        Нажмите — и бот сможет писать вам напрямую: пришлёт ссылку на вход,
+        предупредит за три дня до окончания доступа и подскажет, как продлить.
+        Без этого напоминания придётся отправлять вручную.
+      </p>
+      <script async src="https://telegram.org/js/telegram-widget.js?22"
+              data-telegram-login="{{ TELEGRAM_BOT_USERNAME }}"
+              data-size="large"
+              data-userpic="false"
+              data-radius="0"
+              data-auth-url="{{ request.scheme }}://{{ request.get_host }}{% url 'club_telegram' %}"
+              data-request-access="write"></script>
+    </div>
+    {% endif %}
+
     <p style="margin-top:calc(var(--u)*5);display:flex;gap:var(--gut);flex-wrap:wrap">
       <a class="btn" href="{% url 'index' %}">На главную <span class="arrow" aria-hidden="true">→</span></a>
       <a class="btn btn--ghost" href="{% url 'club' %}">Вернуться к клубу</a>
