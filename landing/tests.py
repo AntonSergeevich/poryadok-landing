@@ -536,6 +536,38 @@ class SettlePaymentTests(TestCase):
         payment.refresh_from_db()
         self.assertEqual(payment.status, Payment.Status.PENDING)
 
+    def test_finds_payment_with_lost_deal_id(self):
+        """Номер заказа мог не сохраниться из-за сбоя, а деньги списаться.
+
+        Такой платёж всё равно надо находить: номер заказа мы составляем
+        сами как CLUB-<номер платежа>, значит его можно восстановить.
+        """
+        from unittest.mock import patch
+        payment, subscription = self._payment(deal_id='')
+        with self.settings(GETPLATINUM_API_KEY='k', GETPLATINUM_ACCOUNT='test'), \
+             patch('landing.services.getplatinum.fetch_status',
+                   return_value={'isSuccess': True}), \
+             patch('landing.services.telegram.create_club_invite', return_value=None), \
+             patch('landing.services.telegram.notify', return_value=True):
+            call_command('settle_payment', f'CLUB-{payment.pk}', '--apply',
+                         stdout=StringIO())
+
+        payment.refresh_from_db()
+        subscription.refresh_from_db()
+        self.assertEqual(payment.status, Payment.Status.SUCCEEDED)
+        self.assertEqual(payment.provider_payment_id, f'CLUB-{payment.pk}')
+        self.assertEqual(subscription.status, ClubSubscription.Status.ACTIVE)
+
+    def test_all_includes_payments_without_deal_id(self):
+        from unittest.mock import patch
+        self._payment(deal_id='')
+        out = StringIO()
+        with self.settings(GETPLATINUM_API_KEY='k', GETPLATINUM_ACCOUNT='test'), \
+             patch('landing.services.getplatinum.fetch_status',
+                   return_value={'isSuccess': False}):
+            call_command('settle_payment', '--all', stdout=out)
+        self.assertNotIn('Висящих платежей нет', out.getvalue())
+
     def test_second_run_does_not_extend_twice(self):
         """Повторный запуск не должен продлевать подписку ещё раз."""
         from unittest.mock import patch

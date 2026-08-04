@@ -38,18 +38,19 @@ class Command(BaseCommand):
             return
 
         if options['all']:
+            # Платежи с пустым номером заказа тоже берём. Номер мог не
+            # сохраниться из-за сбоя при создании — а деньги при этом
+            # вполне могли списаться, и как раз такие случаи нам и нужны.
             payments = list(Payment.objects.filter(
-                provider='getplatinum', status=Payment.Status.PENDING
-            ).exclude(provider_payment_id=''))
+                provider='getplatinum', status=Payment.Status.PENDING))
             if not payments:
                 self.stdout.write('Висящих платежей нет.')
                 return
         elif options['deal_id']:
-            payments = list(Payment.objects.filter(
-                provider='getplatinum', provider_payment_id=options['deal_id']))
+            payments = self._find(options['deal_id'])
             if not payments:
                 self.stdout.write(self.style.ERROR(
-                    f'Платёж с номером заказа {options["deal_id"]} не найден.\n'
+                    f'Платёж по «{options["deal_id"]}» не найден.\n'
                     'Посмотреть, какие есть:\n'
                     '  python manage.py settle_payment --all'))
                 return
@@ -60,10 +61,34 @@ class Command(BaseCommand):
         for payment in payments:
             self._one(payment, options['apply'])
 
+    def _find(self, given):
+        """Ищет платёж по номеру заказа, а если не вышло — по номеру платежа.
+
+        Номер заказа мы составляем сами как CLUB-<номер платежа>, поэтому
+        из «CLUB-1» всегда можно достать платёж, даже если номер заказа
+        у него не сохранился.
+        """
+        found = list(Payment.objects.filter(
+            provider='getplatinum', provider_payment_id=given))
+        if found:
+            return found
+
+        tail = given.rsplit('-', 1)[-1]
+        if tail.isdigit():
+            return list(Payment.objects.filter(provider='getplatinum', pk=int(tail)))
+        return []
+
     def _one(self, payment, apply_it):
-        deal_id = payment.provider_payment_id
+        # Если номер заказа не сохранился, восстанавливаем его по нашему же
+        # правилу: CLUB-<номер платежа>. Именно под этим номером заказ был
+        # заведён у GetPlatinum, так что спросить о нём можно.
+        deal_id = payment.provider_payment_id or f'CLUB-{payment.pk}'
         self.stdout.write(f'\n=== {deal_id} — {payment.amount:.0f} ₽ ===')
         self.stdout.write(f'  у нас: {payment.get_status_display()}')
+
+        if not payment.provider_payment_id:
+            self.stdout.write(self.style.WARNING(
+                f'  номер заказа не был сохранён, спрашиваю по {deal_id}'))
 
         status = gp.fetch_status(deal_id)
         if status is None:
@@ -76,6 +101,13 @@ class Command(BaseCommand):
         for field in ('amount', 'paidAt', 'paymentSystem', 'mdOrder'):
             if status.get(field) is not None:
                 self.stdout.write(f'    {field}: {status[field]}')
+
+        if paid and not payment.provider_payment_id:
+            # Раз заказ нашёлся и оплачен — заодно чиним запись, чтобы
+            # следующее уведомление по нему уже находило платёж само.
+            payment.provider_payment_id = deal_id
+            payment.save(update_fields=['provider_payment_id', 'updated_at'])
+            self.stdout.write('  номер заказа записан')
 
         if not paid:
             self.stdout.write('  Проводить нечего.')
