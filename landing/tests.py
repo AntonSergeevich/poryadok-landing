@@ -426,7 +426,12 @@ class GetPlatinumTests(TestCase):
                       'poryadok.getplatinum.ru',
                       'https://poryadok.getplatinum.ru',
                       'https://poryadok.getplatinum.ru/',
-                      'https://poryadok.getplatinum.ru/api/public/pay'):
+                      'https://poryadok.getplatinum.ru/api/public/pay',
+                      # Так адрес выглядит, если скопировать его прямо из
+                      # адресной строки кабинета — путь надо отбросить.
+                      'https://poryadok.getplatinum.ru/cabinet/request/manage/3777/1',
+                      'poryadok.getplatinum.ru/cabinet/settings',
+                      'http://poryadok.getplatinum.ru/cabinet/'):
             with self.subTest(given=given):
                 with self.settings(GETPLATINUM_BASE_URL=given,
                                    GETPLATINUM_ACCOUNT=None):

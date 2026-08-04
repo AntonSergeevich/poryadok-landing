@@ -49,29 +49,43 @@ def base_url():
 
     В личном кабинете GetPlatinum готового адреса нет — он строится из
     имени аккаунта, а имя видно только в адресной строке кабинета.
-    Ошибиться при сборке легко, а ошибка выглядит как «ключ не принят»,
-    хотя ключ верный. Поэтому принимаем любой из вариантов:
+    Оттуда его обычно и копируют, вместе со всем путём страницы:
+
+        https://poryadok.getplatinum.ru/cabinet/request/manage/3777/1
+
+    Путь надо отбросить целиком: API всегда живёт по `/api/public/pay`
+    на том же узле. Иначе запросы уходят внутрь кабинета и возвращают
+    «Method Not Allowed», что выглядит как отказ по ключу, хотя ключ
+    в порядке.
+
+    Принимаем любой из вариантов:
 
         poryadok
         poryadok.getplatinum.ru
         https://poryadok.getplatinum.ru
+        https://poryadok.getplatinum.ru/что-угодно/дальше
         https://poryadok.getplatinum.ru/api/public/pay
 
     и приводим к последнему. Если задан GETPLATINUM_ACCOUNT — берём его.
     """
+    from urllib.parse import urlsplit
+
     raw = (getattr(settings, 'GETPLATINUM_BASE_URL', None)
            or getattr(settings, 'GETPLATINUM_ACCOUNT', None) or '').strip()
     if not raw:
         return ''
 
-    raw = raw.rstrip('/')
+    raw = raw.strip('/')
     if '://' not in raw:
-        # Голое имя аккаунта или имя с доменом.
-        host = raw if '.' in raw else f'{raw}.getplatinum.ru'
-        raw = f'https://{host}'
-    if not raw.endswith('/api/public/pay'):
-        raw = raw.split('/api/')[0].rstrip('/') + '/api/public/pay'
-    return raw
+        # Голое имя аккаунта либо имя с доменом, возможно с путём.
+        head = raw.split('/', 1)[0]
+        host = head if '.' in head else f'{head}.getplatinum.ru'
+    else:
+        host = urlsplit(raw).netloc
+
+    if not host:
+        return ''
+    return f'https://{host}/api/public/pay'
 
 
 def is_enabled():
