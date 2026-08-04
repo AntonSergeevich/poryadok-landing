@@ -272,17 +272,39 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 }
 
 /* Хаос → порядок */
-.flow{position:relative;padding-top:56px}
-.flow__slips{position:absolute;inset:0 0 auto 0;height:150px;pointer-events:none}
+/* Бумажки — левая половина мысли «хаос → порядок». Раньше две из четырёх
+   уходили под карточку системы и не читались: смысл терялся, оставалась
+   просто фактура. Теперь все четыре лежат выше и читаются целиком. */
+.flow{position:relative;padding-top:176px}
+.flow__slips{position:absolute;inset:0 0 auto 0;height:168px;pointer-events:none}
 .slip{
   position:absolute;background:var(--paper);border:1px solid var(--line);
   padding:8px 11px;font:400 var(--t-tag)/1.3 var(--f-mono);color:var(--muted);
-  box-shadow:2px 3px 0 rgba(13,15,14,.05);max-width:170px;
+  box-shadow:2px 3px 0 rgba(13,15,14,.05);max-width:168px;
+  /* Свой угол поворота у каждой — чтобы дрейф не сбивал наклон. */
+  --tilt:0deg;
+  transform:rotate(var(--tilt));
 }
-.slip:nth-child(1){left:0;top:6px;transform:rotate(-6deg)}
-.slip:nth-child(2){left:96px;top:44px;transform:rotate(4deg)}
-.slip:nth-child(3){left:18px;top:88px;transform:rotate(-2.5deg)}
-.slip:nth-child(4){right:0;top:22px;transform:rotate(7deg)}
+.slip:nth-child(1){left:0;    top:0;   --tilt:-6deg}
+.slip:nth-child(2){right:0;   top:14px;--tilt:5deg}
+.slip:nth-child(3){left:22px; top:80px;--tilt:-3deg}
+.slip:nth-child(4){right:14px;top:98px;--tilt:7deg}
+
+/* Лёгкий дрейф. Периоды нарочно разные и не кратные друг другу — иначе
+   бумажки начинают качаться в такт, и вместо беспорядка получается
+   маятник. Смещения крошечные: это фон, а не аттракцион. */
+@keyframes slip-drift{
+  0%   {transform:rotate(var(--tilt)) translate(0,0)}
+  25%  {transform:rotate(calc(var(--tilt) + .8deg)) translate(2px,-3px)}
+  50%  {transform:rotate(var(--tilt)) translate(-1px,-5px)}
+  75%  {transform:rotate(calc(var(--tilt) - .7deg)) translate(-3px,-2px)}
+  100% {transform:rotate(var(--tilt)) translate(0,0)}
+}
+.flow.is-set .slip{animation:slip-drift var(--dur,9s) ease-in-out var(--lag,0s) infinite}
+.slip:nth-child(1){--dur:9.4s;  --lag:0s}
+.slip:nth-child(2){--dur:11.7s; --lag:-2.3s}
+.slip:nth-child(3){--dur:8.3s;  --lag:-4.1s}
+.slip:nth-child(4){--dur:12.9s; --lag:-1.2s}
 
 .order{
   position:relative;z-index:2;background:var(--sheet);border:1px solid var(--graphite);
@@ -510,27 +532,35 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .js-anim .rv-d3.is-in{transition-delay:.18s}
 
 /* Первый экран: хаос собирается в порядок (один раз, при загрузке) */
+/* Появление: бумажки сперва лежат ниже и криво, потом поднимаются на
+   место и только тогда становятся читаемыми. Это и есть «поднимаются
+   чуть вверх, чтобы стало видно надписи». */
 .js-anim .slip{transition:transform .8s cubic-bezier(.2,.7,.25,1),opacity .5s ease}
 .js-anim .flow:not(.is-set) .slip{opacity:0}
-.js-anim .flow:not(.is-set) .slip:nth-child(1){transform:rotate(-17deg) translate(-16px,10px)}
-.js-anim .flow:not(.is-set) .slip:nth-child(2){transform:rotate(13deg) translate(14px,-12px)}
-.js-anim .flow:not(.is-set) .slip:nth-child(3){transform:rotate(-11deg) translate(-10px,16px)}
-.js-anim .flow:not(.is-set) .slip:nth-child(4){transform:rotate(18deg) translate(18px,8px)}
+.js-anim .flow:not(.is-set) .slip:nth-child(1){transform:rotate(-17deg) translate(-16px,26px)}
+.js-anim .flow:not(.is-set) .slip:nth-child(2){transform:rotate(13deg) translate(14px,30px)}
+.js-anim .flow:not(.is-set) .slip:nth-child(3){transform:rotate(-11deg) translate(-10px,34px)}
+.js-anim .flow:not(.is-set) .slip:nth-child(4){transform:rotate(18deg) translate(18px,28px)}
 .js-anim .flow:not(.is-set) .order{opacity:0;transform:translateY(16px)}
 .js-anim .order{transition:opacity .6s ease .25s,transform .6s cubic-bezier(.2,.7,.3,1) .25s}
 
 @media (prefers-reduced-motion:reduce){
-  .js-anim .rv,.js-anim .slip,.js-anim .order{opacity:1!important;transform:none!important;transition:none!important}
+  .js-anim .rv,.js-anim .slip,.js-anim .order{opacity:1!important;transition:none!important}
+  .js-anim .slip{transform:rotate(var(--tilt))!important}
+  .flow.is-set .slip{animation:none}
   *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
 
 /* ---------- Узкие экраны (360px и ниже) ---------- */
 @media (max-width:400px){
   :root{--pad:16px}
-  .flow__slips{height:130px}
-  .slip{max-width:132px;padding:6px 8px}
-  .slip:nth-child(2){left:auto;right:0}
-  .slip:nth-child(4){display:none}
+  .flow{padding-top:150px}
+  .flow__slips{height:142px}
+  .slip{max-width:130px;padding:6px 8px}
+  .slip:nth-child(1){left:0;    top:0}
+  .slip:nth-child(2){left:auto; right:0;top:10px}
+  .slip:nth-child(3){left:6px;  top:66px}
+  .slip:nth-child(4){right:0;   top:84px}
   .order__row{grid-template-columns:auto 1fr}
   .order__row i{grid-column:2;justify-self:start}
 }
