@@ -232,6 +232,16 @@ https://s-poryadok.ru/pay/yookassa/webhook/
 
 ## Выкладка на сервер
 
+Одной командой, с сервера:
+
+```bash
+cd /var/www/s-poryadok && bash deploy.sh
+```
+
+Скрипт останавливается на первом отказе и в конце проверяет, что сайт
+отвечает. Подробности и разбор — в [DEPLOY.md](DEPLOY.md).
+
+
 Сайт живёт на `s-poryadok.ru`: Ubuntu VPS, Gunicorn через сокет, Nginx для SSL
 и статики, боевая ветка — `main`.
 
