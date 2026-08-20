@@ -32,6 +32,7 @@ urlpatterns = [
     path('club/telegram/', views.club_telegram, name='club_telegram'),
     path('privacy/', views.privacy, name='privacy'),
     path('razbor/', views.survey, name='survey'),
+    path('raboty/<slug:slug>/', views.work, name='work'),
     path('sobrat/', views.constructor, name='constructor'),
     path('sobrat/schitat/', views.constructor_price, name='constructor_price'),
 

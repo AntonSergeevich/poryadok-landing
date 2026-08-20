@@ -97,6 +97,12 @@ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
     <p>{{ SITE_OWNER }}{% if SITE_INN %} · ИНН {{ SITE_INN }}{% endif %}</p>
     <p><a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a></p>
     <p><a href="{% url 'privacy' %}">Политика конфиденциальности</a></p>
+    {% comment %}
+      Вход в кабинет — в подвале, а не в меню. Ищут его те, у кого он
+      уже есть: заказчики в работе и я сам. Посетителю, пришедшему
+      с рекламы, он не нужен и только занимал бы место в меню.
+    {% endcomment %}
+    <p><a href="{% url 'cabinet' %}">Вход в кабинет</a></p>
     <p>Python / Django · {% now "Y" %}</p>
   </div>
 </footer>

@@ -1,0 +1,154 @@
+{% extends "landing/base.html" %}
+{% load static %}
+
+{% block title %}{{ work.title }} · {{ work.role }} — работа Систем Порядок{% endblock %}
+{% block description %}{{ work.lede }} Что было до системы и что стало после.{% endblock %}
+{% block og_title %}{{ work.title }} · {{ work.role }}{% endblock %}
+{% block og_description %}{{ work.lede }}{% endblock %}
+
+{% block nav %}
+<a href="{% url 'index' %}#cases">Все работы</a>
+<a href="{% url 'index' %}#what">Что делаю</a>
+<a href="{% url 'constructor' %}">Собрать</a>
+<a href="{% url 'club' %}">Клуб</a>
+{% endblock %}
+{% block head_cta_href %}{% url 'index' %}#cta{% endblock %}
+{% block dock_href %}{% url 'index' %}#cta{% endblock %}
+
+{% block content %}
+<section class="sheet sheet--first">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="tag tag--ink">Работа · {{ work.city }}</span>
+      <h1>{{ work.title }} · {{ work.role }}</h1>
+      <p class="lede">{{ work.lede }}</p>
+    </div>
+
+    <p class="work__go">
+      <a class="btn" href="https://{{ work.site }}" target="_blank" rel="noopener">
+        Открыть {{ work.site }} <span class="arrow" aria-hidden="true">↗</span>
+      </a>
+    </p>
+
+    <ul class="work__facts work__facts--wide">
+      {% if work.term %}
+        <li>
+          <span>Срок</span>
+          <b>{{ work.term }}</b>
+          {% if work.term_note %}<em>{{ work.term_note }}</em>{% endif %}
+        </li>
+      {% endif %}
+      {% for label, value in work.facts %}
+        <li><span>{{ label }}</span><b>{{ value }}</b></li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+
+<section class="sheet" id="ba">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2>Что было и что стало</h2>
+      <p class="lede">
+        «Было» — это не выдумка для красоты, а пересказ разбора, который
+        делался перед работой. Формулировки близки к тому, как человек
+        сам объяснял свою боль.
+      </p>
+    </div>
+
+    <div class="work__ba rv">
+      <div class="ba ba--was">
+        <h4>Было</h4>
+        <ul>{% for line in work.was %}<li>{{ line }}</li>{% endfor %}</ul>
+      </div>
+      <div class="ba ba--now">
+        <h4>Стало</h4>
+        <ul>{% for line in work.now %}<li>{{ line }}</li>{% endfor %}</ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2>Как это выглядит</h2>
+      <p class="lede">Нажмите снимок, чтобы посмотреть крупно.</p>
+    </div>
+
+    <div class="shots rv">
+      {% for shot in work.shots %}
+        <figure class="shot">
+          {% comment %}
+            Ссылка, а не кнопка: без JavaScript она открывает снимок
+            отдельной вкладкой, а с ним — окном поверх страницы.
+          {% endcomment %}
+          <a class="shot__open"
+             href="{% static 'landing/img/cases/' %}{{ shot.file }}.webp"
+             data-shot data-cap="{{ shot.cap }}">
+            <img src="{% static 'landing/img/cases/' %}{{ shot.file }}-sm.webp"
+                 width="700" height="438" loading="lazy" decoding="async"
+                 alt="{{ shot.cap }}">
+            <span class="shot__zoom" aria-hidden="true">крупно</span>
+          </a>
+          <figcaption>{{ shot.cap }}</figcaption>
+        </figure>
+      {% endfor %}
+    </div>
+
+    <p class="shots__note">
+      На снимках демонстрационные данные, а не живые заказчики: чужие
+      телефоны и суммы в портфолио не показывают.
+    </p>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="wrap">
+    <div class="work__next rv">
+      <div>
+        <h2>Собрать такую же</h2>
+        <p class="lede">
+          Состав у каждого свой. В конструкторе видно, из чего система
+          складывается и во что обходится — без заявки и без разговора.
+        </p>
+        <p class="work__go">
+          <a class="btn btn--lg" href="{% url 'constructor' %}">
+            Собрать систему <span class="arrow" aria-hidden="true">→</span>
+          </a>
+          <a class="btn btn--ghost btn--lg" href="{% url 'index' %}#cta">
+            Бесплатный разбор
+          </a>
+        </p>
+      </div>
+
+      {% if others %}
+        <div class="work__others">
+          <h3>Другие работы</h3>
+          <ul>
+            {% for other in others %}
+              <li>
+                <a href="{% url 'work' other.slug %}">
+                  {{ other.title }} · {{ other.role }}
+                </a>
+              </li>
+            {% endfor %}
+            <li><a href="{% url 'index' %}#cases">Все работы</a></li>
+          </ul>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% comment %}
+  Окно просмотра снимка — то же самое, что на главной. Пустое до первого
+  нажатия: четыре больших файла в очереди загрузки ради картинок,
+  которые могут и не понадобиться, — плохой обмен.
+{% endcomment %}
+<dialog class="lightbox" id="lightbox" aria-label="Снимок экрана">
+  <button class="lightbox__close" type="button" data-shot-close aria-label="Закрыть">×</button>
+  <img class="lightbox__img" id="lightbox-img" alt="">
+  <p class="lightbox__cap" id="lightbox-cap"></p>
+</dialog>
+{% endblock %}

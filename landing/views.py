@@ -9,7 +9,8 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import (Http404, HttpResponse, HttpResponseBadRequest,
+                         JsonResponse)
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -26,7 +27,7 @@ from .services import payments as pay
 from .services import telegram as tg
 from .survey import QUESTIONS
 from . import constructor as build
-from .works import WORKS
+from .works import WORKS, by_slug
 
 logger = logging.getLogger(__name__)
 
@@ -661,6 +662,23 @@ def constructor_price(request):
                                  request=request),
     })
 
+def work(request, slug):
+    """Отдельная страница работы.
+
+    На главной работы стоят короткими карточками: список работ должен
+    читаться за десять секунд, а не за пять экранов. Всё подробное —
+    было, стало, проверяемые числа и снимки — живёт здесь, и сюда
+    приходят те, кому это правда интересно.
+    """
+    item = by_slug(slug)
+    if item is None:
+        raise Http404
+    return render(request, 'landing/work.html', {
+        'work': item,
+        # Соседняя работа — чтобы со страницы был выход не только назад.
+        'others': [w for w in WORKS if w['slug'] != slug],
+    })
+
 def privacy(request):
     return render(request, 'landing/privacy.html', {
         'owner': settings.SITE_OWNER,
@@ -684,6 +702,7 @@ def robots_txt(request):
 
 def sitemap_xml(request):
     paths = ['', 'razbor/', 'sobrat/', 'club/', 'privacy/']
+    paths += [f'raboty/{w["slug"]}/' for w in WORKS]
     base = f'{request.scheme}://{request.get_host()}/'
     urls = ''.join(f'<url><loc>{base}{p}</loc></url>' for p in paths)
     xml = ('<?xml version="1.0" encoding="UTF-8"?>'

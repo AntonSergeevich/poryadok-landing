@@ -1581,3 +1581,60 @@ class PasswordResetTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('password_reset_done'))
         self.assertEqual(len(mail.outbox), 0)
+
+
+class WorkPageTests(TestCase):
+    """Страницы отдельных работ и короткие карточки на главной."""
+
+    def test_every_work_has_its_own_page(self):
+        for item in WORKS:
+            with self.subTest(work=item['slug']):
+                response = self.client.get(reverse('work', args=[item['slug']]))
+                self.assertEqual(response.status_code, 200)
+                body = response.content.decode()
+                self.assertIn(item['title'], body)
+                self.assertIn(item['site'], body)
+
+    def test_unknown_work_is_not_found(self):
+        self.assertEqual(
+            self.client.get(reverse('work', args=['net-takoy'])).status_code, 404)
+
+    def test_details_moved_off_the_front_page(self):
+        """Раньше всё «было/стало» стояло на главной и растягивало её
+        на пять экранов. Теперь подробности живут на своей странице,
+        а на главной — вывеска и ссылка."""
+        front = self.client.get(reverse('index')).content.decode()
+        for item in WORKS:
+            with self.subTest(work=item['slug']):
+                self.assertIn(reverse('work', args=[item['slug']]), front)
+                # Снимков на главной по одному на работу, а не по четыре.
+                self.assertNotIn(f'{item["shots"][3]["file"]}-sm.webp', front)
+
+    def test_front_page_keeps_was_and_now_in_a_dialog(self):
+        """Окно «было и стало» приезжает вместе со страницей: два коротких
+        списка дешевле привезти сразу, чем идти за ними запросом."""
+        front = self.client.get(reverse('index')).content.decode()
+        for item in WORKS:
+            with self.subTest(work=item['slug']):
+                self.assertIn(f'id="ba-{item["slug"]}"', front)
+                self.assertIn(item['was'][0][:40], front)
+
+    def test_work_pages_are_in_the_sitemap(self):
+        body = self.client.get(reverse('sitemap')).content.decode()
+        for item in WORKS:
+            self.assertIn(f'raboty/{item["slug"]}/', body)
+
+
+class CabinetEntranceTests(TestCase):
+    """Вход в кабинет должен быть findable — его на сайте не было вовсе."""
+
+    def test_footer_links_to_the_cabinet(self):
+        for name in ('index', 'club', 'constructor', 'privacy'):
+            with self.subTest(page=name):
+                body = self.client.get(reverse(name)).content.decode()
+                self.assertIn(reverse('cabinet'), body)
+
+    def test_cabinet_sends_a_stranger_to_the_login_page(self):
+        response = self.client.get(reverse('cabinet'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response.url)

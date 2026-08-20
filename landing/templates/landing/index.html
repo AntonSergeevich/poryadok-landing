@@ -181,15 +181,17 @@
 
 {# ═══ ЛИСТ 04 — РАБОТЫ ══════════════════════════════════════════════════ #}
 {% comment %}
-  Работы берутся из landing/works.py: добавить новую — дописать словарь,
-  вёрстку трогать не нужно.
+  Здесь только вывеска: кто, чем занимается, сколько заняло и один снимок.
+  Список работ должен читаться за десять секунд.
 
-  Снимок открывается во весь экран в <dialog>. Взято родное окно браузера,
-  а не самодельное: оно само ловит Esc, само возвращает фокус на кнопку,
-  с которой открылось, и само закрывает доступ к остальной странице для
-  экранного диктора. Своими руками это пишется втрое длиннее и всё равно
-  хуже. Без JavaScript кнопка снимка остаётся ссылкой на файл — картинка
-  просто открывается отдельной вкладкой.
+  Раньше вся подробность стояла прямо тут и растягивала главную на пять
+  экранов. Человек, который просто хотел понять «а что он вообще делал»,
+  вынужден был пролистывать чужие боли целиком. Теперь подробное живёт
+  на отдельной странице работы, а «было/стало» открывается окном —
+  не уходя со страницы.
+
+  Обе кнопки — настоящие ссылки. Без JavaScript «Было и стало» просто
+  уводит на страницу работы, где то же самое написано текстом.
 {% endcomment %}
 <section class="sheet" id="cases">
   <div class="wrap">
@@ -197,78 +199,40 @@
       <span class="tag">Лист 04 · Сделано</span>
       <h2>Системы, которые уже работают</h2>
       <p class="lede">
-        Два живых бизнеса: что было до, что стало после и что можно
-        открыть прямо сейчас и потрогать.
+        Два живых бизнеса. Оба сайта открыты — можно зайти и потрогать.
       </p>
     </div>
 
     <div class="works">
       {% for work in works %}
-        <article class="work rv" id="work-{{ work.slug }}">
-          <header class="work__head">
-            <div class="work__who">
-              <h3>{{ work.title }} · {{ work.role }}</h3>
-              <p class="work__lede">{{ work.lede }}</p>
-            </div>
-            <a class="work__site" href="https://{{ work.site }}"
-               target="_blank" rel="noopener">
-              {{ work.site }}<span class="arrow" aria-hidden="true">↗</span>
-            </a>
-          </header>
+        <article class="work rv">
+          <a class="work__shot" href="{% url 'work' work.slug %}"
+             aria-label="Подробно о работе: {{ work.title }}">
+            <img src="{% static 'landing/img/cases/' %}{{ work.shots.0.file }}-sm.webp"
+                 width="700" height="438" loading="lazy" decoding="async" alt="">
+          </a>
 
-          <div class="work__ba">
-            <div class="ba ba--was">
-              <h4>Было</h4>
-              <ul>
-                {% for line in work.was %}<li>{{ line }}</li>{% endfor %}
-              </ul>
-            </div>
-            <div class="ba ba--now">
-              <h4>Стало</h4>
-              <ul>
-                {% for line in work.now %}<li>{{ line }}</li>{% endfor %}
-              </ul>
-            </div>
+          <div class="work__body">
+            <h3>{{ work.title }} · {{ work.role }}</h3>
+            <p class="work__lede">{{ work.lede }}</p>
+
+            <ul class="work__facts">
+              <li><span>Город</span><b>{{ work.city }}</b></li>
+              {% if work.term %}<li><span>Срок</span><b>{{ work.term }}</b></li>{% endif %}
+              <li><span>Сайт</span><b>
+                <a href="https://{{ work.site }}" target="_blank" rel="noopener">
+                  {{ work.site }}<span class="arrow" aria-hidden="true">↗</span>
+                </a></b></li>
+            </ul>
+
+            <p class="work__go">
+              <a class="btn btn--sm" href="{% url 'work' work.slug %}#ba"
+                 data-ba="ba-{{ work.slug }}">Было и стало</a>
+              <a class="btn btn--sm btn--ghost" href="{% url 'work' work.slug %}">
+                Подробно <span class="arrow" aria-hidden="true">→</span>
+              </a>
+            </p>
           </div>
-
-          <ul class="work__facts">
-            <li><span>Город</span><b>{{ work.city }}</b></li>
-            {% for label, value in work.facts %}
-              <li><span>{{ label }}</span><b>{{ value }}</b></li>
-            {% endfor %}
-            {% if work.term %}
-              <li>
-                <span>Срок</span>
-                <b>{{ work.term }}</b>
-                {% if work.term_note %}<i>{{ work.term_note }}</i>{% endif %}
-              </li>
-            {% endif %}
-          </ul>
-
-          <div class="shots">
-            {% for shot in work.shots %}
-              <figure class="shot">
-                {% comment %}
-                  Ссылка, а не кнопка: без JavaScript она открывает снимок
-                  отдельной вкладкой, а с ним — окном поверх страницы.
-                {% endcomment %}
-                <a class="shot__open"
-                   href="{% static 'landing/img/cases/' %}{{ shot.file }}.webp"
-                   data-shot data-cap="{{ shot.cap }}">
-                  <img src="{% static 'landing/img/cases/' %}{{ shot.file }}-sm.webp"
-                       width="700" height="438" loading="lazy" decoding="async"
-                       alt="{{ shot.cap }}">
-                  <span class="shot__zoom" aria-hidden="true">крупно</span>
-                </a>
-                <figcaption>{{ shot.cap }}</figcaption>
-              </figure>
-            {% endfor %}
-          </div>
-
-          <p class="shots__note">
-            На снимках демонстрационные данные, а не живые заказчики: чужие
-            телефоны и суммы в портфолио не показывают.
-          </p>
         </article>
       {% endfor %}
     </div>
@@ -283,16 +247,40 @@
 </section>
 
 {% comment %}
-  Окно просмотра снимка. Одно на всю страницу: картинка и подпись
-  подставляются при открытии. Пустое до первого нажатия — двадцать
-  снимков в разметке разом означали бы двадцать больших файлов
-  в очереди загрузки.
+  Окна «было/стало» — по одному на работу, содержимое уже в разметке.
+  Тянуть его запросом незачем: это два коротких списка, и они всё равно
+  приедут вместе со страницей дешевле, чем обойдётся отдельный запрос.
+
+  Без JavaScript окна не показываются вовсе (у dialog нет open), а кнопки
+  работают как обычные ссылки на страницу работы.
 {% endcomment %}
-<dialog class="lightbox" id="lightbox" aria-label="Снимок экрана">
-  <button class="lightbox__close" type="button" data-shot-close aria-label="Закрыть">×</button>
-  <img class="lightbox__img" id="lightbox-img" alt="">
-  <p class="lightbox__cap" id="lightbox-cap"></p>
-</dialog>
+{% for work in works %}
+  <dialog class="ba-box" id="ba-{{ work.slug }}" aria-label="Было и стало: {{ work.title }}">
+    <div class="ba-box__in">
+      <header class="ba-box__head">
+        <h2>{{ work.title }} · было и стало</h2>
+        <button class="ba-box__close" type="button" data-ba-close aria-label="Закрыть">×</button>
+      </header>
+
+      <div class="work__ba">
+        <div class="ba ba--was">
+          <h4>Было</h4>
+          <ul>{% for line in work.was %}<li>{{ line }}</li>{% endfor %}</ul>
+        </div>
+        <div class="ba ba--now">
+          <h4>Стало</h4>
+          <ul>{% for line in work.now %}<li>{{ line }}</li>{% endfor %}</ul>
+        </div>
+      </div>
+
+      <p class="ba-box__foot">
+        <a class="btn btn--sm" href="{% url 'work' work.slug %}">
+          Снимки экранов и подробности <span class="arrow" aria-hidden="true">→</span>
+        </a>
+      </p>
+    </div>
+  </dialog>
+{% endfor %}
 
 
 {# ═══ ЛИСТ 05 — ПОРЯДОК РАБОТ ═══════════════════════════════════════════ #}
