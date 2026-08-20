@@ -1,0 +1,41 @@
+{% extends 'landing/base.html' %}
+
+{% block title %}Новый пароль — Системы Порядок{% endblock %}
+{% block nav %}<a href="{% url 'login' %}">Вход</a><a href="{% url 'index' %}">На сайт</a>{% endblock %}
+{% block head_action %}{% endblock %}
+
+{% block content %}
+<section class="sheet cab">
+  <div class="wrap wrap--narrow">
+    <span class="tag">Кабинет</span>
+    {% if validlink %}
+      <h1>Придумайте пароль</h1>
+      <p class="lede">
+        Любой, который вы не забудете. Длиннее — лучше: длина здесь
+        важнее спецсимволов.
+      </p>
+
+      <form class="login" method="post">
+        {% csrf_token %}
+        {% for field in form %}
+          <label class="field">
+            <span>{{ field.label }}</span>
+            {{ field }}
+            {% if field.errors %}
+              <p class="err err--shown">{{ field.errors|join:" " }}</p>
+            {% endif %}
+          </label>
+        {% endfor %}
+        <button class="btn btn--block" type="submit">Сохранить</button>
+      </form>
+    {% else %}
+      <h1>Ссылка больше не работает</h1>
+      <p class="lede">
+        Она срабатывает один раз и живёт трое суток. Запросите новую —
+        это ничего не стоит.
+      </p>
+      <p><a class="btn" href="{% url 'password_reset' %}">Запросить заново</a></p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

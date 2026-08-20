@@ -10,11 +10,18 @@ from django.urls import reverse
 
 from django.contrib.auth.models import User
 
+from unittest import mock
+
+from django.conf import settings
+from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 from . import cabinet as cabinet_views
 from . import constructor as build
 from . import survey as survey_logic
 from .forms import LeadForm
-from .models import (STAGE_PLAN, Client, ClubSubscription, Lead, Payment,
+from .models import (STAGE_PLAN, Client, ClubSubscription, Lead, Message,
+                     MessageFile, Payment,
                      Project, Stage, StageTask, Survey,
                      format_phone, normalize_phone)
 import json
@@ -27,6 +34,8 @@ from django.utils import timezone
 from datetime import timedelta
 
 from .services import access
+from .services import chat
+from .services import notify
 from .services import analysis
 from .services import club as club_service
 from .services import getplatinum as gp
@@ -1254,3 +1263,321 @@ class ConstructorTests(TestCase):
     def test_price_endpoint_refuses_get(self):
         self.assertEqual(
             self.client.get(reverse('constructor_price')).status_code, 405)
+
+
+class ChatTests(TestCase):
+    """Переписка: доказательная база, а не удобство."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.card = Client.objects.create(name='Ирина', phone='+79130000020')
+        access.issue(self.card)
+        self.card.refresh_from_db()
+        self.card.user.set_password('y' * 12)
+        self.card.user.save()
+        self.project = Project.objects.create(client=self.card, title='Система')
+
+        self.stranger = Client.objects.create(name='Гость', phone='+79130000021')
+        access.issue(self.stranger)
+        self.stranger.refresh_from_db()
+
+    def post(self, project, user, **payload):
+        self.client.force_login(user)
+        return self.client.post(
+            reverse('cabinet_chat_send', args=[project.pk]), payload,
+            headers={'x-requested-with': 'XMLHttpRequest'})
+
+    def test_owner_is_signed_by_name_not_login(self):
+        """«anton» — это то, чем входят, а не то, как зовут. Заказчик,
+        которому пишет «anton», не понимает, с кем разговаривает."""
+        self.post(self.project, self.owner, text='Здравствуйте')
+        message = Message.objects.get()
+        self.assertNotEqual(message.author_name, 'anton')
+        self.assertEqual(message.author_name, settings.SITE_OWNER)
+
+    def test_client_is_signed_by_card_name(self):
+        self.post(self.project, self.card.user, text='Добрый день')
+        self.assertEqual(Message.objects.get().author_name, 'Ирина')
+
+    def test_name_is_frozen_at_send_time(self):
+        """Учётную запись можно переименовать, а переписка обязана
+        остаться читаемой."""
+        self.post(self.project, self.card.user, text='Первое')
+        self.card.name = 'Ирина Петровна'
+        self.card.save()
+        self.post(self.project, self.card.user, text='Второе')
+
+        names = list(Message.objects.order_by('pk')
+                     .values_list('author_name', flat=True))
+        self.assertEqual(names, ['Ирина', 'Ирина Петровна'])
+
+    def test_empty_message_is_not_saved(self):
+        """Случайный Enter не должен оставлять в доказательной базе
+        пустые строки."""
+        response = self.post(self.project, self.owner, text='   ')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Message.objects.count(), 0)
+
+    def test_stranger_cannot_read_or_write(self):
+        self.post(self.project, self.owner, text='Внутреннее')
+        self.client.force_login(self.stranger.user)
+
+        write = self.client.post(
+            reverse('cabinet_chat_send', args=[self.project.pk]),
+            {'text': 'Подсмотрю'},
+            headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertEqual(write.status_code, 404)
+
+        read = self.client.get(
+            reverse('cabinet_chat_since', args=[self.project.pk]) + '?after=0')
+        self.assertEqual(read.status_code, 404)
+        self.assertEqual(Message.objects.count(), 1)
+
+    def test_since_returns_only_what_is_new(self):
+        """Один короткий запрос вместо перезагрузки ленты."""
+        self.post(self.project, self.owner, text='Первое')
+        first = Message.objects.get().pk
+        self.post(self.project, self.owner, text='Второе')
+
+        self.client.force_login(self.card.user)
+        data = json.loads(self.client.get(
+            reverse('cabinet_chat_since', args=[self.project.pk]),
+            {'after': first},
+            headers={'x-requested-with': 'XMLHttpRequest'}).content)
+        self.assertEqual(len(data['items']), 1)
+        self.assertIn('Второе', data['items'][0])
+        self.assertNotIn('Первое', data['items'][0])
+
+    def test_reading_marks_the_other_sides_messages(self):
+        self.post(self.project, self.owner, text='Посмотрите')
+        self.assertIsNone(Message.objects.get().read_at)
+
+        self.client.force_login(self.card.user)
+        self.client.get(reverse('cabinet_chat_since', args=[self.project.pk]),
+                        {'after': 0},
+                        headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertIsNotNone(Message.objects.get().read_at)
+
+    def test_own_messages_are_never_marked_read_by_yourself(self):
+        """«Прочитано» ставит тот, кто читает. Иначе оно означало бы
+        «доставлено», а это разные вещи."""
+        self.post(self.project, self.owner, text='Своё')
+        self.client.force_login(self.owner)
+        self.client.get(reverse('cabinet_chat_since', args=[self.project.pk]),
+                        {'after': 0},
+                        headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertIsNone(Message.objects.get().read_at)
+
+    def test_read_ids_come_back_without_any_new_message(self):
+        """Отметка меняется, когда собеседник просто открыл кабинет.
+        Без отдельного списка она появлялась бы только после
+        перезагрузки страницы, то есть почти никогда."""
+        self.post(self.project, self.owner, text='Посмотрите')
+        mine = Message.objects.get().pk
+
+        self.client.force_login(self.card.user)
+        self.client.get(reverse('cabinet_chat_since', args=[self.project.pk]),
+                        {'after': mine},
+                        headers={'x-requested-with': 'XMLHttpRequest'})
+
+        self.client.force_login(self.owner)
+        data = json.loads(self.client.get(
+            reverse('cabinet_chat_since', args=[self.project.pk]),
+            {'after': mine},
+            headers={'x-requested-with': 'XMLHttpRequest'}).content)
+        self.assertEqual(data['items'], [])
+        self.assertIn(mine, data['read'])
+
+    def test_sides_are_decided_on_the_server(self):
+        """«Своё справа» зависит от того, кто смотрит. Решать это
+        в двух местах — способ однажды показать заказчику его же
+        сообщения слева."""
+        self.post(self.project, self.owner, text='От меня')
+
+        self.client.force_login(self.owner)
+        mine = self.client.get(
+            reverse('cabinet_project', args=[self.project.pk])).content.decode()
+        self.assertIn('msg--mine', mine)
+
+        self.client.force_login(self.card.user)
+        theirs = self.client.get(reverse('cabinet_mine')).content.decode()
+        self.assertNotIn('msg--mine', theirs)
+        self.assertIn(settings.SITE_OWNER, theirs)
+
+    def test_attachment_is_stored_with_the_message(self):
+        upload = SimpleUploadedFile('smeta.txt', b'a' * 200, 'text/plain')
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_chat_send', args=[self.project.pk]),
+                         {'text': 'Смета', 'files': upload},
+                         headers={'x-requested-with': 'XMLHttpRequest'})
+
+        file = MessageFile.objects.get()
+        self.assertEqual(file.name, 'smeta.txt')
+        self.assertEqual(file.size, 200)
+        self.assertEqual(file.message.text, 'Смета')
+
+    def test_oversized_file_is_refused_not_stored(self):
+        big = SimpleUploadedFile('video.mp4', b'x' * (chat.MAX_FILE + 1),
+                                 'video/mp4')
+        response = self.post(self.project, self.owner, files=big)
+        # Текста нет и файл не принят — сохранять нечего.
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(MessageFile.objects.count(), 0)
+
+    def test_human_size_is_readable(self):
+        for size, expected in ((512, '512 Б'), (2048, '2 КБ'),
+                               (2_517_948, '2,4 МБ')):
+            with self.subTest(size=size):
+                file = MessageFile(name='f', size=size)
+                self.assertEqual(file.human_size, expected)
+
+    def test_older_loads_what_came_before(self):
+        for number in range(chat.PAGE + 5):
+            self.post(self.project, self.owner, text=f'Сообщение {number}')
+
+        self.client.force_login(self.owner)
+        body = self.client.get(
+            reverse('cabinet_project', args=[self.project.pk])).content.decode()
+        # В ленту сразу приезжает только хвост: год переписки одним
+        # запросом — это секунда ожидания и мегабайт с телефона.
+        self.assertNotIn('Сообщение 0<', body)
+        self.assertIn('Показать раньше', body)
+
+        first = chat.tail(self.project)[0].pk
+        data = json.loads(self.client.get(
+            reverse('cabinet_chat_older', args=[self.project.pk]),
+            {'before': first},
+            headers={'x-requested-with': 'XMLHttpRequest'}).content)
+        self.assertTrue(data['items'])
+        self.assertFalse(data['more'])
+
+
+class NotifyTests(TestCase):
+    """Уведомление уходит той стороне, которой адресовано."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.card = Client.objects.create(name='Ирина', phone='+79130000030',
+                                          telegram_user_id=555)
+        access.issue(self.card)
+        self.card.refresh_from_db()
+        self.project = Project.objects.create(client=self.card, title='Система')
+        self.project.build_stages()
+        self.stage = self.project.stages.get(number=1)
+
+    def test_stage_move_writes_to_the_client(self):
+        with mock.patch.object(tg_service, 'send_to', return_value=True) as sent:
+            notify.stage_moved(self.stage)
+        sent.assert_called_once()
+        self.assertEqual(sent.call_args[0][0], 555)
+        self.assertIn(self.stage.title, sent.call_args[0][1])
+
+    def test_nothing_is_sent_when_telegram_is_not_linked(self):
+        """Пока номер не связан с ботом, писать некуда — и кабинет
+        от этого работать не перестаёт."""
+        self.card.telegram_user_id = None
+        self.card.save()
+        with mock.patch.object(tg_service, 'send_to') as sent:
+            self.assertFalse(notify.stage_moved(self.stage))
+        sent.assert_not_called()
+
+    def test_a_broken_notification_never_breaks_the_action(self):
+        """Отметить задачу важнее, чем сообщить о ней."""
+        with mock.patch.object(tg_service, 'send_to',
+                               side_effect=RuntimeError('сеть')):
+            self.assertFalse(notify.stage_moved(self.stage))
+
+    def test_client_task_notifies_the_client(self):
+        task = StageTask.objects.create(stage=self.stage, title='Прислать фото',
+                                        who=StageTask.Who.CLIENT)
+        with mock.patch.object(tg_service, 'send_to', return_value=True) as sent:
+            notify.task_for_client(task)
+        self.assertIn('Прислать фото', sent.call_args[0][1])
+
+    def test_message_goes_to_the_side_that_did_not_write_it(self):
+        from_owner = Message.objects.create(
+            project=self.project, author=self.owner, author_name='Антон',
+            author_is_owner=True, text='Посмотрите')
+        with mock.patch.object(tg_service, 'send_to', return_value=True) as sent:
+            notify.new_message(from_owner)
+        self.assertEqual(sent.call_args[0][0], 555)   # заказчику
+
+        from_client = Message.objects.create(
+            project=self.project, author=self.card.user, author_name='Ирина',
+            author_is_owner=False, text='Хорошо')
+        with self.settings(TELEGRAM_CHAT_ID='999'):
+            with mock.patch.object(tg_service, 'send_to', return_value=True) as sent:
+                notify.new_message(from_client)
+        self.assertEqual(sent.call_args[0][0], '999')  # исполнителю
+
+    def test_long_message_is_cut_not_dumped_whole(self):
+        long = Message.objects.create(
+            project=self.project, author=self.owner, author_name='Антон',
+            author_is_owner=True, text='а' * 500)
+        with mock.patch.object(tg_service, 'send_to', return_value=True) as sent:
+            notify.new_message(long)
+        self.assertLess(len(sent.call_args[0][1]), 500)
+        self.assertIn('…', sent.call_args[0][1])
+
+    def test_a_stage_that_did_not_move_sends_nothing(self):
+        """Уведомление о нажатии на тот же статус учит не читать
+        уведомления."""
+        self.stage.mark(Stage.Status.RUNNING)
+        self.client.force_login(self.owner)
+        with mock.patch.object(notify, 'stage_moved') as told:
+            self.client.post(
+                reverse('cabinet_stage_status', args=[self.stage.pk]),
+                {'status': Stage.Status.RUNNING},
+                headers={'x-requested-with': 'XMLHttpRequest'})
+        told.assert_not_called()
+
+
+class PasswordResetTests(TestCase):
+    """Пароль от кабинета, куда заходят раз в неделю, будет забыт."""
+
+    def setUp(self):
+        self.card = Client.objects.create(name='Ирина', phone='+79130000040',
+                                          email='irina@example.com')
+        access.issue(self.card)
+        self.card.refresh_from_db()
+
+    def test_link_is_offered_only_when_mail_can_be_sent(self):
+        """Кнопка, ведущая в тупик, хуже её отсутствия: человек нажмёт,
+        ничего не получит и решит, что сломался весь кабинет."""
+        with self.settings(EMAIL_READY=True):
+            self.assertIn('Забыли пароль',
+                          self.client.get(reverse('login')).content.decode())
+        with self.settings(EMAIL_READY=False):
+            self.assertNotIn('Забыли пароль',
+                             self.client.get(reverse('login')).content.decode())
+
+    def test_page_says_the_truth_when_mail_is_not_set_up(self):
+        with self.settings(EMAIL_READY=False):
+            body = self.client.get(reverse('password_reset')).content.decode()
+        self.assertIn('не подключена', body)
+        self.assertNotIn('name="email"', body)
+
+    def test_letter_carries_a_working_link(self):
+        with self.settings(EMAIL_READY=True):
+            self.client.post(reverse('password_reset'),
+                             {'email': 'irina@example.com'})
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        self.assertIn(self.card.user.username, body)
+
+        link = re.search(r'https?://\S+/cabinet/parol/novyy/\S+', body)
+        self.assertIsNotNone(link, 'в письме нет ссылки на смену пароля')
+        path = '/' + link.group(0).split('/', 3)[3]
+        self.assertEqual(self.client.get(path, follow=True).status_code, 200)
+
+    def test_unknown_address_is_answered_the_same_way(self):
+        """Отвечать «такого адреса нет» значит позволить перебором
+        узнать, кто у меня в клиентах."""
+        with self.settings(EMAIL_READY=True):
+            response = self.client.post(reverse('password_reset'),
+                                        {'email': 'nobody@example.com'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('password_reset_done'))
+        self.assertEqual(len(mail.outbox), 0)

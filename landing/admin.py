@@ -8,8 +8,8 @@ from django.contrib import admin, messages
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import (Client, ClubSubscription, Lead, Payment, Project, Stage,
-                     StageTask, Survey,
+from .models import (Client, ClubSubscription, Lead, Message, MessageFile,
+                     Payment, Project, Stage, StageTask, Survey,
                      format_phone)
 from .services import telegram as tg
 
@@ -203,6 +203,58 @@ class StageAdmin(admin.ModelAdmin):
     search_fields = ('title', 'project__title', 'project__client__name')
     autocomplete_fields = ('project',)
     inlines = (StageTaskInline,)
+
+class MessageFileInline(admin.TabularInline):
+    model = MessageFile
+    extra = 0
+    fields = ('name', 'size')
+    readonly_fields = ('name', 'size')
+    can_delete = False
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    """Переписка — только чтение.
+
+    Сообщения не правятся и не удаляются ни одной из сторон, включая
+    меня. Переписка нужна как доказательная база, а переписанная задним
+    числом не доказывает ничего — в том числе и в мою пользу.
+
+    Раздел нужен, чтобы найти нужное место в истории и выгрузить его,
+    а не чтобы редактировать.
+    """
+    list_display = ('created_short', 'project', 'author_name', 'side', 'short')
+    list_filter = ('author_is_owner', 'created_at')
+    search_fields = ('text', 'author_name', 'project__title',
+                     'project__client__name')
+    autocomplete_fields = ('project',)
+    inlines = (MessageFileInline,)
+    readonly_fields = ('project', 'author', 'author_name', 'author_is_owner',
+                       'text', 'read_at', 'created_at', 'updated_at')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description='когда', ordering='created_at')
+    def created_short(self, obj):
+        return obj.created_at.strftime('%d.%m %H:%M')
+
+    @admin.display(description='сторона')
+    def side(self, obj):
+        return 'исполнитель' if obj.author_is_owner else 'заказчик'
+
+    @admin.display(description='текст')
+    def short(self, obj):
+        text = obj.text or ''
+        if len(text) > 70:
+            return text[:70] + '…'
+        return text or f'[файлов: {obj.files.count()}]'
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):

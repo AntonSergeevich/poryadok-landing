@@ -1,0 +1,27 @@
+{% extends 'landing/base.html' %}
+
+{% block title %}Письмо отправлено — Системы Порядок{% endblock %}
+{% block nav %}<a href="{% url 'login' %}">Вход</a><a href="{% url 'index' %}">На сайт</a>{% endblock %}
+{% block head_action %}{% endblock %}
+
+{% block content %}
+<section class="sheet cab">
+  <div class="wrap wrap--narrow">
+    <span class="tag">Кабинет</span>
+    <h1>Письмо ушло</h1>
+    <p class="lede">
+      Если такая почта у меня есть, ссылка уже там. Она живёт трое суток
+      и срабатывает один раз.
+    </p>
+    <p class="muted">
+      Письма нет через пару минут — посмотрите в спаме. Не нашлось
+      и там — позвоните, выдам пароль сам:
+      <a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>.
+    </p>
+    <p class="muted">
+      «Если такая почта есть» — это не увёртка. Отвечать «такого адреса
+      нет» значит позволить перебором узнать, кто у меня в клиентах.
+    </p>
+  </div>
+</section>
+{% endblock %}

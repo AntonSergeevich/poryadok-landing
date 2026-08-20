@@ -229,6 +229,42 @@ STORAGES = {
 }
 STATIC_URL = '/static/'
 
+# Файлы, которые присылают люди: вложения в переписке по проекту.
+# Отдельно от статики и намеренно вне staticfiles: collectstatic
+# эту папку не трогает, и чужие файлы не могут попасть в сборку.
+#
+# На проде их отдаёт nginx, а не Django, — см. DEPLOY.md. Сам Django
+# отдаёт их только в разработке.
+# Почта. Нужна ровно для одного — восстановления пароля по ссылке.
+# Пока не настроена, страница восстановления честно об этом говорит
+# и отправляет звонить, а не молчит и не делает вид, что письмо ушло.
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'True').lower() in ('1', 'true', 'yes')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False').lower() in ('1', 'true', 'yes')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or SITE_EMAIL)
+# В разработке письма печатаются в консоль: настоящий SMTP локально
+# не нужен, а увидеть письмо целиком — нужно.
+EMAIL_BACKEND = ('django.core.mail.backends.console.EmailBackend' if DEBUG
+                 else 'django.core.mail.backends.smtp.EmailBackend')
+
+# Настроена ли почта на самом деле. По этому флагу страница входа решает,
+# показывать ли «Забыли пароль?»: ссылка, ведущая в тупик, хуже её
+# отсутствия — человек нажмёт, ничего не получит и решит, что сломалось
+# всё, а не одна кнопка.
+EMAIL_READY = bool(EMAIL_HOST and EMAIL_HOST_USER) or DEBUG
+
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/media/'
+
+# Больше этого через форму не пройдёт. Двадцать мегабайт — это макет
+# в PDF и десяток фотографий; видео здесь не место, для него есть
+# ссылка. Такой же предел стоит в nginx: без него запрос отвергается
+# уже на входе, и Django об этом не узнаёт.
+MAX_UPLOAD_SIZE = 20 * 1024 * 1024
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Логи: сбои доставки заявок должны быть видны, а не теряться.

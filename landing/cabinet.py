@@ -31,6 +31,8 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
 from .models import Client, Lead, Project, Stage, StageTask
+from .services import chat
+from .services import notify
 from .services import access
 
 logger = logging.getLogger(__name__)
@@ -125,6 +127,7 @@ def project_detail(request, pk):
     project = get_object_or_404(_full_projects(), pk=pk)
     return render(request, 'landing/cabinet/project.html', {
         **_stage_context(project, owner_view=True),
+        **_chat_context(project, owner_view=True),
         # Пароль показывается один раз и живёт до первой перерисовки
         # страницы. Держать его дольше негде: в базе только хеш.
         'issued': request.session.pop('issued_access', None),
@@ -198,6 +201,7 @@ def my_project(request):
 
     return render(request, 'landing/cabinet/my_project.html', {
         **_stage_context(project, owner_view=False),
+        **_chat_context(project, owner_view=False),
         'client': client,
         'todo': project.client_todo(),
     })
@@ -238,7 +242,14 @@ def task_toggle(request, pk):
     if not is_owner(request.user) and not task.is_client:
         return _fail(request, project, 'Эту строку закрываю я, не вы.')
 
-    task.toggle(request.POST.get('done') == '1')
+    done = request.POST.get('done') == '1'
+    task.toggle(done)
+
+    # Ход заказчика должен быть замечен: он сделал то, чего ждали,
+    # и следующий шаг теперь за мной.
+    if done and not is_owner(request.user):
+        notify.task_done_by_client(task)
+
     return _ok(request, project, task.stage)
 
 
@@ -256,8 +267,14 @@ def task_add(request, stage_pk):
         who = StageTask.Who.ME
 
     last = stage.tasks.order_by('-order').first()
-    StageTask.objects.create(stage=stage, title=title[:250], who=who,
-                             order=(last.order + 10) if last else 10)
+    task = StageTask.objects.create(stage=stage, title=title[:250], who=who,
+                                    order=(last.order + 10) if last else 10)
+
+    # Единственное, ради чего заказчика вообще стоит беспокоить:
+    # от него что-то нужно. Остальное он посмотрит сам, когда зайдёт.
+    if task.is_client:
+        notify.task_for_client(task)
+
     return _ok(request, stage.project, stage)
 
 
@@ -281,6 +298,7 @@ def stage_status(request, pk):
     if status not in Stage.Status.values:
         return _fail(request, stage.project, 'Такого статуса нет.')
 
+    was = stage.status
     with transaction.atomic():
         stage.mark(status)
         waiting = request.POST.get('waiting_on')
@@ -288,8 +306,137 @@ def stage_status(request, pk):
             stage.waiting_on = waiting
             stage.save(update_fields=['waiting_on', 'updated_at'])
 
+    # Сообщаем только о настоящем движении. Нажатие на тот же статус
+    # ничего не меняет, а уведомление о нём учит не читать уведомления.
+    if was != stage.status:
+        notify.stage_moved(stage)
+
     return _ok(request, stage.project, stage)
 
+
+# ── Переписка ────────────────────────────────────────────────────────
+
+@login_required
+@require_POST
+def chat_send(request, pk):
+    """Отправить сообщение.
+
+    Отвечает готовой разметкой одного сообщения. Браузер уже показал его
+    сам, не дожидаясь ответа, — здесь он лишь заменяет черновик
+    настоящим: с номером, временем и ссылками на файлы.
+    """
+    project = _project_for(request, pk)
+    owner = is_owner(request.user)
+
+    message = chat.post(
+        project, request.user,
+        text=request.POST.get('text'),
+        files=request.FILES.getlist('files'),
+        is_owner=owner,
+        client=None if owner else client_of(request.user),
+    )
+    if message is None:
+        return _chat_fail(request, project, 'Пустое сообщение не отправляю.')
+
+    notify.new_message(message)
+
+    if not wants_json(request):
+        return redirect(_chat_url(request, project))
+    return JsonResponse({
+        'ok': True,
+        'id': message.pk,
+        'html': _one_message(request, message, owner),
+    })
+
+
+@login_required
+def chat_since(request, pk):
+    """Что появилось после сообщения с таким номером.
+
+    Отдельный короткий запрос вместо перезагрузки ленты. Обычно
+    возвращает пустой список — и это нормально: он стоит пару сотен байт,
+    а чат, который надо обновлять руками, перестают читать.
+    """
+    project = _project_for(request, pk)
+    owner = is_owner(request.user)
+
+    try:
+        after = int(request.GET.get('after') or 0)
+    except (TypeError, ValueError):
+        after = 0
+
+    rows = chat.since(project, after)
+    # Отметку о прочтении ставим здесь же: человек, у которого открыт
+    # чат, эти сообщения уже видит. Отдельная кнопка «прочитано» —
+    # это работа, которую никто не делает.
+    chat.mark_read(project, owner)
+
+    return JsonResponse({
+        'ok': True,
+        'last': rows[-1].pk if rows else after,
+        'items': [_one_message(request, row, owner) for row in rows],
+        # «Прочитано» меняется без единого нового сообщения: собеседник
+        # просто открыл кабинет. Без этого списка отметка появлялась бы
+        # только после перезагрузки страницы, то есть почти никогда.
+        'read': chat.read_ids(project, owner),
+    })
+
+
+@login_required
+def chat_older(request, pk):
+    """Подгрузить то, что было раньше показанного."""
+    project = _project_for(request, pk)
+    owner = is_owner(request.user)
+
+    try:
+        before = int(request.GET.get('before') or 0)
+    except (TypeError, ValueError):
+        before = 0
+
+    rows = chat.tail(project, before=before or None)
+    return JsonResponse({
+        'ok': True,
+        'first': rows[0].pk if rows else before,
+        'more': chat.has_older(project, rows[0].pk if rows else before),
+        'items': [_one_message(request, row, owner) for row in rows],
+    })
+
+
+def _project_for(request, pk):
+    """Проект, к которому у этого человека есть доступ.
+
+    Проверка здесь, на сервере, а не в вёрстке. Заказчик, подставивший
+    в адрес чужой номер проекта, должен получить «не найдено», а не
+    чужую переписку.
+    """
+    project = get_object_or_404(Project.objects.select_related('client'), pk=pk)
+    if not _may_touch(request.user, project):
+        raise Http404
+    return project
+
+
+def _one_message(request, message, owner_view):
+    return render_to_string('landing/cabinet/_message.html', {
+        'message': message,
+        # «Своё справа» зависит от того, кто смотрит. Решать это в двух
+        # местах — верный способ однажды показать заказчику его же
+        # сообщения слева.
+        'mine': message.author_is_owner == owner_view,
+        'owner_view': owner_view,
+    }, request=request)
+
+
+def _chat_url(request, project):
+    if is_owner(request.user):
+        return redirect('cabinet_project', pk=project.pk).url + '#chat'
+    return redirect('cabinet_mine').url + '#chat'
+
+
+def _chat_fail(request, project, text):
+    if not wants_json(request):
+        messages.error(request, text)
+        return redirect(_chat_url(request, project))
+    return JsonResponse({'ok': False, 'error': text}, status=400)
 
 # ── Общее ────────────────────────────────────────────────────────────
 
@@ -302,6 +449,24 @@ def _full_projects():
     return (Project.objects
             .select_related('client')
             .prefetch_related('stages__tasks'))
+
+
+def _chat_context(project, owner_view):
+    """Лента переписки для первой отрисовки.
+
+    `mine` вешаем на объекты здесь, а не считаем в шаблоне: «своё справа»
+    зависит от того, кто смотрит, и это ответ сервера, а не вёрстки.
+    """
+    rows = chat.tail(project)
+    for row in rows:
+        row.mine = (row.author_is_owner == owner_view)
+    chat.mark_read(project, owner_view)
+    return {
+        'chat_messages': rows,
+        'chat_last': rows[-1].pk if rows else 0,
+        'chat_first': rows[0].pk if rows else 0,
+        'chat_more': chat.has_older(project, rows[0].pk if rows else 0),
+    }
 
 
 def _stage_context(project, owner_view):

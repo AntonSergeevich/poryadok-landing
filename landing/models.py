@@ -393,6 +393,90 @@ class StageTask(TimeStamped):
         self.done_at = timezone.now() if self.is_done else None
         self.save(update_fields=['is_done', 'done_at', 'updated_at'])
 
+# ── Переписка по проекту ─────────────────────────────────────────────
+# Она здесь не для удобства — для доказательной базы. В мессенджере
+# «я вам присылал» не значит ничего: сообщение удаляется, чат чистится,
+# файл теряется вместе с ним.
+#
+# Отсюда три правила, которые не обсуждаются:
+#   • сообщения не удаляются и не правятся;
+#   • имя автора копируется в момент отправки — учётную запись можно
+#     переименовать, а переписка обязана остаться читаемой;
+#   • файлы хранятся вместе с сообщением и его временем.
+
+class Message(TimeStamped):
+    """Сообщение в переписке по проекту."""
+
+    project = models.ForeignKey(Project, verbose_name='проект',
+                                on_delete=models.CASCADE, related_name='messages')
+    # Автора можно удалить из системы, сообщение — нет. Поэтому связь
+    # обнуляемая, а имя лежит рядом отдельной копией.
+    author = models.ForeignKey('auth.User', verbose_name='автор', null=True,
+                               blank=True, on_delete=models.SET_NULL,
+                               related_name='messages')
+    author_name = models.CharField('имя автора', max_length=120)
+    author_is_owner = models.BooleanField('от исполнителя', default=False)
+    text = models.TextField('текст', blank=True)
+    read_at = models.DateTimeField('прочитано другой стороной',
+                                   null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'сообщение'
+        verbose_name_plural = 'переписка'
+        ordering = ('created_at', 'pk')
+
+    def __str__(self):
+        return f'{self.author_name}: {self.text[:40]}'
+
+    @property
+    def is_read(self):
+        return self.read_at is not None
+
+
+def chat_upload_to(instance, filename):
+    """Файлы разложены по месяцам: иначе одна папка на все проекты
+    однажды перестаёт открываться."""
+    return f'chat/{timezone.now():%Y/%m}/{filename}'
+
+
+class MessageFile(TimeStamped):
+    """Файл, приложенный к сообщению.
+
+    Живёт вместе с сообщением, а не отдельным разделом «файлы проекта»:
+    файл почти всегда объясняется словами рядом, и разлучать их значит
+    заставить искать в двух местах.
+    """
+
+    IMAGE_SUFFIXES = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic')
+
+    message = models.ForeignKey(Message, verbose_name='сообщение',
+                                on_delete=models.CASCADE, related_name='files')
+    file = models.FileField('файл', upload_to=chat_upload_to)
+    name = models.CharField('имя файла', max_length=250)
+    size = models.PositiveIntegerField('размер, байт', default=0)
+
+    class Meta:
+        verbose_name = 'файл в переписке'
+        verbose_name_plural = 'файлы в переписке'
+        ordering = ('pk',)
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def is_image(self):
+        return self.name.lower().endswith(self.IMAGE_SUFFIXES)
+
+    @property
+    def human_size(self):
+        """«2,4 МБ» вместо «2517948». Второе не читает никто."""
+        size = self.size or 0
+        if size < 1024:
+            return f'{size} Б'
+        if size < 1024 * 1024:
+            return f'{size / 1024:.0f} КБ'
+        return f'{size / (1024 * 1024):.1f} МБ'.replace('.', ',')
+
 class Payment(TimeStamped):
     """Оплата. Заводится вручную (перевод, счёт) или приходит от эквайринга."""
 

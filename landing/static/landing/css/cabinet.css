@@ -321,3 +321,99 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
   opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;
 }
 .cab-note.is-on{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- Переписка ----------
+   Она здесь не для удобства — для доказательной базы. В мессенджере
+   «я вам присылал» не значит ничего: сообщение удаляется, чат чистится,
+   файл теряется вместе с ним.
+
+   Выглядит как мессенджер намеренно: в непохожее на мессенджер окно
+   не пишут, а пересказывают его содержимое в настоящий мессенджер —
+   и доказательная база снова оказывается там, откуда её уводили. */
+
+.chat{
+  margin-top:var(--gut);
+  background:var(--sheet);border:1px solid var(--line);
+  display:grid;
+}
+.chat__head{padding:clamp(18px,2.4vw,26px);border-bottom:1px solid var(--line)}
+.chat__head h2{font-size:var(--t-h3);margin-bottom:8px}
+.chat__hint{font-size:var(--t-small);color:var(--muted);line-height:1.55}
+
+.chat__more{
+  margin:14px auto 0;display:block;
+  font:400 var(--t-tag)/1 var(--f-mono);letter-spacing:.08em;
+  background:none;border:1px solid var(--line);color:var(--muted);
+  padding:9px 14px;cursor:pointer;
+}
+.chat__more:hover{border-color:var(--graphite);color:var(--graphite)}
+
+/* Лента прокручивается внутри себя, а не тянет страницу. Иначе форма
+   отправки уезжает вниз, и чтобы ответить, надо сначала долистать. */
+.chat__list{
+  list-style:none;margin:0;padding:clamp(16px,2.2vw,22px);
+  display:grid;gap:12px;align-content:start;
+  max-height:clamp(340px,52vh,560px);overflow-y:auto;scrollbar-width:thin;
+  overscroll-behavior:contain;
+}
+.chat__empty{font-size:var(--t-small);color:var(--muted);line-height:1.6}
+
+.msg{display:flex}
+.msg--mine{justify-content:flex-end}
+.msg__body{
+  max-width:min(78%,58ch);
+  padding:11px 14px;border:1px solid var(--line);background:var(--paper);
+}
+.msg--mine .msg__body{background:var(--ink-wash);border-color:transparent}
+/* Черновик: сообщение уже на экране, но ещё не у меня на сервере.
+   Врать, что отправилось, нельзя — человек закроет вкладку. */
+.msg.is-draft .msg__body{opacity:.55}
+.msg.is-failed .msg__body{opacity:1;border-color:#B3261E}
+.msg.is-failed .msg__meta{color:#B3261E}
+
+.msg__who{font:500 var(--t-tag)/1 var(--f-mono);color:var(--ink);
+  letter-spacing:.06em;margin-bottom:7px}
+.msg__text{font-size:var(--t-small);line-height:1.55;overflow-wrap:anywhere}
+.msg__meta{
+  margin-top:7px;display:flex;gap:10px;align-items:baseline;
+  font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);letter-spacing:.05em;
+}
+.msg__read{color:var(--ink)}
+
+.msg__files{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:8px}
+/* Картинку показываем сразу: «IMG_4382.jpg» ссылкой требует нажатия,
+   чтобы понять, что вообще прислали. */
+.msg__pic{display:block;line-height:0;border:1px solid var(--line)}
+.msg__pic img{max-width:100%;height:auto;display:block;max-height:280px;object-fit:cover}
+.msg__file{
+  display:flex;gap:10px;align-items:baseline;justify-content:space-between;
+  padding:9px 11px;border:1px solid var(--line);background:var(--sheet);
+  text-decoration:none;color:var(--graphite);
+}
+.msg__file:hover{border-color:var(--ink)}
+.msg__file-name{font-size:var(--t-small);overflow-wrap:anywhere}
+.msg__file-size{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);white-space:nowrap}
+
+.chat__form{padding:clamp(16px,2.2vw,22px);border-top:1px solid var(--line);display:grid;gap:10px}
+.chat__text{
+  width:100%;min-height:44px;max-height:220px;resize:none;
+  padding:12px 14px;border:1px solid var(--line);background:var(--paper);
+  font:400 var(--t-small)/1.5 var(--f-sans);color:var(--graphite);
+}
+.chat__text:focus-visible{outline:2px solid var(--ink);outline-offset:-1px;border-color:var(--ink)}
+.chat__tools{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.chat__clip{cursor:pointer}
+.chat__clip input{
+  position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+  overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;
+}
+.chat__clip span{
+  display:inline-block;padding:10px 14px;border:1px solid var(--line);
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted);
+}
+.chat__clip:hover span{border-color:var(--graphite);color:var(--graphite)}
+.chat__clip input:focus-visible + span{outline:2px solid var(--ink);outline-offset:2px}
+.chat__picked{font-size:var(--t-tag);color:var(--ink);flex:1;overflow-wrap:anywhere}
+.chat__tools .btn{margin-left:auto}
+.chat__note{font:400 var(--t-tag)/1.5 var(--f-mono);color:var(--muted)}

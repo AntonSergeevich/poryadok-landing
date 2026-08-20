@@ -2,7 +2,7 @@
 from django.contrib.auth import views as auth_views
 from django.templatetags.static import static as static_url
 from django.shortcuts import redirect
-from django.urls import path
+from django.urls import path, reverse_lazy
 
 from . import cabinet, views
 
@@ -45,6 +45,29 @@ urlpatterns = [
     # Выход только POST-ом — иначе кабинет закрывается от предзагрузки
     # ссылок браузером и от чужой картинки в переписке.
     path('cabinet/vyhod/', auth_views.LogoutView.as_view(), name='logout'),
+
+    # Восстановление пароля. Пароль от кабинета, куда заходят раз в
+    # неделю, будет забыт — это «когда», а не «если». Без самостоятельного
+    # восстановления каждый такой случай превращается в звонок мне,
+    # а моё время здесь самое дорогое.
+    #
+    # Стандартный путь Django: почта → письмо со ссылкой → новый пароль.
+    # Ссылка живёт трое суток и срабатывает один раз.
+    path('cabinet/parol/zabyl/', auth_views.PasswordResetView.as_view(
+        template_name='landing/cabinet/reset.html',
+        email_template_name='landing/cabinet/reset_email.txt',
+        subject_template_name='landing/cabinet/reset_subject.txt',
+        success_url=reverse_lazy('password_reset_done')), name='password_reset'),
+    path('cabinet/parol/zabyl/gotovo/', auth_views.PasswordResetDoneView.as_view(
+        template_name='landing/cabinet/reset_done.html'), name='password_reset_done'),
+    path('cabinet/parol/novyy/<uidb64>/<token>/',
+         auth_views.PasswordResetConfirmView.as_view(
+             template_name='landing/cabinet/reset_confirm.html',
+             success_url=reverse_lazy('password_reset_complete')),
+         name='password_reset_confirm'),
+    path('cabinet/parol/novyy/gotovo/', auth_views.PasswordResetCompleteView.as_view(
+        template_name='landing/cabinet/reset_complete.html'),
+        name='password_reset_complete'),
     path('cabinet/moy-proekt/', cabinet.my_project, name='cabinet_mine'),
     path('cabinet/parol/', cabinet.password, name='cabinet_password'),
     path('cabinet/proekt/<int:pk>/', cabinet.project_detail, name='cabinet_project'),
@@ -62,6 +85,12 @@ urlpatterns = [
          name='cabinet_task_delete'),
     path('cabinet/etap/<int:pk>/status/', cabinet.stage_status,
          name='cabinet_stage_status'),
+    path('cabinet/proekt/<int:pk>/pismo/', cabinet.chat_send,
+         name='cabinet_chat_send'),
+    path('cabinet/proekt/<int:pk>/pisma/', cabinet.chat_since,
+         name='cabinet_chat_since'),
+    path('cabinet/proekt/<int:pk>/pisma/ranshe/', cabinet.chat_older,
+         name='cabinet_chat_older'),
     path('razbor/gotovo/', views.survey_done, name='survey_done'),
     path('pay/yookassa/webhook/', views.yookassa_webhook, name='yookassa_webhook'),
     path('pay/getplatinum/webhook/', views.getplatinum_webhook, name='getplatinum_webhook'),
