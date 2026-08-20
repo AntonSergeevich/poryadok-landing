@@ -98,6 +98,7 @@ class Lead(TimeStamped):
         FORM = 'form', 'Форма на сайте'
         SURVEY = 'survey', 'Разбор процессов'
         CLUB = 'club', 'Заявка в клуб'
+        BUILD = 'build', 'Собрал в конструкторе'
 
     name = models.CharField('имя', max_length=120, blank=True)
     phone = models.CharField('телефон', max_length=32, db_index=True)

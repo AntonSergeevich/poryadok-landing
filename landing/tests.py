@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 
 from . import cabinet as cabinet_views
+from . import constructor as build
 from . import survey as survey_logic
 from .forms import LeadForm
 from .models import (STAGE_PLAN, Client, ClubSubscription, Lead, Payment,
@@ -1120,3 +1121,136 @@ class WorksTests(TestCase):
             with self.subTest(work=work['slug']):
                 self.assertTrue(work['was'], 'кейс без «было» — это не кейс')
                 self.assertTrue(work['now'])
+
+
+class ConstructorTests(TestCase):
+    """Конструктор: расчёт, подсказка с разбора, заявка с составом."""
+
+    def test_core_is_always_in_and_cannot_be_dropped(self):
+        # Выключить ядро нельзя. Спорить об этом с тем, кто правит адрес
+        # руками, незачем — оно просто дописывается.
+        for chosen in ([], ['leads'], ['выдумка']):
+            with self.subTest(chosen=chosen):
+                self.assertIn('core', build.clean(chosen))
+
+    def test_unknown_blocks_are_dropped(self):
+        self.assertEqual(build.clean(['leads', 'нет-такого']), ['core', 'leads'])
+
+    def test_order_does_not_depend_on_clicking_order(self):
+        """Схема должна выглядеть одинаково при одинаковом наборе."""
+        first = build.clean(['payments', 'leads', 'booking'])
+        second = build.clean(['booking', 'payments', 'leads'])
+        self.assertEqual(first, second)
+
+    def test_core_alone_costs_the_base_price(self):
+        self.assertEqual(build.estimate([])['total'], build.BASE_PRICE)
+
+    def test_price_grows_with_blocks(self):
+        one = build.estimate(['leads'])['total']
+        two = build.estimate(['leads', 'booking'])['total']
+        self.assertGreater(two, one)
+
+    def test_bundle_discount_switches_tiers(self):
+        """Пятый блок собирается вчетверо быстрее первого: общая часть
+        уже сделана. Не поделиться этим значит брать деньги за то,
+        чего не делаешь."""
+        four = build.estimate(['leads', 'booking', 'reminders', 'payments'])
+        six = build.estimate(['leads', 'booking', 'reminders', 'payments',
+                              'money', 'cabinet'])
+        self.assertEqual(four['discount'], 7)
+        self.assertEqual(six['discount'], 12)
+
+    def test_scale_raises_the_price(self):
+        solo = build.estimate(['leads'], 'solo')['total']
+        multi = build.estimate(['leads'], 'multi')['total']
+        self.assertGreater(multi, solo)
+
+    def test_unknown_scale_falls_back_to_solo(self):
+        self.assertEqual(build.estimate(['leads'], 'выдумка')['scale']['id'],
+                         'solo')
+
+    def test_total_is_rounded_up_to_thousands(self):
+        """«163 750 ₽» выглядит как расчёт, которого никто не делал."""
+        for scale in ('solo', 'team', 'multi'):
+            for chosen in ([], ['leads'], ['leads', 'booking', 'reminders',
+                                           'payments', 'money']):
+                with self.subTest(scale=scale, chosen=chosen):
+                    total = build.estimate(chosen, scale)['total']
+                    self.assertEqual(total % 1000, 0)
+
+    def test_discount_never_makes_it_cheaper_than_the_core(self):
+        every = [block['id'] for block in build.BLOCKS]
+        self.assertGreater(build.estimate(every)['total'], build.BASE_PRICE)
+
+    def test_suggestion_follows_the_pains_found(self):
+        diagnosis = {'top': [{'key': 'schedule'}, {'key': 'money'}]}
+        picked = build.suggest(diagnosis)
+        # Запись закрывает «расписание», оплаты — «деньги».
+        self.assertIn('booking', picked)
+        self.assertIn('payments', picked)
+        # А сайт не закрывает ни того, ни другого — и остаётся выключенным.
+        self.assertNotIn('site', picked)
+        self.assertIn('core', picked)
+
+    def test_suggestion_without_a_diagnosis_is_just_the_core(self):
+        self.assertEqual(build.suggest(None), build.core_ids())
+        self.assertEqual(build.suggest({'top': []}), build.core_ids())
+
+    def test_page_opens_and_shows_every_block(self):
+        body = self.client.get(reverse('constructor')).content.decode()
+        for block in build.BLOCKS:
+            self.assertIn(block['title'], body)
+
+    def test_price_endpoint_returns_a_rendered_total(self):
+        """Итог приходит разметкой, а не набором цифр: пока он собирается
+        в двух местах, строка про скидку однажды снова потеряется."""
+        response = self.client.post(
+            reverse('constructor_price'),
+            {'blocks': ['leads', 'booking', 'reminders', 'payments',
+                        'money', 'cabinet'], 'scale': 'team'})
+        data = json.loads(response.content)
+        self.assertTrue(data['ok'])
+        self.assertIn('total__fig', data['html'])
+        self.assertIn('−12%'.replace('−', '−'), data['html'].replace('&minus;', '−'))
+
+    def test_lead_carries_the_composition(self):
+        """Заявка «расскажите про цены» и заявка «нужны запись, оплаты
+        и напоминания, примерно 190 000» — два разных разговора."""
+        self.client.post(reverse('constructor'), {
+            'blocks': ['leads', 'booking'],
+            'scale': 'solo',
+            'name': 'Пётр',
+            'phone': '+7 913 000-00-09',
+            'area': 'Барбершоп',
+            'consent': 'on',
+        })
+        lead = Lead.objects.get(phone='+79130000009')
+        self.assertEqual(lead.source, Lead.Source.BUILD)
+        self.assertIn('Заявки', lead.comment)
+        self.assertIn('Запись и расписание', lead.comment)
+        self.assertIn('₽', lead.comment)
+
+    def test_lead_is_not_saved_without_consent(self):
+        self.client.post(reverse('constructor'), {
+            'blocks': ['leads'], 'scale': 'solo',
+            'name': 'Пётр', 'phone': '+7 913 000-00-10',
+        })
+        self.assertFalse(Lead.objects.filter(phone='+79130000010').exists())
+
+    def test_survey_result_prepares_the_suggestion(self):
+        entry = Survey.objects.create(answers={'lost': 'often'})
+        session = self.client.session
+        session['survey_id'] = entry.pk
+        session.save()
+
+        self.client.get(reverse('survey_done'))
+        self.assertIn('build_suggest', self.client.session)
+
+        # На самой странице конструктора подсказка уже применена.
+        body = self.client.get(reverse('constructor')).content.decode()
+        self.assertNotIn('build_suggest', self.client.session)
+        self.assertIn('Из чего собираем', body)
+
+    def test_price_endpoint_refuses_get(self):
+        self.assertEqual(
+            self.client.get(reverse('constructor_price')).status_code, 405)

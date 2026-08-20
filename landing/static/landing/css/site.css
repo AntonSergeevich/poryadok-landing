@@ -532,6 +532,18 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   font-size:clamp(2.1rem,1.2rem + 3.4vw,3.75rem);
   letter-spacing:-.03em;margin:calc(var(--u)*2) 0 calc(var(--u)*1.5);
 }
+/* Кнопка в конструктор — единственное яркое место на листе цены.
+   Вопрос «сколько стоит» человек хочет закрыть здесь и сейчас, а не
+   назначить ради него встречу.
+
+   Лист графитовый, а обычная кнопка тоже графитовая — на нём её просто
+   не видно. Здесь она выворачивается: бумага на графите. */
+.price__go{margin-top:clamp(20px,3vw,28px)}
+.price__go .btn{
+  background:var(--paper);border-color:var(--paper);color:var(--graphite);
+}
+.price__go .btn:hover{background:var(--ink);border-color:var(--ink);color:#fff}
+.price__box .small{margin-top:10px;color:var(--muted)}
 .price__box p{color:rgba(242,242,238,.72);font-size:var(--t-small);line-height:1.65}
 .price__side{grid-column:7 / span 6;display:grid;gap:calc(var(--u)*3)}
 @media (max-width:960px){.price{grid-template-columns:1fr}.price__box,.price__side{grid-column:1 / -1}}

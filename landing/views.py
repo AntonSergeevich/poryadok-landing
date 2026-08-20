@@ -11,6 +11,7 @@ from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -24,6 +25,7 @@ from .services import getplatinum as gp
 from .services import payments as pay
 from .services import telegram as tg
 from .survey import QUESTIONS
+from . import constructor as build
 from .works import WORKS
 
 logger = logging.getLogger(__name__)
@@ -576,12 +578,88 @@ def survey_done(request):
     except Survey.DoesNotExist:
         return redirect('survey')
 
+    diagnosis = entry.diagnose()
+    # Кладём подсказку в сессию, а не в адрес: список блоков в ссылке
+    # выглядел бы как подсунутый, а он именно тот, что я назвал бы
+    # голосом, посмотрев на ответы.
+    request.session['build_suggest'] = build.suggest(diagnosis)
+
     return render(request, 'landing/survey_done.html', {
         'entry': entry,
-        'result': entry.diagnose(),
+        'result': diagnosis,
         'left_contact': bool(entry.phone),
     })
 
+
+def constructor(request):
+    """Конструктор: человек собирает состав системы сам и видит цену.
+
+    Вопрос «сколько стоит» без конструктора имеет два плохих ответа:
+    «от 50 000» — и человек уходит, не поняв, что входит; «договорная» —
+    и уходит, решив, что дорого. Здесь он отвечает себе сам, и после
+    этого «почему так дорого» уже не спрашивает.
+
+    Считает тот же код, что и при отправке: расхождение между «посчитал
+    сайт» и «назвал я» — ровно тот разговор, от которого система
+    избавляет.
+    """
+    form = LeadForm(request.POST or None)
+    success = False
+
+    if request.method == 'POST':
+        picked = build.clean(request.POST.getlist('blocks'))
+        scale_id = request.POST.get('scale') or 'solo'
+        if form.is_valid():
+            result = build.estimate(picked, scale_id)
+            _save_lead(form, Lead.Source.BUILD,
+                       comment=build.as_text(result['ids'], scale_id,
+                                             result['total']))
+            request.session['build_sent'] = True
+            return redirect(reverse('constructor') + '?ok=1#cta')
+    else:
+        # Пришёл с разбора — отмечаем то, что закрывает найденные боли.
+        # Не «побольше»: блок без совпадения остаётся выключенным.
+        picked = request.session.pop('build_suggest', None) or build.core_ids()
+        scale_id = 'solo'
+
+    if request.GET.get('ok') and request.session.pop('build_sent', False):
+        success = True
+        form = LeadForm()
+
+    result = build.estimate(picked, scale_id)
+    return render(request, 'landing/constructor.html', {
+        'form': form,
+        'success': success,
+        'blocks': build.BLOCKS,
+        'scales': build.SCALES,
+        'picked': result['ids'],
+        'scale_id': result['scale']['id'],
+        'result': result,
+    })
+
+
+@require_POST
+def constructor_price(request):
+    """Пересчёт состава без перезагрузки.
+
+    Считает и рисует сервер. Копия формулы на JavaScript однажды
+    разойдётся с настоящей — и человек увидит одно число, а в заявке
+    приедет другое.
+    """
+    result = build.estimate(request.POST.getlist('blocks'),
+                            request.POST.get('scale') or 'solo')
+    return JsonResponse({
+        'ok': True,
+        'ids': result['ids'],
+        'total': result['total'],
+        # Готовая разметка, а не набор цифр. Собирать итог вторым кодом
+        # в браузере уже пробовали: строка про скидку не появлялась
+        # вовсе — её не было в разметке, а дорисовывать её скрипт
+        # не умел. Пока итог собирается в двух местах, расхождения
+        # будут возвращаться.
+        'html': render_to_string('landing/_total.html', {'result': result},
+                                 request=request),
+    })
 
 def privacy(request):
     return render(request, 'landing/privacy.html', {
@@ -605,7 +683,7 @@ def robots_txt(request):
 
 
 def sitemap_xml(request):
-    paths = ['', 'razbor/', 'club/', 'privacy/']
+    paths = ['', 'razbor/', 'sobrat/', 'club/', 'privacy/']
     base = f'{request.scheme}://{request.get_host()}/'
     urls = ''.join(f'<url><loc>{base}{p}</loc></url>' for p in paths)
     xml = ('<?xml version="1.0" encoding="UTF-8"?>'
