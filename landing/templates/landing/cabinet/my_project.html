@@ -1,0 +1,85 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+
+{% block cab_title %}{{ project.title }}{% endblock %}
+
+{% block cab_content %}
+<div class="cab__head">
+  <div>
+    <span class="tag">Ваш проект</span>
+    <h1>{{ project.title }}</h1>
+    <p class="lede">
+      {{ project.get_status_display }}
+      {% if project.started_at %} · начали {{ project.started_at|date:"d.m.Y" }}{% endif %}
+      · готово {{ progress }}%
+    </p>
+  </div>
+</div>
+
+{% comment %}
+  «От вас ждут» — единственное, что заказчик обязан увидеть сразу, ещё
+  до шкалы. И честное «сейчас ничего не нужно», когда ждать нечего:
+  пустое место на этом месте читается как «что-то не загрузилось».
+{% endcomment %}
+{% if todo %}
+  <section class="callout callout--wait">
+    <h2>От вас ждут</h2>
+    <ul class="callout__list">
+      {% for task in todo %}
+        <li>
+          <form method="post" action="{% url 'cabinet_task_toggle' task.pk %}" data-act>
+            {% csrf_token %}
+            <input type="hidden" name="done" value="1">
+            <button class="task__box" type="submit" aria-label="Отметить сделанным">
+              <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                <path d="M3 8.5 6.4 12 13 4.5" fill="none" stroke="currentColor"
+                      stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </form>
+          <span>{{ task.title }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="muted">Отметьте сделанное — я увижу это сразу.</p>
+  </section>
+{% else %}
+  <section class="callout callout--calm">
+    <h2>Сейчас от вас ничего не нужно</h2>
+    <p>Ход за мной. Как только понадобится ваше решение, оно появится здесь.</p>
+  </section>
+{% endif %}
+
+{% include 'landing/cabinet/_rail.html' %}
+
+<div class="cab__grid">
+  <div class="cab__main">
+    {% include 'landing/cabinet/_stages.html' %}
+  </div>
+
+  <aside class="cab__side">
+    <section class="panel">
+      <h2>Деньги</h2>
+      <dl class="money">
+        <div><dt>Договорились</dt><dd>{{ project.price|floatformat:"0g" }} ₽</dd></div>
+        <div><dt>Оплачено</dt><dd class="is-ok">{{ project.paid_total|floatformat:"0g" }} ₽</dd></div>
+        <div><dt>Осталось</dt><dd><b>{{ project.debt|floatformat:"0g" }} ₽</b></dd></div>
+      </dl>
+      <p class="muted">Те же три числа вижу и я. Разных цифр у нас быть не может.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Если что-то непонятно</h2>
+      <p class="panel__line"><a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a></p>
+      {% if SITE_TELEGRAM %}
+        <p class="panel__line">
+          <a href="https://t.me/{{ SITE_TELEGRAM|cut:'@' }}">Telegram</a>
+        </p>
+      {% endif %}
+      <p class="muted">
+        Спрашивать «а что сейчас происходит» больше не нужно — это
+        написано выше. Всё остальное спрашивайте смело.
+      </p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

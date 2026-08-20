@@ -30,7 +30,12 @@
 <link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexSans-600.woff2' %}" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="{% static 'landing/fonts/PlexMono-400.woff2' %}" crossorigin>
 <link rel="stylesheet" href="{% static 'landing/css/site.css' %}">
+{% block extra_head %}{% endblock %}
 <script>
+/* Отметка «скрипт есть» — до первой отрисовки. По ней вёрстка решает, что
+   прятать: без скрипта прятать нельзя ничего, иначе страница окажется
+   наполовину пустой и без способа её раскрыть. */
+document.documentElement.dataset.js='1';
 /* Прячем блоки до появления только если анимация уместна. Страховка: если site.js
    не загрузился за 2.5 с, класс снимается и содержимое показывается как есть. */
 if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
@@ -67,7 +72,14 @@ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
         {% endblock %}
       </nav>
       <a class="head__tel" href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>
-      <a class="btn btn--sm" href="{% block head_cta_href %}#cta{% endblock %}">{% block head_cta %}Бесплатный разбор{% endblock %}</a>
+      {% comment %}
+        Целиком в блоке, а не только адрес: в кабинете здесь стоит выход,
+        а выход обязан быть формой. Ссылка на выход срабатывает от чужой
+        картинки в переписке и от предзагрузки ссылок браузером.
+      {% endcomment %}
+      {% block head_action %}
+        <a class="btn btn--sm" href="{% block head_cta_href %}#cta{% endblock %}">{% block head_cta %}Бесплатный разбор{% endblock %}</a>
+      {% endblock %}
     </div>
     <button class="burger" id="burger" type="button" aria-expanded="false" aria-controls="head-menu" aria-label="Меню">
       <span></span>
@@ -106,6 +118,7 @@ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
 </div>
 
 <script src="{% static 'landing/js/site.js' %}" defer></script>
+{% block extra_js %}{% endblock %}
 {% if YANDEX_METRIKA_ID %}
 <script>
 /* Яндекс.Метрика подключается только после согласия с cookie. */

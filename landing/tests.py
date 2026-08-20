@@ -8,9 +8,13 @@ from pathlib import Path
 from django.test import TestCase
 from django.urls import reverse
 
+from django.contrib.auth.models import User
+
+from . import cabinet as cabinet_views
 from . import survey as survey_logic
 from .forms import LeadForm
-from .models import (Client, ClubSubscription, Lead, Payment, Survey,
+from .models import (STAGE_PLAN, Client, ClubSubscription, Lead, Payment,
+                     Project, Stage, StageTask, Survey,
                      format_phone, normalize_phone)
 import json
 from decimal import Decimal
@@ -21,10 +25,12 @@ from django.core.management import call_command
 from django.utils import timezone
 from datetime import timedelta
 
+from .services import access
 from .services import analysis
 from .services import club as club_service
 from .services import getplatinum as gp
 from .services import telegram as tg_service
+from .works import WORKS
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / 'templates' / 'landing'
 
@@ -38,7 +44,9 @@ class TemplateCommentTests(TestCase):
     """
 
     def test_no_multiline_short_comments(self):
-        for path in sorted(TEMPLATES_DIR.glob('*.html')):
+        # rglob, а не glob: шаблоны кабинета лежат подпапкой, и до них
+        # проверка раньше не доходила.
+        for path in sorted(TEMPLATES_DIR.rglob('*.html')):
             source = path.read_text(encoding='utf-8')
             for match in re.finditer(r'\{#', source):
                 closing = source.find('#}', match.start())
@@ -765,3 +773,350 @@ class BotWebhookTests(TestCase):
                 'contact': {'phone_number': '89998887766', 'user_id': 777},
             }})
         self.assertIn('не нашёл', answer.call_args[0][1])
+
+
+class CabinetAccessTests(TestCase):
+    """Выдача доступа: логин, пароль, повторная выдача, закрытие."""
+
+    def setUp(self):
+        self.client_card = Client.objects.create(
+            name='Ирина Величко', phone='+79130000001')
+
+    def test_login_is_transliterated_name(self):
+        issued = access.issue(self.client_card)
+        self.assertEqual(issued['login'], 'irinavelichko')
+        self.assertTrue(self.client_card.user)
+
+    def test_second_client_with_same_name_gets_number(self):
+        access.issue(self.client_card)
+        twin = Client.objects.create(name='Ирина Величко', phone='+79130000002')
+        self.assertEqual(access.issue(twin)['login'], 'irinavelichko2')
+
+    def test_password_has_no_confusable_characters(self):
+        # Пароль диктуют голосом. 0/O и 1/l/I в разговоре неразличимы.
+        for _ in range(50):
+            self.assertFalse(set(access.make_password()) & set('0O1lI'))
+
+    def test_password_is_stored_hashed_only(self):
+        issued = access.issue(self.client_card)
+        user = self.client_card.user
+        user.refresh_from_db()
+        self.assertNotIn(issued['password'], user.password)
+        self.assertTrue(user.check_password(issued['password']))
+
+    def test_reissue_keeps_the_same_account(self):
+        first = access.issue(self.client_card)
+        user_id = self.client_card.user_id
+        second = access.issue(self.client_card)
+
+        self.client_card.refresh_from_db()
+        self.assertEqual(self.client_card.user_id, user_id)
+        self.assertEqual(first['login'], second['login'])
+        self.assertNotEqual(first['password'], second['password'])
+        self.client_card.user.refresh_from_db()
+        self.assertTrue(self.client_card.user.check_password(second['password']))
+
+    def test_revoke_closes_the_door_but_keeps_the_account(self):
+        access.issue(self.client_card)
+        self.assertTrue(access.revoke(self.client_card))
+        self.client_card.refresh_from_db()
+        self.assertIsNotNone(self.client_card.user)
+        self.assertFalse(self.client_card.user.is_active)
+
+    def test_reissue_opens_a_closed_door(self):
+        # «Выдать доступ» и «потерялся пароль» — одна кнопка. Разбираться,
+        # какая из них сейчас нужна, человек не должен.
+        access.issue(self.client_card)
+        access.revoke(self.client_card)
+        access.issue(self.client_card)
+        self.client_card.user.refresh_from_db()
+        self.assertTrue(self.client_card.user.is_active)
+
+    def test_ready_message_carries_everything_needed(self):
+        issued = access.issue(self.client_card)
+        for piece in (issued['login'], issued['password'], issued['url']):
+            self.assertIn(piece, issued['text'])
+        self.assertIn('Ирина', issued['text'])
+
+
+class StageTests(TestCase):
+    """Этапы: раскладка, текущий, доля пути, заливка шкалы."""
+
+    def setUp(self):
+        self.card = Client.objects.create(name='Пётр', phone='+79130000003')
+        self.project = Project.objects.create(client=self.card, title='Система')
+        self.project.build_stages()
+
+    def test_stages_are_laid_out_once(self):
+        self.assertEqual(self.project.stages.count(), len(STAGE_PLAN))
+        self.assertEqual(self.project.build_stages(), 0)
+        self.assertEqual(self.project.stages.count(), len(STAGE_PLAN))
+
+    def test_current_is_the_running_one(self):
+        third = self.project.stages.get(number=3)
+        third.mark(Stage.Status.RUNNING)
+        self.assertEqual(self.project.current_stage.number, 3)
+
+    def test_current_falls_back_to_first_unfinished(self):
+        self.project.stages.filter(number__lte=2).update(status=Stage.Status.DONE)
+        self.assertEqual(self.project.current_stage.number, 3)
+
+    def test_current_never_empty_on_finished_project(self):
+        # Шкале нужно что-то подсветить в любом состоянии проекта.
+        self.project.stages.update(status=Stage.Status.DONE)
+        self.assertEqual(self.project.current_stage.number, len(STAGE_PLAN))
+
+    def test_progress_counts_days_not_stages(self):
+        """Три закрытых этапа из восьми — это не 38% пути.
+
+        «Разбор» занимает три дня, «запуск» — двадцать. Считать этапы
+        штуками значит обещать темп, которого не будет.
+        """
+        for number in (1, 2, 3):
+            self.project.stages.get(number=number).mark(Stage.Status.DONE)
+        total = sum(days for _, _, _, days in STAGE_PLAN)
+        done = sum(days for number, _, _, days in STAGE_PLAN if number <= 3)
+        self.assertEqual(self.project.progress, round(done * 100 / total))
+        self.assertNotEqual(self.project.progress, round(3 * 100 / 8))
+
+    def test_marking_done_sets_dates_and_clears_waiting(self):
+        stage = self.project.stages.get(number=1)
+        stage.waiting_on = Stage.Waiting.CLIENT
+        stage.save()
+        stage.mark(Stage.Status.DONE)
+        stage.refresh_from_db()
+        self.assertIsNotNone(stage.started_at)
+        self.assertIsNotNone(stage.finished_at)
+        self.assertEqual(stage.waiting_on, '')
+
+    def test_reopening_clears_the_finish_date(self):
+        stage = self.project.stages.get(number=1)
+        stage.mark(Stage.Status.DONE)
+        stage.mark(Stage.Status.RUNNING)
+        stage.refresh_from_db()
+        self.assertIsNone(stage.finished_at)
+        self.assertIsNotNone(stage.started_at)
+
+    def test_fill_reaches_the_centre_of_the_current_dot(self):
+        """Заливку сверяют глазом с точкой, а не с процентами."""
+        stages = self.project.ordered_stages
+        current = self.project.stages.get(number=1)
+        # Первая из восьми колонок: центр на (0 + ½)/8 = 6.25%.
+        self.assertEqual(cabinet_views._fill_percent(stages, current), '6.25')
+
+    def test_fill_is_written_with_a_dot(self):
+        """При русской локали число 43.75 печатается как «43,75», и
+        правило width становится недействительным — заливка исчезает
+        целиком. Ошибку видно только на экране, поэтому она здесь."""
+        stages = self.project.ordered_stages
+        value = cabinet_views._fill_percent(stages, self.project.stages.get(number=4))
+        self.assertNotIn(',', value)
+        self.assertEqual(value, '43.75')
+
+    def test_finished_project_is_filled_whole(self):
+        self.project.stages.update(status=Stage.Status.DONE)
+        self.assertEqual(
+            cabinet_views._fill_percent(self.project.ordered_stages,
+                                        self.project.current_stage), '100')
+
+    def test_client_todo_collects_only_their_open_tasks(self):
+        stage = self.project.stages.get(number=1)
+        StageTask.objects.create(stage=stage, title='Моё', who=StageTask.Who.ME)
+        StageTask.objects.create(stage=stage, title='Ваше', who=StageTask.Who.CLIENT)
+        StageTask.objects.create(stage=stage, title='Вместе', who=StageTask.Who.BOTH)
+        closed = StageTask.objects.create(stage=stage, title='Закрытое',
+                                          who=StageTask.Who.CLIENT)
+        closed.toggle(True)
+
+        titles = [task.title for task in self.project.client_todo()]
+        self.assertEqual(sorted(titles), ['Ваше', 'Вместе'])
+
+
+class CabinetViewTests(TestCase):
+    """Кто что видит и кто что может."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.card = Client.objects.create(name='Ирина', phone='+79130000004')
+        access.issue(self.card)
+        self.card.refresh_from_db()
+        self.card.user.set_password('y' * 12)
+        self.card.user.save()
+
+        self.project = Project.objects.create(client=self.card, title='Система')
+        self.project.build_stages()
+        self.stage = self.project.stages.get(number=1)
+        self.mine = StageTask.objects.create(stage=self.stage, title='Моё',
+                                             who=StageTask.Who.ME)
+        self.theirs = StageTask.objects.create(stage=self.stage, title='Ваше',
+                                               who=StageTask.Who.CLIENT)
+
+        # Чужой клиент — проверяем, что он не дотянется до этого проекта.
+        self.stranger_card = Client.objects.create(name='Гость',
+                                                   phone='+79130000005')
+        access.issue(self.stranger_card)
+        self.stranger_card.refresh_from_db()
+        self.stranger_card.user.set_password('z' * 12)
+        self.stranger_card.user.save()
+
+    def login_owner(self):
+        self.client.force_login(self.owner)
+
+    def login_client(self):
+        self.client.force_login(self.card.user)
+
+    def test_one_door_sends_owner_to_the_desk(self):
+        self.login_owner()
+        body = self.client.get(reverse('cabinet')).content.decode()
+        self.assertIn('За что взяться сегодня', body)
+
+    def test_one_door_sends_client_to_their_project(self):
+        self.login_client()
+        body = self.client.get(reverse('cabinet')).content.decode()
+        self.assertIn('Ваш проект', body)
+        self.assertNotIn('За что взяться сегодня', body)
+
+    def test_stranger_is_sent_to_the_login_page(self):
+        response = self.client.get(reverse('cabinet'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response.url)
+
+    def test_client_cannot_open_the_owner_project_page(self):
+        self.login_client()
+        response = self.client.get(
+            reverse('cabinet_project', args=[self.project.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('cabinet'))
+
+    def test_client_closes_their_own_task(self):
+        self.login_client()
+        response = self.client.post(
+            reverse('cabinet_task_toggle', args=[self.theirs.pk]),
+            {'done': '1'}, headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertEqual(response.status_code, 200)
+        self.theirs.refresh_from_db()
+        self.assertTrue(self.theirs.is_done)
+
+    def test_client_cannot_close_someone_elses_task(self):
+        """Запрет живёт на сервере, а не в вёрстке: спрятанная кнопка —
+        это вежливая просьба, а не запрет."""
+        self.login_client()
+        response = self.client.post(
+            reverse('cabinet_task_toggle', args=[self.mine.pk]),
+            {'done': '1'}, headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertEqual(response.status_code, 400)
+        self.mine.refresh_from_db()
+        self.assertFalse(self.mine.is_done)
+
+    def test_client_cannot_touch_another_clients_project(self):
+        self.client.force_login(self.stranger_card.user)
+        response = self.client.post(
+            reverse('cabinet_task_toggle', args=[self.theirs.pk]),
+            {'done': '1'}, headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertEqual(response.status_code, 404)
+        self.theirs.refresh_from_db()
+        self.assertFalse(self.theirs.is_done)
+
+    def test_client_cannot_add_or_delete_tasks(self):
+        self.login_client()
+        for url, payload in (
+            (reverse('cabinet_task_add', args=[self.stage.pk]), {'title': 'Ой'}),
+            (reverse('cabinet_task_delete', args=[self.mine.pk]), {}),
+            (reverse('cabinet_stage_status', args=[self.stage.pk]),
+             {'status': 'done'}),
+        ):
+            with self.subTest(url=url):
+                response = self.client.post(url, payload)
+                self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.stage.tasks.count(), 2)
+
+    def test_action_returns_redrawn_card_and_rail(self):
+        """Шкала возвращается вместе с карточкой: закрытая задача может
+        закрыть этап, а закрытый этап двигает подсветку. Обновить одно
+        и забыть другое значит показать экран, противоречащий сам себе."""
+        self.login_owner()
+        response = self.client.post(
+            reverse('cabinet_stage_status', args=[self.stage.pk]),
+            {'status': Stage.Status.DONE},
+            headers={'x-requested-with': 'XMLHttpRequest'})
+        data = json.loads(response.content)
+        self.assertTrue(data['ok'])
+        self.assertIn(f'stage-{self.stage.pk}', data['stage_id'])
+        self.assertIn('rail__fill', data['rail'])
+        self.assertIn('Готово', data['stage'])
+
+    def test_unknown_status_is_refused(self):
+        self.login_owner()
+        response = self.client.post(
+            reverse('cabinet_stage_status', args=[self.stage.pk]),
+            {'status': 'выдумка'},
+            headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertEqual(response.status_code, 400)
+
+    def test_grant_access_shows_the_password_exactly_once(self):
+        self.login_owner()
+        fresh = Client.objects.create(name='Новый', phone='+79130000006')
+        self.client.post(reverse('cabinet_grant', args=[fresh.pk]),
+                         {'back': reverse('cabinet')})
+
+        first = self.client.get(reverse('cabinet')).content.decode()
+        self.assertIn('Кабинет заказчика открыт', first)
+
+        second = self.client.get(reverse('cabinet')).content.decode()
+        self.assertNotIn('Кабинет заказчика открыт', second)
+
+    def test_grant_ignores_a_foreign_return_address(self):
+        """Адрес возврата приходит формой. Без проверки его можно
+        подменить на чужой сайт — и кнопка «завести кабинет» станет
+        переадресацией куда угодно."""
+        self.login_owner()
+        fresh = Client.objects.create(name='Новый', phone='+79130000007')
+        response = self.client.post(
+            reverse('cabinet_grant', args=[fresh.pk]),
+            {'back': 'https://example.com/'})
+        self.assertEqual(response.url, reverse('cabinet'))
+
+    def test_project_is_created_with_stages(self):
+        self.login_owner()
+        fresh = Client.objects.create(name='Новый', phone='+79130000008')
+        self.client.post(reverse('cabinet_project_create'),
+                         {'client': fresh.pk, 'title': 'Новая система'})
+        project = Project.objects.get(client=fresh)
+        self.assertEqual(project.stages.count(), len(STAGE_PLAN))
+
+    def test_only_the_open_stage_arrives_visible(self):
+        """Восемь карточек не должны мигать на загрузке: лишние приезжают
+        уже скрытыми, а без скрипта вёрстка это скрытие отменяет."""
+        self.login_owner()
+        body = self.client.get(
+            reverse('cabinet_project', args=[self.project.pk])).content.decode()
+        cards = re.findall(r'<article class="stage.*?>', body, re.S)
+        self.assertEqual(len(cards), len(STAGE_PLAN))
+        self.assertEqual(sum('hidden' in card for card in cards),
+                         len(STAGE_PLAN) - 1)
+
+
+class WorksTests(TestCase):
+    """Портфолио: данные и снимки должны существовать."""
+
+    def test_every_screenshot_file_is_in_place(self):
+        base = Path(__file__).resolve().parent / 'static' / 'landing' / 'img' / 'cases'
+        for work in WORKS:
+            for shot in work['shots']:
+                for name in (f'{shot["file"]}.webp', f'{shot["file"]}-sm.webp'):
+                    with self.subTest(file=name):
+                        self.assertTrue((base / name).exists(),
+                                        f'нет файла {name}')
+
+    def test_works_appear_on_the_page(self):
+        body = self.client.get(reverse('index')).content.decode()
+        for work in WORKS:
+            self.assertIn(work['site'], body)
+            self.assertIn(work['title'], body)
+
+    def test_every_work_says_what_was_and_what_became(self):
+        for work in WORKS:
+            with self.subTest(work=work['slug']):
+                self.assertTrue(work['was'], 'кейс без «было» — это не кейс')
+                self.assertTrue(work['now'])

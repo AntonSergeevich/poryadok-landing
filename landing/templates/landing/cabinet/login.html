@@ -1,0 +1,50 @@
+{% extends 'landing/base.html' %}
+
+{% block title %}Вход в кабинет — Системы Порядок{% endblock %}
+{% block description %}Вход в личный кабинет по проекту.{% endblock %}
+
+{% block nav %}<a href="{% url 'index' %}">На сайт</a>{% endblock %}
+{% block head_action %}{% endblock %}
+{% block dock_href %}{% url 'index' %}{% endblock %}
+{% block dock_cta %}На сайт{% endblock %}
+
+{% block content %}
+<section class="sheet cab">
+  <div class="wrap wrap--narrow">
+    <span class="tag">Кабинет</span>
+    <h1>Вход</h1>
+    <p class="lede">
+      Логин и пароль я присылаю сам, когда открываю вам кабинет.
+      Регистрации здесь нет — и не нужно.
+    </p>
+
+    <form class="login" method="post">
+      {% csrf_token %}
+      {% if form.errors %}
+        <p class="err err--shown">
+          Логин или пароль не подошли. Проверьте раскладку и заглавные буквы —
+          в пароле они имеют значение.
+        </p>
+      {% endif %}
+      <label class="field">
+        <span>Логин</span>
+        <input class="input" type="text" name="username" autocomplete="username"
+               autocapitalize="none" spellcheck="false" required autofocus>
+      </label>
+      <label class="field">
+        <span>Пароль</span>
+        <input class="input" type="password" name="password"
+               autocomplete="current-password" required>
+      </label>
+      <button class="btn btn--block" type="submit">Войти</button>
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    </form>
+
+    <p class="muted">
+      Потерялся пароль — напишите мне, выдам новый.
+      Хранить его где-то «на всякий случай» нельзя: в базе лежит только
+      зашифрованный отпечаток.
+    </p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+
+{% block cab_title %}Рабочий стол{% endblock %}
+
+{% block cab_content %}
+<div class="cab__head">
+  <div>
+    <span class="tag">Рабочий стол</span>
+    <h1>За что взяться сегодня</h1>
+    <p class="lede">Проекты в работе, ход за мной и свежие заявки.</p>
+  </div>
+</div>
+
+{% comment %}
+  Свежие заявки — первым блоком. Потерянная заявка стоит дороже любой
+  задачи в проекте, а увидеть её надо раньше, чем начнёшь работать.
+{% endcomment %}
+{% if fresh %}
+  <section class="panel panel--wide">
+    <h2>Новые заявки <span class="count">{{ fresh|length }}</span></h2>
+    <ul class="leads">
+      {% for lead in fresh %}
+        <li>
+          <b>{{ lead.name|default:"без имени" }}</b>
+          <span>{{ lead.phone }}</span>
+          {% if lead.area %}<span>{{ lead.area }}</span>{% endif %}
+          <span class="muted">{{ lead.created_at|date:"d.m H:i" }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="muted">Разбираются в админке: там же меняется статус и заводится клиент.</p>
+  </section>
+{% endif %}
+
+{% for row in rows %}
+  <article class="deck">
+    <header class="deck__head">
+      <div>
+        <h2><a href="{% url 'cabinet_project' row.project.pk %}">{{ row.project.title }}</a></h2>
+        <p class="muted">
+          {{ row.project.client.name }} · {{ row.project.get_status_display }} ·
+          готово {{ row.project.progress }}%
+        </p>
+      </div>
+      {% if row.current %}
+        <span class="flag flag--{{ row.current.status }}">
+          {{ row.current.number }}. {{ row.current.title }}
+        </span>
+      {% endif %}
+    </header>
+
+    <div class="deck__cols">
+      <div>
+        <h3>Ход за мной</h3>
+        {% if row.mine %}
+          <ul class="deck__list">
+            {% for task in row.mine %}<li>{{ task.title }}</li>{% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">Пусто — здесь всё сделано.</p>
+        {% endif %}
+      </div>
+      <div>
+        <h3>Ждём заказчика</h3>
+        {% if row.theirs %}
+          <ul class="deck__list deck__list--wait">
+            {% for task in row.theirs %}<li>{{ task.title }}</li>{% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">Ничего не ждём.</p>
+        {% endif %}
+      </div>
+    </div>
+  </article>
+{% empty %}
+  <p class="muted">Проектов в работе нет.</p>
+{% endfor %}
+
+{% comment %}
+  Завести проект — прямо здесь, а не в админке. Админка сделана для того,
+  кто помнит структуру базы: там таблицы, а не работа.
+{% endcomment %}
+<section class="panel panel--wide">
+  <h2>Завести проект</h2>
+  {% if clients %}
+    <form class="new-project" method="post"
+          action="{% url 'cabinet_project_create' %}">
+      {% csrf_token %}
+      <select class="input input--sm" name="client" aria-label="Клиент" required>
+        <option value="">Кому</option>
+        {% for client in clients %}
+          <option value="{{ client.pk }}">
+            {{ client.name }}{% if client.company %} · {{ client.company }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <input class="input input--sm" type="text" name="title" maxlength="160"
+             placeholder="Название проекта" aria-label="Название проекта" required>
+      <button class="btn btn--sm" type="submit">Завести</button>
+    </form>
+    <p class="muted">Восемь этапов разложатся сами — спрашивать их формой незачем.</p>
+  {% else %}
+    <p class="muted">Сначала заведите клиента в админке.</p>
+  {% endif %}
+</section>
+
+{% if issued %}{% include 'landing/cabinet/_issued.html' %}{% endif %}
+{% endblock %}

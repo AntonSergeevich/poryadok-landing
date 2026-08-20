@@ -136,6 +136,12 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'core.urls'
 
+# Куда уводить незалогиненного и куда возвращать после входа. Обе точки —
+# одна и та же дверь кабинета: развилка по роли живёт внутри неё.
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'cabinet'
+LOGOUT_REDIRECT_URL = 'index'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

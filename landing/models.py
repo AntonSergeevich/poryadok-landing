@@ -53,6 +53,12 @@ class Client(TimeStamped):
     note = models.TextField('заметки', blank=True)
     is_active = models.BooleanField('активный', default=True)
 
+    # Учётная запись для входа в кабинет. Её нет, пока доступ не выдан:
+    # карточку клиента заводят сразу, а кабинет — когда есть что показывать.
+    user = models.OneToOneField('auth.User', verbose_name='вход в кабинет',
+                                null=True, blank=True, on_delete=models.SET_NULL,
+                                related_name='client_card')
+
     class Meta:
         verbose_name = 'клиент'
         verbose_name_plural = 'клиенты'
@@ -163,6 +169,228 @@ class Project(TimeStamped):
     def debt(self):
         return self.price - self.paid_total
 
+    @property
+    def ordered_stages(self):
+        """Этапы по порядку. Отдельным свойством — чтобы в шаблоне
+        не повторять сортировку и не получить два разных порядка
+        на шкале и в списке."""
+        return list(self.stages.all())
+
+    @property
+    def current_stage(self):
+        """Этап, который идёт сейчас.
+
+        Сначала ищем начатый; если такого нет — первый незакрытый;
+        если закрыты все — последний. Пустой ответ здесь недопустим:
+        шкале нужно что-то подсветить в любом состоянии проекта.
+        """
+        stages = self.ordered_stages
+        if not stages:
+            return None
+        running = [s for s in stages if s.status in
+                   (Stage.Status.RUNNING, Stage.Status.REVIEW)]
+        if running:
+            return running[0]
+        waiting = [s for s in stages if not s.is_done]
+        return waiting[0] if waiting else stages[-1]
+
+    @property
+    def progress(self):
+        """Сколько процентов пути пройдено — по дням плана, а не по числу
+        этапов.
+
+        «Разбор» и «запуск» стоят на шкале одинаковыми точками, хотя первый
+        занимает три дня, а второй — месяц. Отсюда и берётся ощущение
+        «мы застряли»: человек видит восемь равных шагов и считает, что
+        после третьего должно пройти три восьмых срока.
+        """
+        stages = self.ordered_stages
+        total = sum(s.planned_days for s in stages)
+        if not total:
+            return 0
+        done = sum(s.planned_days for s in stages if s.is_done)
+        return round(done * 100 / total)
+
+    def client_todo(self):
+        """Задачи, которые ждут заказчика. Это первое, что он должен
+        увидеть в кабинете, — и единственное, ради чего его туда зовут."""
+        rows = []
+        for stage in self.ordered_stages:
+            if stage.is_done:
+                continue
+            rows.extend(stage.open_tasks(who=StageTask.Who.CLIENT))
+        return rows
+
+    def build_stages(self):
+        """Разложить этапы по плану. Повторный вызов ничего не портит:
+        если этапы уже есть, значит их могли поправить руками."""
+        if self.stages.exists():
+            return 0
+        Stage.objects.bulk_create([
+            Stage(project=self, number=number, title=title,
+                  summary=summary, planned_days=days)
+            for number, title, summary, days in STAGE_PLAN
+        ])
+        return len(STAGE_PLAN)
+
+
+# ── Этапы и задачи ───────────────────────────────────────────────────
+# Заказчик заходит в кабинет с одним вопросом: «что происходит и ждут ли
+# чего-то от меня». Это два разных вопроса, и отвечают на них две разные
+# сущности: этап говорит «где мы», задача — «чего ждём».
+#
+# Смешивать их в одну таблицу нельзя. Список задач без этапов — лента,
+# в которой ничего никогда не заканчивается. Этапы без задач — красивая
+# шкала, по которой непонятно, чей сейчас ход.
+
+STAGE_PLAN = [
+    (1, 'Разбор', 'Смотрим, как всё устроено сейчас: откуда приходят '
+                  'заявки, где они теряются, что считается руками.', 3),
+    (2, 'Смета', 'Собираем состав системы и цену. Пока не согласовали — '
+                 'ничего не начинаем.', 2),
+    (3, 'Каркас', 'Заводим данные: клиенты, услуги, цены. То, на чём '
+                  'потом стоит всё остальное.', 5),
+    (4, 'Запись и заявки', 'Форма, расписание, напоминания. С этого места '
+                           'заявка перестаёт теряться.', 7),
+    (5, 'Деньги', 'Оплаты, долги, отчёт за месяц. Сколько заработали — '
+                  'ответ считается сам.', 5),
+    (6, 'Кабинеты', 'Ваш рабочий стол и то, что видит клиент.', 6),
+    (7, 'Перенос', 'Переносим то, что уже есть: базу клиентов, историю, '
+                   'остатки по абонементам.', 4),
+    (8, 'Запуск и месяц рядом', 'Ставим на боевой сервер, показываю, как '
+                                'этим пользоваться, месяц правлю по ходу.', 20),
+]
+
+
+class Stage(TimeStamped):
+    """Этап проекта — «где мы сейчас».
+
+    Этапы не спрашиваются при заведении проекта: список известен заранее
+    и одинаков. Форма на восемь строк — верный способ завести проект
+    вообще без этапов.
+    """
+
+    class Status(models.TextChoices):
+        WAITING = 'waiting', 'Не начат'
+        RUNNING = 'running', 'В работе'
+        REVIEW = 'review', 'На согласовании'
+        DONE = 'done', 'Готово'
+
+    class Waiting(models.TextChoices):
+        NOBODY = '', '—'
+        ME = 'me', 'За мной'
+        CLIENT = 'client', 'Жду вас'
+
+    project = models.ForeignKey(Project, verbose_name='проект',
+                                on_delete=models.CASCADE, related_name='stages')
+    number = models.PositiveSmallIntegerField('номер')
+    title = models.CharField('этап', max_length=120)
+    summary = models.TextField('что здесь происходит', blank=True)
+    status = models.CharField('статус', max_length=12,
+                              choices=Status.choices, default=Status.WAITING)
+    # Разделяет «я не успел» и «жду ответа заказчика». Без этого поля
+    # обе стороны считают, что ход за другой, и проект стоит молча.
+    waiting_on = models.CharField('кого ждём', max_length=8, blank=True,
+                                  choices=Waiting.choices, default=Waiting.NOBODY)
+    planned_days = models.PositiveSmallIntegerField('план, рабочих дней', default=5)
+    started_at = models.DateField('начат', null=True, blank=True)
+    finished_at = models.DateField('завершён', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'этап'
+        verbose_name_plural = 'этапы'
+        ordering = ('project', 'number')
+        constraints = [
+            models.UniqueConstraint(fields=['project', 'number'],
+                                    name='uniq_stage_number'),
+        ]
+
+    def __str__(self):
+        return f'{self.number}. {self.title}'
+
+    @property
+    def is_done(self):
+        return self.status == self.Status.DONE
+
+    @property
+    def waits_client(self):
+        return self.waiting_on == self.Waiting.CLIENT
+
+    def open_tasks(self, who=None):
+        """Незакрытые задачи этапа, при желании — только чьи-то.
+
+        Считаем по уже загруженному списку, а не запросом: карточка этапа
+        рисуется восемь раз подряд, и восемь лишних запросов на страницу
+        появляются незаметно, а потом остаются навсегда.
+        """
+        rows = [task for task in self.tasks.all() if not task.is_done]
+        if who is None:
+            return rows
+        return [task for task in rows
+                if task.who in (who, StageTask.Who.BOTH)]
+
+    def mark(self, status):
+        """Сменить статус, проставив даты по смыслу.
+
+        Даты руками не заводятся: их забывают, а потом по проекту
+        невозможно сказать, сколько он на самом деле шёл.
+        """
+        today = timezone.localdate()
+        self.status = status
+        if status == self.Status.DONE:
+            self.finished_at = self.finished_at or today
+            self.started_at = self.started_at or today
+            self.waiting_on = self.Waiting.NOBODY
+        else:
+            self.finished_at = None
+            if status != self.Status.WAITING:
+                self.started_at = self.started_at or today
+            else:
+                self.started_at = None
+        self.save(update_fields=['status', 'started_at', 'finished_at',
+                                 'waiting_on', 'updated_at'])
+
+
+class StageTask(TimeStamped):
+    """Что конкретно должно быть сделано на этапе прямо сейчас.
+
+    У задачи всегда есть исполнитель, и заказчик его видит. Половина
+    тревожных сообщений — это «я не понял, ждут ли чего-то от меня»,
+    и цветная метка отвечает на это без переписки.
+    """
+
+    class Who(models.TextChoices):
+        ME = 'me', 'За мной'
+        CLIENT = 'client', 'За вами'
+        BOTH = 'both', 'Вместе'
+
+    stage = models.ForeignKey(Stage, verbose_name='этап',
+                              on_delete=models.CASCADE, related_name='tasks')
+    title = models.CharField('что сделать', max_length=250)
+    comment = models.TextField('пояснение', blank=True)
+    who = models.CharField('кто делает', max_length=8,
+                           choices=Who.choices, default=Who.ME)
+    is_done = models.BooleanField('сделано', default=False)
+    done_at = models.DateTimeField('когда сделано', null=True, blank=True)
+    order = models.PositiveSmallIntegerField('порядок', default=100)
+
+    class Meta:
+        verbose_name = 'задача этапа'
+        verbose_name_plural = 'задачи этапа'
+        # Сделанные уходят вниз: наверху всегда то, что ещё предстоит.
+        ordering = ('is_done', 'order', 'pk')
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def is_client(self):
+        return self.who in (self.Who.CLIENT, self.Who.BOTH)
+
+    def toggle(self, done):
+        self.is_done = bool(done)
+        self.done_at = timezone.now() if self.is_done else None
+        self.save(update_fields=['is_done', 'done_at', 'updated_at'])
 
 class Payment(TimeStamped):
     """Оплата. Заводится вручную (перевод, счёт) или приходит от эквайринга."""

@@ -1,0 +1,82 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+
+{% block cab_title %}{{ project.title }}{% endblock %}
+
+{% block cab_content %}
+<div class="cab__head">
+  <div>
+    <span class="tag">Проект · {{ project.get_status_display }}</span>
+    <h1>{{ project.title }}</h1>
+    <p class="lede">
+      {{ project.client.name }}{% if project.client.company %} · {{ project.client.company }}{% endif %}
+      {% if project.client.phone %} · {{ project.client.phone }}{% endif %}
+    </p>
+  </div>
+  <a class="btn btn--ghost btn--sm" href="{% url 'cabinet' %}">← Рабочий стол</a>
+</div>
+
+{% include 'landing/cabinet/_rail.html' %}
+
+<div class="cab__grid">
+  <div class="cab__main">
+    {% include 'landing/cabinet/_stages.html' %}
+  </div>
+
+  <aside class="cab__side">
+    {% comment %}
+      Доступ заказчика — здесь, а не в отдельном разделе: кнопку ищут,
+      глядя на проект, о котором собираются написать человеку.
+    {% endcomment %}
+    <section class="panel">
+      <h2>Кабинет заказчика</h2>
+      {% if project.client.user and project.client.user.is_active %}
+        <p class="panel__line">Открыт. Логин: <b>{{ project.client.user.username }}</b></p>
+        <p class="muted">
+          Пароль показывался один раз — в базе он лежит только зашифрованным.
+          Потерялся — выдайте новый, это та же кнопка.
+        </p>
+      {% else %}
+        <p class="muted">
+          Доступа пока нет. Заказчик увидит шкалу этапов, свои задачи
+          и сможет отмечать сделанное.
+        </p>
+      {% endif %}
+
+      <form method="post" action="{% url 'cabinet_grant' project.client.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="back" value="{{ request.path }}">
+        <button class="btn btn--block" type="submit">
+          {% if project.client.user and project.client.user.is_active %}
+            Выдать новый пароль
+          {% else %}
+            Завести кабинет заказчику
+          {% endif %}
+        </button>
+      </form>
+
+      {% if project.client.user and project.client.user.is_active %}
+        <form method="post" action="{% url 'cabinet_revoke' project.client.pk %}"
+              onsubmit="return confirm('Закрыть заказчику вход в кабинет?')">
+          {% csrf_token %}
+          <input type="hidden" name="back" value="{{ request.path }}">
+          <button class="linkish" type="submit">Закрыть доступ</button>
+        </form>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Деньги</h2>
+      <dl class="money">
+        <div><dt>Договорились</dt><dd>{{ project.price|floatformat:"0g" }} ₽</dd></div>
+        <div><dt>Оплачено</dt><dd class="is-ok">{{ project.paid_total|floatformat:"0g" }} ₽</dd></div>
+        <div><dt>Осталось</dt><dd><b>{{ project.debt|floatformat:"0g" }} ₽</b></dd></div>
+      </dl>
+      <p class="muted">Оплаты заводятся в админке — заказчик их видит.</p>
+    </section>
+  </aside>
+</div>
+
+{% if issued %}
+  {% include 'landing/cabinet/_issued.html' %}
+{% endif %}
+{% endblock %}

@@ -8,7 +8,8 @@ from django.contrib import admin, messages
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import (Client, ClubSubscription, Lead, Payment, Project, Survey,
+from .models import (Client, ClubSubscription, Lead, Payment, Project, Stage,
+                     StageTask, Survey,
                      format_phone)
 from .services import telegram as tg
 
@@ -162,6 +163,15 @@ class ProjectAdmin(admin.ModelAdmin):
     search_fields = ('title', 'client__name', 'client__phone')
     autocomplete_fields = ('client',)
     inlines = (PaymentInline,)
+    actions = ('lay_out_stages',)
+
+    @admin.action(description='Разложить этапы по плану')
+    def lay_out_stages(self, request, queryset):
+        """Для проектов, заведённых до появления этапов. Повторный запуск
+        ничего не портит: там, где этапы уже есть, их могли поправить
+        руками."""
+        added = sum(project.build_stages() for project in queryset)
+        self.message_user(request, f'Этапов добавлено: {added}')
 
     @admin.display(description='оплачено')
     def paid_column(self, obj):
@@ -171,6 +181,28 @@ class ProjectAdmin(admin.ModelAdmin):
     def debt_column(self, obj):
         return f'{obj.debt:.0f} ₽'
 
+
+class StageTaskInline(admin.TabularInline):
+    """Задачи прямо в этапе: заводить их отдельным разделом никто не станет."""
+    model = StageTask
+    extra = 1
+    fields = ('title', 'who', 'is_done', 'order')
+
+
+@admin.register(Stage)
+class StageAdmin(admin.ModelAdmin):
+    """Этапы правятся в кабинете, а не здесь.
+
+    Админка нужна на случай, когда что-то пошло не так: поменять
+    формулировку, переставить план по дням, снести лишний этап. Работать
+    в ней каждый день — значит не иметь кабинета.
+    """
+    list_display = ('project', 'number', 'title', 'status', 'waiting_on',
+                    'planned_days', 'started_at', 'finished_at')
+    list_filter = ('status', 'waiting_on')
+    search_fields = ('title', 'project__title', 'project__client__name')
+    autocomplete_fields = ('project',)
+    inlines = (StageTaskInline,)
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
