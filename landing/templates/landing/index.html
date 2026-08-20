@@ -179,83 +179,114 @@
 </section>
 
 
-{# ═══ ЛИСТ 04 — КЕЙСЫ ═══════════════════════════════════════════════════ #}
+{# ═══ ЛИСТ 04 — РАБОТЫ ══════════════════════════════════════════════════ #}
 {% comment %}
-  ВНИМАНИЕ: формулировки кейсов и сроки — черновые.
-  Замените на свои фактические перед публикацией.
+  Работы берутся из landing/works.py: добавить новую — дописать словарь,
+  вёрстку трогать не нужно.
+
+  Снимок открывается во весь экран в <dialog>. Взято родное окно браузера,
+  а не самодельное: оно само ловит Esc, само возвращает фокус на кнопку,
+  с которой открылось, и само закрывает доступ к остальной странице для
+  экранного диктора. Своими руками это пишется втрое длиннее и всё равно
+  хуже. Без JavaScript кнопка снимка остаётся ссылкой на файл — картинка
+  просто открывается отдельной вкладкой.
 {% endcomment %}
 <section class="sheet" id="cases">
   <div class="wrap">
     <div class="sec-head rv">
       <span class="tag">Лист 04 · Сделано</span>
-      <h2>Три системы, которые уже работают</h2>
-      <p class="lede">Что было до, что стало после и сколько это заняло.</p>
+      <h2>Системы, которые уже работают</h2>
+      <p class="lede">
+        Два живых бизнеса: что было до, что стало после и что можно
+        открыть прямо сейчас и потрогать.
+      </p>
     </div>
 
-    <div class="cases">
-      <article class="case rv">
-        <div class="case__head">
-          <h3>Барбершоп</h3>
-          <span class="t">Две точки</span>
-        </div>
-        <dl class="case__body">
-          <div>
-            <dt>Было</dt>
-            <dd class="was">Запись в блокноте и в директе. База клиентов — в голове администратора. При смене администратора часть постоянных клиентов терялась.</dd>
-          </div>
-          <div>
-            <dt>Стало</dt>
-            <dd class="now">Онлайн-запись с выбором мастера и времени. Карточка клиента с историей визитов. Напоминание уходит за два часа, окно освобождается автоматически.</dd>
-          </div>
-        </dl>
-        <div class="case__foot"><span>Срок</span><span>5 недель</span></div>
-      </article>
+    <div class="works">
+      {% for work in works %}
+        <article class="work rv" id="work-{{ work.slug }}">
+          <header class="work__head">
+            <div class="work__who">
+              <h3>{{ work.title }} · {{ work.role }}</h3>
+              <p class="work__lede">{{ work.lede }}</p>
+            </div>
+            <a class="work__site" href="https://{{ work.site }}"
+               target="_blank" rel="noopener">
+              {{ work.site }}<span class="arrow" aria-hidden="true">↗</span>
+            </a>
+          </header>
 
-      <article class="case rv rv-d1">
-        <div class="case__head">
-          <h3>Языковая школа</h3>
-          <span class="t">Группы и оплаты</span>
-        </div>
-        <dl class="case__body">
-          <div>
-            <dt>Было</dt>
-            <dd class="was">Расписание в Excel, посещаемость на листках, оплаты сверялись вручную раз в месяц. Долги вспоминались случайно.</dd>
+          <div class="work__ba">
+            <div class="ba ba--was">
+              <h4>Было</h4>
+              <ul>
+                {% for line in work.was %}<li>{{ line }}</li>{% endfor %}
+              </ul>
+            </div>
+            <div class="ba ba--now">
+              <h4>Стало</h4>
+              <ul>
+                {% for line in work.now %}<li>{{ line }}</li>{% endfor %}
+              </ul>
+            </div>
           </div>
-          <div>
-            <dt>Стало</dt>
-            <dd class="now">Расписание групп, отметка посещаемости в два клика, абонементы и оплаты в одном месте. Родитель видит свой баланс и не спрашивает об этом администратора.</dd>
-          </div>
-        </dl>
-        <div class="case__foot"><span>Срок</span><span>7 недель</span></div>
-      </article>
 
-      <article class="case rv rv-d2">
-        <div class="case__head">
-          <h3>Частный эксперт</h3>
-          <span class="t">Практика</span>
-        </div>
-        <dl class="case__body">
-          <div>
-            <dt>Было</dt>
-            <dd class="was">Консультации согласовывались перепиской по несколько сообщений. Доступ в закрытый клуб выдавался и продлевался руками.</dd>
+          <ul class="work__facts">
+            <li><span>Город</span><b>{{ work.city }}</b></li>
+            {% for label, value in work.facts %}
+              <li><span>{{ label }}</span><b>{{ value }}</b></li>
+            {% endfor %}
+            {% if work.term %}<li><span>Срок</span><b>{{ work.term }}</b></li>{% endif %}
+          </ul>
+
+          <div class="shots">
+            {% for shot in work.shots %}
+              <figure class="shot">
+                {% comment %}
+                  Ссылка, а не кнопка: без JavaScript она открывает снимок
+                  отдельной вкладкой, а с ним — окном поверх страницы.
+                {% endcomment %}
+                <a class="shot__open"
+                   href="{% static 'landing/img/cases/' %}{{ shot.file }}.webp"
+                   data-shot data-cap="{{ shot.cap }}">
+                  <img src="{% static 'landing/img/cases/' %}{{ shot.file }}-sm.webp"
+                       width="700" height="438" loading="lazy" decoding="async"
+                       alt="{{ shot.cap }}">
+                  <span class="shot__zoom" aria-hidden="true">крупно</span>
+                </a>
+                <figcaption>{{ shot.cap }}</figcaption>
+              </figure>
+            {% endfor %}
           </div>
-          <div>
-            <dt>Стало</dt>
-            <dd class="now">Запись на консультацию сразу с оплатой. Подписка продлевается сама, доступ в закрытый клуб открывается и закрывается без участия человека.</dd>
-          </div>
-        </dl>
-        <div class="case__foot"><span>Срок</span><span>4 недели</span></div>
-      </article>
+
+          <p class="shots__note">
+            На снимках демонстрационные данные, а не живые заказчики: чужие
+            телефоны и суммы в портфолио не показывают.
+          </p>
+        </article>
+      {% endfor %}
     </div>
 
     <div class="stamp" aria-hidden="true">
       <span class="s-num">Лист 04</span>
       <span class="s-name">Выполненные работы</span>
-      <span class="s-scale">Объектов 3</span>
+      <span class="s-scale">Объектов {{ works|length }}</span>
       <span class="s-org">С-Порядок</span>
     </div>
   </div>
 </section>
+
+{% comment %}
+  Окно просмотра снимка. Одно на всю страницу: картинка и подпись
+  подставляются при открытии. Пустое до первого нажатия — двадцать
+  снимков в разметке разом означали бы двадцать больших файлов
+  в очереди загрузки.
+{% endcomment %}
+<dialog class="lightbox" id="lightbox" aria-label="Снимок экрана">
+  <button class="lightbox__close" type="button" data-shot-close aria-label="Закрыть">×</button>
+  <img class="lightbox__img" id="lightbox-img" alt="">
+  <p class="lightbox__cap" id="lightbox-cap"></p>
+</dialog>
 
 
 {# ═══ ЛИСТ 05 — ПОРЯДОК РАБОТ ═══════════════════════════════════════════ #}

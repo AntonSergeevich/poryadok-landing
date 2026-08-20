@@ -376,19 +376,139 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .card li::before{content:"—";position:absolute;left:0;color:var(--graphite)}
 .card--stat h3{font-size:clamp(1.75rem,1.2rem + 1.8vw,2.5rem);line-height:1;letter-spacing:-.03em}
 
-/* ---------- 04. Кейсы ---------- */
-.cases{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:var(--gut)}
-.case{background:var(--sheet);border:1px solid var(--line);display:flex;flex-direction:column}
-.case__head{padding:16px 20px;border-bottom:1px solid var(--graphite);display:flex;justify-content:space-between;align-items:center;gap:12px}
-.case__head h3{font-size:1.0625rem}
-.case__head .t{font:500 var(--t-tag)/1 var(--f-mono);color:var(--ink);letter-spacing:.1em;white-space:nowrap}
-.case__body{padding:20px;display:grid;gap:18px}
-.case dt{font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:7px}
-.case dd{margin:0;font-size:var(--t-small);line-height:1.55}
-.case .was{color:var(--muted)}
-.case .now{position:relative;padding-left:16px}
-.case .now::before{content:"";position:absolute;left:0;top:.45em;bottom:.35em;width:2px;background:var(--ink)}
-.case__foot{margin-top:auto;padding:12px 20px;border-top:1px solid var(--line);font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);letter-spacing:.08em;display:flex;justify-content:space-between}
+/* ---------- 04. Работы ----------
+   Одна работа — один лист: кто, что было, что стало, проверяемые числа
+   и снимки экрана. Кейс без снимка читается как обещание; со снимком —
+   как отчёт, и это ровно та разница, ради которой раздел существует. */
+
+.works{display:grid;gap:clamp(28px,4vw,56px)}
+.work{background:var(--sheet);border:1px solid var(--line)}
+
+.work__head{
+  display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;
+  justify-content:space-between;
+  padding:clamp(18px,2.6vw,28px);border-bottom:1px solid var(--graphite);
+}
+.work__who{min-width:min(100%,32ch);flex:1 1 34ch}
+.work__head h3{font-size:var(--t-h3);letter-spacing:-.01em}
+.work__lede{margin-top:8px;font-size:var(--t-small);color:var(--muted);max-width:52ch}
+
+/* Адрес сайта — сам себе кнопка: это единственное место раздела, где
+   можно уйти и проверить, что всё написанное существует. */
+.work__site{
+  display:inline-flex;align-items:center;gap:8px;white-space:nowrap;
+  font:500 var(--t-tag)/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink);text-decoration:none;
+  padding:11px 14px;border:1px solid var(--ink);
+  transition:background .16s ease,color .16s ease;
+}
+.work__site:hover{background:var(--ink);color:#fff}
+.work__site .arrow{transition:transform .16s ease}
+.work__site:hover .arrow{transform:translate(2px,-2px)}
+
+/* Две колонки, а не «до» над «после»: сравнение работает, только когда
+   оба столбца видны одновременно. На узком экране они всё равно встают
+   друг под друга — там сравнивать приходится памятью, деваться некуда. */
+.work__ba{display:grid;gap:0}
+@media (min-width:860px){
+  .work__ba{grid-template-columns:1fr 1fr}
+  .work__ba .ba--now{border-left:1px solid var(--line);border-top:0}
+}
+.ba{padding:clamp(18px,2.6vw,28px)}
+.ba--now{border-top:1px solid var(--line)}
+.ba h4{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.14em;
+  color:var(--muted);margin-bottom:16px;
+}
+.ba ul{list-style:none;padding:0;display:grid;gap:14px}
+.ba li{font-size:var(--t-small);line-height:1.6;position:relative;padding-left:18px}
+.ba li::before{
+  content:"";position:absolute;left:0;top:.55em;
+  width:8px;height:1px;background:var(--line);
+}
+.ba--was{background:var(--graphite-wash)}
+.ba--was li{color:var(--muted)}
+.ba--now li::before{background:var(--ink);height:2px;top:.5em}
+
+.work__facts{
+  list-style:none;padding:clamp(14px,2vw,20px) clamp(18px,2.6vw,28px);margin:0;
+  border-top:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:clamp(18px,3vw,40px);
+}
+.work__facts li{display:grid;gap:4px}
+.work__facts span{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.12em;color:var(--muted)}
+.work__facts b{font:500 1.0625rem/1.2 var(--f-sans)}
+
+/* ---------- Снимки экрана ---------- */
+
+/* Ровно две колонки, а не «сколько влезет». Снимков у работы четыре,
+   и при трёх колонках последний остаётся один в ряду — сетка читается
+   как недоделанная. Две колонки дают 2×2 и вдвое более крупный снимок,
+   на котором что-то видно без увеличения. */
+.shots{
+  display:grid;gap:var(--gut);
+  padding:clamp(18px,2.6vw,28px);border-top:1px solid var(--line);
+}
+@media (min-width:700px){.shots{grid-template-columns:1fr 1fr}}
+.shot{margin:0;display:grid;gap:10px}
+.shot__open{
+  display:block;position:relative;line-height:0;
+  border:1px solid var(--line);background:var(--paper);
+  overflow:hidden;
+  transition:border-color .2s ease,transform .2s ease;
+}
+.shot__open img{width:100%;height:auto;display:block}
+.shot__open:hover,.shot__open:focus-visible{border-color:var(--ink)}
+@media (prefers-reduced-motion:no-preference){
+  .shot__open:hover{transform:translateY(-3px)}
+}
+/* Подсказка «крупно» появляется по наведению. На тач-экранах наведения
+   нет, поэтому она там показана всегда: иначе про увеличение просто
+   не узнают. */
+.shot__zoom{
+  position:absolute;right:8px;bottom:8px;
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;
+  color:var(--paper);background:var(--graphite);padding:6px 9px;
+  opacity:0;transition:opacity .2s ease;
+}
+.shot__open:hover .shot__zoom,.shot__open:focus-visible .shot__zoom{opacity:1}
+@media (hover:none){.shot__zoom{opacity:.85}}
+.shot figcaption{font-size:var(--t-small);color:var(--muted);line-height:1.5}
+.shots__note{
+  padding:0 clamp(18px,2.6vw,28px) clamp(18px,2.6vw,28px);
+  font:400 var(--t-tag)/1.6 var(--f-mono);color:var(--muted);
+}
+
+/* ---------- Снимок во весь экран ---------- */
+
+.lightbox{
+  border:0;padding:0;background:transparent;
+  max-width:min(1400px,94vw);max-height:94vh;
+  color:var(--paper);
+}
+.lightbox::backdrop{background:rgba(13,15,14,.88)}
+.lightbox__img{
+  display:block;width:100%;height:auto;max-height:82vh;object-fit:contain;
+  border:1px solid rgba(242,242,238,.25);background:var(--sheet);
+}
+.lightbox__cap{margin-top:12px;font-size:var(--t-small);line-height:1.5;text-align:center}
+.lightbox__close{
+  position:absolute;top:-6px;right:0;transform:translateY(-100%);
+  width:40px;height:40px;line-height:1;
+  font-size:1.5rem;color:var(--paper);
+  background:transparent;border:1px solid rgba(242,242,238,.4);
+  cursor:pointer;
+}
+.lightbox__close:hover{background:rgba(242,242,238,.15)}
+/* На узком экране крестику некуда уехать вверх — он садится в угол снимка. */
+@media (max-width:640px){
+  .lightbox__close{top:8px;right:8px;transform:none;background:var(--graphite)}
+}
+@media (prefers-reduced-motion:no-preference){
+  .lightbox[open]{animation:lightbox-in .22s ease both}
+  @keyframes lightbox-in{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+}
 
 /* ---------- 05. Как проходит работа ---------- */
 .steps{counter-reset:s;display:grid;gap:0}

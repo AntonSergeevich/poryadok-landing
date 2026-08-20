@@ -24,6 +24,7 @@ from .services import getplatinum as gp
 from .services import payments as pay
 from .services import telegram as tg
 from .survey import QUESTIONS
+from .works import WORKS
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ def index(request):
         'form': form,
         'success': success,
         'club_prices': CLUB_PRICES,
+        'works': WORKS,
     })
 
 
