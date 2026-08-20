@@ -417,3 +417,5 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .chat__picked{font-size:var(--t-tag);color:var(--ink);flex:1;overflow-wrap:anywhere}
 .chat__tools .btn{margin-left:auto}
 .chat__note{font:400 var(--t-tag)/1.5 var(--f-mono);color:var(--muted)}
+/* Подсказка про сочетание клавиш — только там, где есть чем его нажать. */
+@media (hover:none){.chat__keys{display:none}}

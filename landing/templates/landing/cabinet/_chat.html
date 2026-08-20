@@ -53,9 +53,13 @@
       <span class="chat__picked" data-chat-picked></span>
       <button class="btn btn--sm" type="submit">Отправить</button>
     </div>
+    {% comment %}
+      Про Ctrl+Enter говорим только там, где есть клавиатура. На телефоне
+      эта подсказка — просто строчка, которую нечем выполнить.
+    {% endcomment %}
     <p class="chat__note">
-      Ctrl+Enter отправляет. До 20 МБ на файл — макет в PDF и фотографии
-      влезают, видео лучше ссылкой.
+      <span class="chat__keys">Ctrl+Enter отправляет. </span>До 20 МБ
+      на файл — макет в PDF и фотографии влезают, видео лучше ссылкой.
     </p>
   </form>
 </section>
