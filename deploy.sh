@@ -29,8 +29,9 @@
 #   6. перезапускает gunicorn и перечитывает nginx
 #   7. проверяет, что сайт отвечает, и что версия и правда новая
 #
-# Ничего не удаляет безвозвратно: случайные правки на сервере уходят
-# в git stash, старые копии базы хранятся две недели.
+# Ничего не удаляет безвозвратно: правки в файлах проекта уходят
+# в git stash, файлы, сделанные на сервере, — переименовываются рядом,
+# старые копии базы хранятся две недели.
 
 set -Eeuo pipefail
 
@@ -202,10 +203,37 @@ if [ "$CHECK_ONLY" = 1 ]; then
   exit 0
 fi
 
+# Файлы, сделанные на сервере руками, которые теперь приехали
+# в репозитории.
+#
+# Так бывает чаще, чем кажется: что-то создали прямо на сервере, потом
+# ровно такой же файл добавили в проект. Для git это столкновение, и
+# ведёт он себя в двух случаях по-разному: checkout отказывается
+# и останавливает выкладку, reset --hard молча затирает. Не годится
+# ни то, ни другое — в первом случае обновление встаёт, во втором
+# бесследно пропадает чужая работа.
+#
+# Отодвигаем в сторону и говорим куда.
+MOVED=0
+while IFS= read -r file; do
+  [ -n "$file" ] || continue
+  [ -e "$file" ] || continue
+  git ls-files --error-unmatch "$file" >/dev/null 2>&1 && continue
+
+  KEEP="$file.до-выкладки-$(date +%H%M)"
+  mkdir -p "$(dirname "$KEEP")"
+  mv "$file" "$KEEP"
+  warn "«$file» был сделан на сервере, а теперь есть и в проекте"
+  echo "      ваш вариант сохранён: $KEEP"
+  MOVED=$((MOVED + 1))
+done < <(git ls-tree -r --name-only "origin/$BRANCH")
+[ "$MOVED" = 0 ] || ok "отодвинуто файлов: $MOVED"
+
 # reset --hard, а не merge: рабочая копия должна стать ровно тем, что
 # лежит в репозитории. Merge здесь может встать на конфликте и оставить
 # сервер в половинчатом состоянии — худшем из возможных.
-# Правки, если они были, уже в stash: терять нечего.
+# Правки в отслеживаемых файлах уже в stash, столкновения отодвинуты:
+# терять нечего.
 git checkout -B "$BRANCH" "origin/$BRANCH" >/dev/null 2>&1
 git reset --hard "origin/$BRANCH" >/dev/null
 NOW="$(git rev-parse --short HEAD)"
@@ -296,13 +324,21 @@ for attempt in 1 2 3 4 5 6; do
   # «|| echo 000» дописал бы вторую тройку, и в сообщении об ошибке
   # оказалось бы «кодом 000000» — число, которого не бывает, и человек
   # начал бы искать поломку не там.
+  # Заголовок Host обязателен. Через сокет запрос идёт мимо nginx,
+  # и curl подставляет «localhost» — а его нет в ALLOWED_HOSTS, потому
+  # что боевой сайт живёт под своим именем. Django на такой запрос
+  # отвечает 400, и проверка объявляла рабочий сайт сломанным.
   CODE="$(curl -sS -o /dev/null --max-time 10 -w '%{http_code}' \
-          --unix-socket "$SOCK" http://localhost/ 2>/dev/null || true)"
+          -H "Host: $DOMAIN" --unix-socket "$SOCK" http://localhost/ 2>/dev/null || true)"
   CODE="${CODE:-000}"
   [ "$CODE" = "200" ] && break
 done
 
 if [ "$CODE" != "200" ]; then
+  if [ "$CODE" = "400" ]; then
+    warn "код 400 обычно означает, что имени «$DOMAIN» нет в ALLOWED_HOSTS"
+    warn "проверьте core/settings.py — сам Django при этом жив"
+  fi
   echo
   systemctl status gunicorn --no-pager -n 15 2>&1 | sed 's/^/  /'
   echo
@@ -328,7 +364,7 @@ esac
 # главная может открываться, пока кабинет падает на шаблоне.
 for path in /sobrat/ /razbor/ /cabinet/vhod/; do
   PAGE="$(curl -sS -o /dev/null --max-time 10 -w '%{http_code}' \
-          --unix-socket "$SOCK" "http://localhost$path" 2>/dev/null || true)"
+          -H "Host: $DOMAIN" --unix-socket "$SOCK" "http://localhost$path" 2>/dev/null || true)"
   PAGE="${PAGE:-000}"
   if [ "$PAGE" = "200" ]; then ok "$path — 200"; else warn "$path — $PAGE"; fi
 done
@@ -341,6 +377,10 @@ if [ "$WAS" = "$NOW" ]; then
 else
   echo -e "${G}${B}Готово. Было $WAS → стало $NOW${N}"
 fi
-echo "Откат, если что-то пойдёт не так:"
-echo "    cd $ROOT && git reset --hard $WAS && systemctl restart gunicorn"
+# Откат на ту же версию откатом не является: предлагать его, когда
+# нового кода не приезжало, значит сбивать с толку.
+if [ "$WAS" != "$NOW" ]; then
+  echo "Откат, если что-то пойдёт не так:"
+  echo "    cd $ROOT && git reset --hard $WAS && systemctl restart gunicorn"
+fi
 echo
