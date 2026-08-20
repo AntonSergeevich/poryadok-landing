@@ -236,7 +236,13 @@
             {% for label, value in work.facts %}
               <li><span>{{ label }}</span><b>{{ value }}</b></li>
             {% endfor %}
-            {% if work.term %}<li><span>Срок</span><b>{{ work.term }}</b></li>{% endif %}
+            {% if work.term %}
+              <li>
+                <span>Срок</span>
+                <b>{{ work.term }}</b>
+                {% if work.term_note %}<i>{{ work.term_note }}</i>{% endif %}
+              </li>
+            {% endif %}
           </ul>
 
           <div class="shots">

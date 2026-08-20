@@ -200,3 +200,35 @@ html:not([data-js]) .scheme__note-flat{display:inline}
 html[data-js] .build__recount{display:none}
 
 .build__total .small{font-size:var(--t-tag);color:var(--muted);line-height:1.6}
+
+/* ---------- С чем сравнивать ----------
+   Человек, увидевший «199 000», сравнивает это с последней услышанной
+   ценой — а слышал он обычно про подписку за тысячу в месяц. Не сказать,
+   что это разные вещи, значит оставить его наедине с выводом «дорого». */
+
+.versus{
+  display:grid;gap:var(--gut);
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));
+}
+.vs{
+  border:1px solid var(--line);background:var(--sheet);
+  padding:clamp(20px,2.6vw,28px);display:grid;gap:14px;align-content:start;
+}
+.vs h3{font-size:var(--t-h3)}
+.vs p{font-size:var(--t-small);color:var(--muted);line-height:1.6}
+.vs__fig{
+  font:500 clamp(1.4rem,1.1rem + 1.1vw,1.9rem)/1.1 var(--f-sans);
+  letter-spacing:-.02em;color:var(--graphite)!important;
+  display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;
+}
+.vs__fig span{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em}
+.vs__note{
+  margin-top:auto;padding-top:12px;border-top:1px solid var(--line);
+  font-size:var(--t-tag)!important;line-height:1.6;
+}
+/* Своя колонка выделена, но не кричит: это сравнение, а не витрина.
+   Разница в одной линии слева и цвете числа. */
+.vs--mine{border-color:var(--ink);border-left-width:3px}
+.vs--mine .vs__fig{color:var(--ink)!important}
+.versus__src{margin-top:var(--gut);color:var(--muted)}

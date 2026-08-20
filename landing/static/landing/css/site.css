@@ -439,6 +439,11 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .work__facts span{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
   letter-spacing:.12em;color:var(--muted)}
 .work__facts b{font:500 1.0625rem/1.2 var(--f-sans)}
+/* Уточнение к сроку. «Две недели» звучит долго, пока не сказано, что
+   работать сайт начал на третий день, — поэтому оговорка стоит рядом
+   с числом, а не в тексте кейса, где её не прочитают. */
+.work__facts i{font-style:normal;font-size:var(--t-tag);color:var(--muted);
+  max-width:30ch;line-height:1.4}
 
 /* ---------- Снимки экрана ---------- */
 
