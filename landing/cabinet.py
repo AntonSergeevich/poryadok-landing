@@ -38,6 +38,7 @@ from django.views.decorators.http import require_POST
 from .models import (Client, Lead, Message, Payment, Project, Stage,
                      StageTask)
 from .services import chat
+from .services import summary as digest
 from .services import notify
 from .services import access
 
@@ -525,6 +526,28 @@ def _money_ok(request, project, note):
     })
 
 
+# ── Сводка ───────────────────────────────────────────────────────────
+
+@owner_only
+def summary(request):
+    """Всё дело одним экраном.
+
+    Раздел, который открывают раз в месяц, а не каждый день, — и потому
+    он отвечает на другие вопросы: не «за что взяться», а «как идут
+    дела». Сколько получено, откуда приходят те, кто доходит до работы,
+    и почему отказываются остальные.
+
+    Всё считается на лету. При двух десятках проектов это несколько
+    запросов; кэш появится, когда их станет тысяча, — но не раньше,
+    потому что кэш, который никто не проверяет, однажды начинает
+    показывать прошлый год.
+    """
+    return render(request, 'landing/cabinet/summary.html', {
+        'section': 'summary',
+        **digest.everything(),
+    })
+
+
 # ── Этапы, которых нет ───────────────────────────────────────────────
 
 @owner_only
@@ -886,6 +909,9 @@ def _stage_context(project, owner_view):
     current = project.current_stage
     return {
         'project': project,
+        # Договор идёт вместе с проектом: на странице проекта он такая же
+        # часть ответа «что происходит», как этапы и деньги.
+        'contract': project.contract,
         'stages': stages,
         'current': current,
         'progress': project.progress,

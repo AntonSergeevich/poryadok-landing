@@ -533,3 +533,79 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .msg__form{display:grid;gap:8px;margin-top:8px}
 .msg__form textarea{width:100%;min-height:4.5rem}
 .msg__form-go{display:flex;gap:8px}
+
+/* ---------- Сводка ----------
+   Раздел, который открывают раз в месяц. Оформление здесь спокойнее,
+   чем на рабочем столе: смотрят его без спешки и по порядку. */
+
+.cab__cols{
+  display:grid;gap:var(--gut);margin-bottom:var(--gut);
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));
+}
+.cab__cols .panel{margin-bottom:0}
+
+/* Столбики выручки. Вёрсткой, без библиотек и без картинок: двенадцать
+   чисел не стоят ста килобайт кода, а на телефоне такой график ещё
+   и открывается мгновенно. */
+.bars{
+  display:grid;gap:4px;align-items:end;
+  grid-auto-flow:column;grid-auto-columns:1fr;
+  min-height:180px;margin:6px 0 0;
+  overflow-x:auto;
+}
+.bars__col{
+  display:grid;gap:6px;align-content:end;justify-items:center;
+  min-width:38px;height:100%;
+  grid-template-rows:auto 1fr auto;
+}
+.bars__fig{
+  font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  /* Числа вертикально: подписи в 6–7 знаков рядом не помещаются,
+     а прятать их за наведением значит спрятать от телефона совсем. */
+  writing-mode:vertical-rl;transform:rotate(180deg);
+  max-height:70px;overflow:hidden;
+}
+.bars__bar{
+  width:100%;max-width:34px;align-self:end;
+  background:var(--graphite);border:1px solid var(--graphite);
+  /* Пустой месяц — это не «нет столбика», это столбик нулевой высоты.
+     Полоска в один пиксель говорит, что месяц был и в нём было пусто. */
+  min-height:1px;
+}
+.bars__col.is-now .bars__bar{background:var(--ink);border-color:var(--ink)}
+.bars__label{
+  font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.bars__col.is-now .bars__label{color:var(--ink)}
+
+/* Таблицы сводки. Прокрутка своей полосой: на телефоне таблица из шести
+   колонок иначе растягивает страницу, и горизонтально едет весь экран. */
+.cab-table{overflow-x:auto;margin-top:8px}
+.cab-table table{width:100%;border-collapse:collapse;font-size:var(--t-small)}
+.cab-table th,.cab-table td{
+  border-bottom:1px solid var(--line);padding:9px 12px 9px 0;
+  text-align:left;vertical-align:top;
+}
+.cab-table th{
+  font:400 var(--t-tag)/1.3 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);white-space:nowrap;
+}
+.cab-table td.is-ok{color:#1c6b3f}
+
+.reasons{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:10px}
+.reasons li{
+  display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;
+  border-left:3px solid var(--line);padding-left:12px;
+  font-size:var(--t-small);
+}
+.reasons__times{
+  font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.08em;border:1px solid var(--line);padding:3px 7px;
+}
+/* Повторяющаяся причина — не три случая, а один повод пересмотреть
+   предложение. Поэтому она выделена. */
+.reasons li:has(.reasons__times){border-left-color:var(--ink)}
+
+.plain{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px;
+  font-size:var(--t-small)}

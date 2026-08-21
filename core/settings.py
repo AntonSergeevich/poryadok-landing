@@ -51,6 +51,20 @@ SITE_STATUS = os.getenv(
     'SITE_STATUS',
     'самозанятый, налог на профессиональный доход')
 
+# --- Реквизиты для договора ---
+# Здесь то, чего нет и не должно быть на сайте: адрес для писем и счёт.
+# Договор без них собрать можно, выставить — нельзя: заказчик получит
+# документ, распечатает, подпишет и только тогда спросит, куда платить.
+CONTRACT_ADDRESS = os.getenv('CONTRACT_ADDRESS', '')   # адрес для писем
+CONTRACT_ACCOUNT = os.getenv('CONTRACT_ACCOUNT', '')   # расчётный счёт
+CONTRACT_BANK = os.getenv('CONTRACT_BANK', '')         # название банка
+CONTRACT_BIK = os.getenv('CONTRACT_BIK', '')           # БИК
+CONTRACT_CORR = os.getenv('CONTRACT_CORR', '')         # корреспондентский счёт
+# Карта — для тех, кто работает без расчётного счёта. В договор попадает,
+# только если счёта нет: два способа оплаты в одном документе означают
+# два разных места, куда могут прийти деньги.
+CONTRACT_CARD = os.getenv('CONTRACT_CARD', '')
+
 # --- Telegram ---
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')

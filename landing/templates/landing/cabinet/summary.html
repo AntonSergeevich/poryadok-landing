@@ -1,0 +1,217 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+{% load ru %}
+
+{% block cab_title %}Сводка{% endblock %}
+
+{% block cab_content %}
+{% comment %}
+  Сводка. Раздел, который открывают раз в месяц, а не каждый день, —
+  и потому отвечает он на другие вопросы: не «за что взяться», а «как
+  идут дела».
+
+  Порядок разделов здесь — порядок вопросов, которые задают себе в этот
+  момент: сколько заработал → откуда приходят → почему не дошли →
+  кто должен.
+{% endcomment %}
+
+<div class="cab__head">
+  <div>
+    <span class="tag">Сводка</span>
+    <h1>Как идут дела</h1>
+    <p class="lede">
+      Всё то же самое, что лежит по разделам, — но собранное так, чтобы
+      на это можно было посмотреть один раз в месяц и всё понять.
+    </p>
+  </div>
+</div>
+
+{# ── Деньги ────────────────────────────────────────────────────── #}
+<section class="panel panel--wide">
+  <h2>Деньги</h2>
+  <dl class="money money--big">
+    <div><dt>Получено</dt><dd class="is-ok">{{ money.paid|floatformat:"0g" }} ₽</dd></div>
+    <div><dt>Договорились</dt><dd>{{ money.agreed|floatformat:"0g" }} ₽</dd></div>
+    <div><dt>Должны</dt><dd><b>{{ money.debt|floatformat:"0g" }} ₽</b></dd></div>
+    {% if money.overpaid %}
+      {% comment %}
+        Переплата показывается только когда она есть: обычно её нет,
+        и пустая строка «переплата 0 ₽» в каждой сводке — шум.
+      {% endcomment %}
+      <div><dt>Переплата</dt><dd>{{ money.overpaid|floatformat:"0g" }} ₽</dd></div>
+    {% endif %}
+    <div><dt>Средний проект</dt><dd>{{ money.average|floatformat:"0g" }} ₽</dd></div>
+  </dl>
+  <p class="muted">
+    Выручка здесь — <b>полученные</b> деньги, а не сумма договорённостей.
+    Разница между ними стоит отдельной строкой: считать выручкой
+    подписанное, но не оплаченное — самый быстрый способ поверить,
+    что дела идут лучше, чем идут.
+  </p>
+</section>
+
+{# ── По месяцам ────────────────────────────────────────────────── #}
+<section class="panel panel--wide">
+  <h2>По месяцам</h2>
+  {% comment %}
+    Столбики нарисованы вёрсткой, без библиотек и без картинок. Двенадцать
+    чисел не стоят ста килобайт кода, а на телефоне такой график ещё
+    и открывается мгновенно.
+
+    Пустые месяцы остаются на месте. Пропустить их значило бы нарисовать
+    ровный рост там, где было три месяца тишины.
+  {% endcomment %}
+  <div class="bars" role="img"
+       aria-label="Полученные деньги по месяцам за последний год">
+    {% for row in months %}
+      <div class="bars__col{% if row.is_now %} is-now{% endif %}">
+        <span class="bars__fig">{% if row.amount %}{{ row.amount|floatformat:"0g" }}{% endif %}</span>
+        <span class="bars__bar" style="height:{{ row.height }}%"></span>
+        <span class="bars__label">{{ row.label }}</span>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+{# ── Проекты и заявки ──────────────────────────────────────────── #}
+<div class="cab__cols">
+  <section class="panel">
+    <h2>Проекты</h2>
+    <dl class="money">
+      <div><dt>Всего</dt><dd>{{ money.projects }}</dd></div>
+      <div><dt>В работе</dt><dd>{{ money.running }}</dd></div>
+      <div><dt>Завершено</dt><dd class="is-ok">{{ money.done }}</dd></div>
+    </dl>
+
+    <h3 class="money__h">Договоры</h3>
+    <dl class="money">
+      <div><dt>Подписано</dt><dd class="is-ok">{{ contracts.signed }}</dd></div>
+      <div><dt>Ждут подписи</dt><dd>{{ contracts.waiting_count }}</dd></div>
+    </dl>
+    {% if contracts.waiting %}
+      <ul class="plain">
+        {% for row in contracts.waiting %}
+          <li>
+            <a href="{% url 'cabinet_contract' row.pk %}">№ {{ row.number }}</a>
+            — {{ row.project.client.name }},
+            {{ row.amount|floatformat:"0g" }} ₽,
+            выставлен {{ row.issued_at|date:"d.m.Y" }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Заявки</h2>
+    <dl class="money">
+      <div><dt>Всего</dt><dd>{{ leads.total }}</dd></div>
+      <div><dt>В работе</dt><dd>{{ leads.open }}</dd></div>
+      <div><dt>Взяли</dt><dd class="is-ok">{{ leads.won }}</dd></div>
+      <div><dt>Отказались</dt><dd>{{ leads.lost }}</dd></div>
+      <div><dt>Доходят</dt><dd><b>{{ leads.rate }}%</b></dd></div>
+    </dl>
+    <p class="muted">
+      Доля считается от закрытых заявок, а не от всех. Те, по которым
+      разговор ещё идёт, — не отказы, и складывать их в знаменатель
+      значит каждый месяц видеть падающую конверсию просто потому,
+      что заявок стало больше.
+    </p>
+  </section>
+</div>
+
+{# ── Источники ─────────────────────────────────────────────────── #}
+{% if sources %}
+<section class="panel panel--wide">
+  <h2>Откуда приходят</h2>
+  <div class="cab-table">
+    <table>
+      <thead>
+        <tr><th>Источник</th><th>Заявок</th><th>Взяли</th><th>Доходят</th></tr>
+      </thead>
+      <tbody>
+        {% for row in sources %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.total }}</td>
+            <td>{{ row.won }}</td>
+            <td>{% if row.rate is None %}<span class="muted">рано</span>
+                {% else %}{{ row.rate }}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">
+    Главное здесь не количество, а доля дошедших. Источник, дающий
+    двадцать заявок и ноль проектов, стоит дороже, чем кажется:
+    он забирает время.
+  </p>
+</section>
+{% endif %}
+
+{# ── Отказы ────────────────────────────────────────────────────── #}
+<section class="panel panel--wide">
+  <h2>Почему отказались</h2>
+  {% if refusals %}
+    <ul class="reasons">
+      {% for row in refusals %}
+        <li>
+          <b>{{ row.reason }}</b>
+          {% if row.times > 1 %}
+            <span class="reasons__times">{{ row.times }} раза</span>
+          {% endif %}
+          <span class="muted">{{ row.name }} · {{ row.when|date:"d.m.Y" }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Отказов с записанной причиной пока нет.</p>
+  {% endif %}
+  {% if refusals_silent %}
+    <p class="muted">
+      Ещё {{ refusals_silent }} {{ refusals_silent|ru_plural:"отказ,отказа,отказов" }}
+      без причины. Через год они не объяснят ничего — причину стоит
+      записывать сразу, пока разговор в голове.
+    </p>
+  {% endif %}
+</section>
+
+{# ── Заказчики ─────────────────────────────────────────────────── #}
+<section class="panel panel--wide">
+  <h2>Заказчики</h2>
+  {% if clients %}
+    {% comment %}
+      Сначала те, кто должен: это список, по которому звонят.
+    {% endcomment %}
+    <div class="cab-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Заказчик</th><th>Проекты</th><th>Договорились</th>
+            <th>Оплачено</th><th>Должны</th><th>Кабинет</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in clients %}
+            <tr>
+              <td>{{ row.client.name }}</td>
+              <td>
+                {% for project in row.projects %}
+                  <a href="{% url 'cabinet_project' project.pk %}">{{ project.title }}</a>{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              </td>
+              <td>{{ row.agreed|floatformat:"0g" }} ₽</td>
+              <td class="is-ok">{{ row.paid|floatformat:"0g" }} ₽</td>
+              <td>{% if row.debt > 0 %}<b>{{ row.debt|floatformat:"0g" }} ₽</b>
+                  {% else %}<span class="muted">—</span>{% endif %}</td>
+              <td>{% if row.has_cabinet %}есть{% else %}<span class="muted">нет</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">Проектов пока нет — считать нечего.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -164,3 +164,40 @@ def lead_reminder(lead):
         lines += ['', lead.note[:400]]
     lines += ['', url]
     return _to_owner('\n'.join(lines))
+
+
+def contract_issued(contract):
+    """Сказать заказчику, что договор ждёт подписи.
+
+    Единственное уведомление о документе, которое имеет смысл: договор
+    выставили — значит от заказчика ждут действия. О том, что документ
+    поправили или отменили, он узнает, когда откроет кабинет.
+    """
+    url = _cabinet_url(reverse('cabinet_contract', args=[contract.pk]))
+    return _to_client(contract.project, '\n'.join([
+        f'Договор № {contract.number} готов к подписанию.',
+        '',
+        f'Сумма: {contract.amount:.0f} ₽, аванс {contract.prepay_percent}% '
+        f'— {contract.prepay:.0f} ₽.',
+        'В кабинете можно прочитать его целиком, скачать PDF '
+        'и загрузить подписанный.',
+        '',
+        url,
+    ]))
+
+
+def contract_signed(contract):
+    """Сказать мне, что подписанный договор загружен.
+
+    Это событие, после которого начинается работа, — и единственное,
+    ради которого стоит смотреть в телефон в выходной.
+    """
+    url = _cabinet_url(reverse('cabinet_contract', args=[contract.pk]))
+    return _to_owner('\n'.join([
+        f'Договор № {contract.number} подписан.',
+        '',
+        f'{contract.project.client.name} · {contract.project.title}',
+        f'{contract.amount:.0f} ₽',
+        '',
+        url,
+    ]))

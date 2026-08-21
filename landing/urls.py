@@ -4,7 +4,7 @@ from django.templatetags.static import static as static_url
 from django.shortcuts import redirect
 from django.urls import path, reverse_lazy
 
-from . import cabinet, views
+from . import cabinet, contract_views, views
 
 
 def _icon(name):
@@ -84,6 +84,7 @@ urlpatterns = [
          name='cabinet_lead_project'),
     path('cabinet/zakazchiki/', cabinet.clients, name='cabinet_clients'),
     path('cabinet/dengi/', cabinet.money, name='cabinet_money'),
+    path('cabinet/svodka/', cabinet.summary, name='cabinet_summary'),
 
     path('cabinet/proekt/<int:pk>/', cabinet.project_detail, name='cabinet_project'),
     path('cabinet/proekt/<int:pk>/etapy/', cabinet.stages_build,
@@ -96,6 +97,23 @@ urlpatterns = [
          name='cabinet_payment_delete'),
     path('cabinet/proekt/novyy/', cabinet.project_create,
          name='cabinet_project_create'),
+
+    # Договор. Собирается по проекту, живёт своей страницей: её
+    # открывают, чтобы прочитать и распечатать, а не чтобы работать.
+    path('cabinet/proekt/<int:pk>/dogovor/', contract_views.contract_create,
+         name='cabinet_contract_create'),
+    path('cabinet/dogovor/<int:pk>/', contract_views.contract_page,
+         name='cabinet_contract'),
+    path('cabinet/dogovor/<int:pk>/pravka/', contract_views.contract_update,
+         name='cabinet_contract_update'),
+    path('cabinet/dogovor/<int:pk>/rekvizity/', contract_views.client_requisites,
+         name='cabinet_contract_requisites'),
+    path('cabinet/dogovor/<int:pk>/vystavit/', contract_views.contract_issue,
+         name='cabinet_contract_issue'),
+    path('cabinet/dogovor/<int:pk>/otmenit/', contract_views.contract_cancel,
+         name='cabinet_contract_cancel'),
+    path('cabinet/dogovor/<int:pk>/podpisan/', contract_views.contract_sign,
+         name='cabinet_contract_sign'),
     path('cabinet/klient/<int:client_pk>/dostup/', cabinet.grant_access,
          name='cabinet_grant'),
     path('cabinet/klient/<int:client_pk>/dostup/zakryt/', cabinet.revoke_access,

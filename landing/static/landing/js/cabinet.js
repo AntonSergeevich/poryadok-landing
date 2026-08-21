@@ -118,9 +118,11 @@
         }
       }
       show(data.stage_id, false);
+      also(data);
       return;
     }
 
+    also(data);
     if (!data.html) return;
 
     // Куда класть: либо форма сказала явно, либо ищем ближайший блок
@@ -135,6 +137,21 @@
       var first = where.firstElementChild;
       if (first) first.classList.add('is-fresh');
     }
+  }
+
+  /* Иногда одного куска мало.
+
+     Правка условий договора меняет и панель сверху, и сам лист ниже.
+     Обновить панель, забыв про лист, значит показать экран, где сверху
+     новая цена, а в договоре под ней старая — и человек уходит печатать
+     то, что видит. Сервер говорит, что и куда положить ещё; собирать
+     этот список в браузере значило бы завести вторую копию решения. */
+  function also(data) {
+    if (!data.also) return;
+    Object.keys(data.also).forEach(function (selector) {
+      var node = document.querySelector(selector);
+      if (node) node.innerHTML = data.also[selector];
+    });
   }
 
   function build(html) {

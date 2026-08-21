@@ -8,9 +8,9 @@ from django.contrib import admin, messages
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import (Client, ClubSubscription, Lead, Message, MessageFile,
-                     Payment, Project, Stage, StageTask, Survey,
-                     format_phone)
+from .models import (Client, ClubSubscription, Contract, Lead, Message,
+                     MessageFile, Payment, Project, Stage, StageTask,
+                     Survey, format_phone)
 from .services import telegram as tg
 
 admin.site.site_header = 'Порядок — рабочий стол'
@@ -180,6 +180,27 @@ class ProjectAdmin(admin.ModelAdmin):
     @admin.display(description='остаток')
     def debt_column(self, obj):
         return f'{obj.debt:.0f} ₽'
+
+
+@admin.register(Contract)
+class ContractAdmin(admin.ModelAdmin):
+    """Договоры собираются в кабинете, а не здесь.
+
+    Здесь они только видны: список, поиск и возможность скачать
+    подписанный скан. Текст выставленного договора — снимок, и править
+    его руками нельзя ни отсюда, ни откуда-либо ещё: стороны подписали
+    именно то, что в снимке.
+    """
+    list_display = ('number', 'date', 'client_column', 'amount', 'status',
+                    'signed_at')
+    list_filter = ('status', 'date')
+    search_fields = ('number', 'project__title', 'project__client__name')
+    autocomplete_fields = ('project',)
+    readonly_fields = ('body', 'data', 'issued_at', 'signed_at')
+
+    @admin.display(description='заказчик')
+    def client_column(self, obj):
+        return obj.project.client.name
 
 
 class StageTaskInline(admin.TabularInline):

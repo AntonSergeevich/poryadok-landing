@@ -5,7 +5,9 @@
 """
 import re
 from datetime import timedelta
+from decimal import Decimal
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -53,6 +55,21 @@ class Client(TimeStamped):
     telegram_user_id = models.BigIntegerField('telegram ID', null=True, blank=True)
     note = models.TextField('заметки', blank=True)
     is_active = models.BooleanField('активный', default=True)
+
+    # Реквизиты для договора. Лежат у клиента, а не у договора: они
+    # принадлежат ему и не меняются от документа к документу. В сам
+    # договор они уходят снимком — если через год заказчик переедет,
+    # подписанный документ обязан остаться таким, каким его подписали.
+    legal_name = models.CharField(
+        'наименование для договора', max_length=250, blank=True,
+        help_text='ИП Иванов Иван Иванович · ООО «Ромашка» · '
+                  'Иванов Иван Иванович')
+    inn = models.CharField('ИНН', max_length=12, blank=True)
+    address = models.CharField('адрес', max_length=250, blank=True)
+    signer = models.CharField(
+        'кто подписывает', max_length=160, blank=True,
+        help_text='«директора Иванова И. И.» — в родительном падеже, '
+                  'как это стоит в договоре после слов «в лице».')
 
     # Учётная запись для входа в кабинет. Её нет, пока доступ не выдан:
     # карточку клиента заводят сразу, а кабинет — когда есть что показывать.
@@ -287,6 +304,23 @@ class Project(TimeStamped):
                 continue
             rows.extend(stage.open_tasks(who=StageTask.Who.CLIENT))
         return rows
+
+    @property
+    def contract(self):
+        """Договор по проекту — последний неотменённый.
+
+        Их может быть несколько: отменённый черновик, потом настоящий.
+        Показывать надо один, и это всегда свежий.
+        """
+        return self.contracts.exclude(
+            status=Contract.Status.CANCELED).first()
+
+    @property
+    def planned_days(self):
+        """Срок по календарному плану. Он же уходит в договор — чтобы
+        срок в документе и срок на шкале были одним числом, а не двумя
+        независимыми обещаниями."""
+        return sum(s.planned_days for s in self.ordered_stages)
 
     def build_stages(self):
         """Разложить этапы по плану. Повторный вызов ничего не портит:
@@ -614,6 +648,115 @@ class Payment(TimeStamped):
         self.paid_at = timezone.now()
         self.save(update_fields=['status', 'paid_at', 'updated_at'])
         return True
+
+
+# ── Договор ──────────────────────────────────────────────────────────
+#
+# Договор — единственная сущность здесь, которую нельзя менять задним
+# числом. Всё остальное в кабинете правится: заявка, этап, цена, даже
+# сообщение в первую минуту. Договор — нет: его распечатали, подписали
+# и положили в папку, и через год стороны обязаны увидеть один и тот же
+# текст.
+#
+# Отсюда снимок. При выставлении на подписание готовый текст, реквизиты
+# и суммы складываются в `body` и `data` и больше не пересобираются.
+# Правка landing/contract.py меняет только будущие договоры — ни одного
+# уже выставленного она не трогает.
+
+
+def contract_upload_to(instance, filename):
+    """Подписанные договоры — по годам. Их немного, но искать их будут
+    руками, и «все файлы в одной папке» здесь особенно неудобно."""
+    return f'contracts/{timezone.now():%Y}/{filename}'
+
+
+class Contract(TimeStamped):
+    """Договор оказания услуг по проекту."""
+
+    class Status(models.TextChoices):
+        # Черновик виден только мне. Он нужен затем, что договор
+        # перечитывают перед отправкой — а не после.
+        DRAFT = 'draft', 'Черновик'
+        ISSUED = 'issued', 'Выставлен на подписание'
+        SIGNED = 'signed', 'Подписан'
+        CANCELED = 'canceled', 'Отменён'
+
+    project = models.ForeignKey(Project, verbose_name='проект',
+                                on_delete=models.CASCADE,
+                                related_name='contracts')
+    number = models.CharField('номер', max_length=32)
+    date = models.DateField('дата')
+    status = models.CharField('статус', max_length=16,
+                              choices=Status.choices, default=Status.DRAFT,
+                              db_index=True)
+
+    system_name = models.CharField('название системы', max_length=200)
+    amount = models.DecimalField('сумма, ₽', max_digits=10, decimal_places=2,
+                                 default=0)
+    prepay_percent = models.PositiveSmallIntegerField('аванс, %', default=50)
+    term_days = models.PositiveSmallIntegerField('срок, рабочих дней',
+                                                 default=0)
+    warranty_days = models.PositiveSmallIntegerField('гарантия, дней',
+                                                     default=30)
+    support_days = models.PositiveSmallIntegerField('сопровождение, дней',
+                                                    default=30)
+    scope = models.TextField('состав системы', blank=True,
+                             help_text='Приложение № 1. По строке на блок.')
+
+    # Снимок. Текст разделов и все подставленные значения — как они
+    # выглядели в момент выставления.
+    body = models.JSONField('текст договора', default=list, blank=True)
+    data = models.JSONField('подставленные данные', default=dict, blank=True)
+
+    issued_at = models.DateTimeField('выставлен', null=True, blank=True)
+    signed_at = models.DateTimeField('подписан', null=True, blank=True)
+    # Скан подписанного. Загружает заказчик из своего кабинета — это
+    # и есть подпись с точки зрения п. 10.1 договора.
+    signed_file = models.FileField('подписанный скан', blank=True,
+                                   upload_to=contract_upload_to)
+    signed_name = models.CharField('имя файла', max_length=250, blank=True)
+
+    class Meta:
+        verbose_name = 'договор'
+        verbose_name_plural = 'договоры'
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f'Договор № {self.number} от {self.date:%d.%m.%Y}'
+
+    @property
+    def prepay(self):
+        """Аванс в рублях. Считается от процента, а не хранится отдельно:
+        два поля с одной суммой однажды разойдутся, и спорить придётся
+        уже по подписанному документу."""
+        return (self.amount * self.prepay_percent / 100).quantize(
+            Decimal('0.01'))
+
+    @property
+    def rest(self):
+        return self.amount - self.prepay
+
+    @property
+    def is_visible_to_client(self):
+        """Черновик заказчику не показывается. Он для того и черновик."""
+        return self.status in (self.Status.ISSUED, self.Status.SIGNED)
+
+    @property
+    def waiting_signature(self):
+        return self.status == self.Status.ISSUED
+
+    @classmethod
+    def next_number(cls, when=None):
+        """Следующий номер в году: 03-2026.
+
+        Сквозная нумерация внутри года — то, как это заведено в бумаге,
+        и то, что спрашивает бухгалтерия заказчика. Номер по номеру
+        строки в базе («договор № 47») выглядит странно у исполнителя,
+        у которого их было четыре.
+        """
+        when = when or timezone.localdate()
+        used = cls.objects.filter(date__year=when.year).count()
+        return f'{used + 1:02d}-{when.year}'
 
 
 class ClubSubscription(TimeStamped):

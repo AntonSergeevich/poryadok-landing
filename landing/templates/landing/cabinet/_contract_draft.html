@@ -1,0 +1,123 @@
+{% load ru %}
+{% comment %}
+  Черновик: предупреждения и формы правки. Отдельным файлом, потому что
+  после выставления всё это должно исчезнуть целиком. Раньше формы
+  оставались на экране, и следующее нажатие «Сохранить условия» получало
+  отказ «выставленный договор не правится» — правильный по сути и
+  бессмысленный по ощущению: кнопка стояла на месте и обещала работать.
+{% endcomment %}
+  {% if owner_view and gaps %}
+    <div class="doc-warn">
+      <b>Реквизиты не заполнены — договор не выставить.</b>
+      Их место в файле <code>.env</code> на сервере, рядом с остальными
+      настройками. Не хватает:
+      <ul>{% for gap in gaps %}<li>{{ gap }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+
+  {% if owner_view and contract.status == 'draft' %}
+    <div class="doc-warn">
+      <b>Это черновик.</b> Пока он не выставлен, заказчик его не видит,
+      а текст пересобирается по текущим данным проекта. После выставления
+      текст замораживается: правка появится только в новом договоре.
+    </div>
+  {% endif %}
+
+  {% if owner_view and contract.status == 'draft' %}
+    {% comment %}
+      Две формы черновика. Обе правят разное: первая — стороны договора,
+      вторая — его условия. Одной формой это было бы восемь полей подряд,
+      из которых половина заполняется один раз на клиента, а половина —
+      каждый раз заново.
+    {% endcomment %}
+    <details class="doc-notes" open>
+      <summary>Реквизиты заказчика</summary>
+      <form class="doc-form" method="post"
+            action="{% url 'cabinet_contract_requisites' contract.pk %}"
+            data-act data-target="[data-contract-slot]">
+        {% csrf_token %}
+        <label class="field">
+          <span>Наименование для договора</span>
+          <input class="input input--sm" type="text" name="legal_name"
+                 maxlength="250" value="{{ project.client.legal_name }}"
+                 placeholder="ИП Иванов Иван Иванович">
+        </label>
+        <label class="field">
+          <span>ИНН</span>
+          <input class="input input--sm" type="text" name="inn" maxlength="12"
+                 inputmode="numeric" value="{{ project.client.inn }}">
+        </label>
+        <label class="field">
+          <span>Адрес</span>
+          <input class="input input--sm" type="text" name="address"
+                 maxlength="250" value="{{ project.client.address }}">
+        </label>
+        <label class="field">
+          <span>Кто подписывает</span>
+          <input class="input input--sm" type="text" name="signer"
+                 maxlength="160" value="{{ project.client.signer }}"
+                 placeholder="директора Иванова И. И.">
+        </label>
+        <label class="field">
+          <span>Почта</span>
+          <input class="input input--sm" type="email" name="email"
+                 maxlength="254" value="{{ project.client.email }}">
+        </label>
+        <button class="btn btn--sm" type="submit">Сохранить реквизиты</button>
+      </form>
+    </details>
+
+    <details class="doc-notes">
+      <summary>Условия договора</summary>
+      <form class="doc-form" method="post"
+            action="{% url 'cabinet_contract_update' contract.pk %}"
+            data-act data-target="[data-contract-slot]">
+        {% csrf_token %}
+        <label class="field">
+          <span>Номер</span>
+          <input class="input input--sm" type="text" name="number"
+                 maxlength="32" value="{{ contract.number }}">
+        </label>
+        <label class="field">
+          <span>Название системы</span>
+          <input class="input input--sm" type="text" name="system_name"
+                 maxlength="200" value="{{ contract.system_name }}">
+        </label>
+        <label class="field">
+          <span>Сумма, ₽</span>
+          <input class="input input--sm" type="text" name="amount"
+                 inputmode="decimal" value="{{ contract.amount|floatformat:0 }}">
+        </label>
+        <label class="field">
+          <span>Аванс, %</span>
+          <input class="input input--sm" type="number" name="prepay_percent"
+                 min="0" max="100" value="{{ contract.prepay_percent }}">
+        </label>
+        <label class="field">
+          <span>Срок, рабочих дней</span>
+          <input class="input input--sm" type="number" name="term_days"
+                 min="0" value="{{ contract.term_days }}">
+        </label>
+        <label class="field">
+          <span>Гарантия, дней</span>
+          <input class="input input--sm" type="number" name="warranty_days"
+                 min="0" value="{{ contract.warranty_days }}">
+        </label>
+        <label class="field">
+          <span>Сопровождение, дней</span>
+          <input class="input input--sm" type="number" name="support_days"
+                 min="0" value="{{ contract.support_days }}">
+        </label>
+        <label class="field field--wide">
+          <span>Состав системы — Приложение № 1, по строке на пункт</span>
+          <textarea class="input input--sm" name="scope" rows="8">{{ contract.scope }}</textarea>
+        </label>
+        <button class="btn btn--sm" type="submit">Сохранить условия</button>
+      </form>
+      <p class="muted">
+        Сохранённое видно ниже сразу: документ на этой странице
+        и есть то, что уйдёт на печать.
+      </p>
+    </details>
+  {% endif %}
+

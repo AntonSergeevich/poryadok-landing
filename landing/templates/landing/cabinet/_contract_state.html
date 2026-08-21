@@ -1,0 +1,71 @@
+{% comment %}
+  Состояние договора и кнопки к нему. Отдельным файлом: перерисовывается
+  после каждого действия — выставили, загрузили скан — и шаблон должен
+  быть один, иначе на экране и в базе окажутся разные состояния.
+{% endcomment %}
+<div class="doc-bar__top">
+  <span class="doc-state doc-state--{{ contract.status }}">
+    {{ contract.get_status_display }}
+    {% if contract.signed_at %}· {{ contract.signed_at|date:"d.m.Y" }}{% endif %}
+  </span>
+
+  <div class="doc-bar__acts">
+    {% comment %}
+      «Скачать PDF» — это печать браузера с выбором «Сохранить как PDF».
+      Второй вёрстки документа для файла нет намеренно: она разошлась бы
+      с той, что человек видит на экране, а для договора это худший
+      из возможных дефектов.
+    {% endcomment %}
+    <button class="btn btn--sm" type="button" data-print>Скачать PDF</button>
+
+    {% if owner_view %}
+      {% if contract.status == 'draft' %}
+        <form method="post" action="{% url 'cabinet_contract_issue' contract.pk %}"
+              data-act data-target="[data-contract-slot]">
+          {% csrf_token %}
+          <button class="btn btn--sm btn--ink" type="submit">
+            Выставить на подписание
+          </button>
+        </form>
+      {% endif %}
+      {% if contract.status != 'signed' and contract.status != 'canceled' %}
+        <form method="post" action="{% url 'cabinet_contract_cancel' contract.pk %}"
+              onsubmit="return confirm('Отменить договор? Заказчик перестанет его видеть.')">
+          {% csrf_token %}
+          <button class="btn btn--sm" type="submit">Отменить</button>
+        </form>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% if contract.status == 'issued' %}
+  <div class="doc-scan">
+    <p class="muted">
+      {% if owner_view %}
+        Заказчик видит договор в своём кабинете. Подписанный скан он
+        загрузит сюда — или пришлёт вам, и тогда загрузите вы.
+      {% else %}
+        Распечатайте, подпишите и загрузите скан или фотографию.
+        Этого достаточно: по п. 10.1 договора подписанная скан-копия
+        имеет силу оригинала.
+      {% endif %}
+    </p>
+    <form class="doc-scan__row" method="post" enctype="multipart/form-data"
+          action="{% url 'cabinet_contract_sign' contract.pk %}"
+          data-act data-target="[data-contract-slot]">
+      {% csrf_token %}
+      <input class="input input--sm" type="file" name="scan" required
+             accept=".pdf,image/*" aria-label="Подписанный договор">
+      <button class="btn btn--sm btn--ink" type="submit">Загрузить подписанный</button>
+    </form>
+    <p class="muted">PDF или фотография, до {{ max_mb }} МБ.</p>
+  </div>
+{% elif contract.status == 'signed' %}
+  <p class="muted">
+    Подписанный:
+    {% if contract.signed_file %}
+      <a href="{{ contract.signed_file.url }}">{{ contract.signed_name|default:"скачать" }}</a>
+    {% else %}файл не приложен{% endif %}
+  </p>
+{% endif %}

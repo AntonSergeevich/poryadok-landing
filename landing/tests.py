@@ -20,8 +20,8 @@ from . import cabinet as cabinet_views
 from . import constructor as build
 from . import survey as survey_logic
 from .forms import LeadForm
-from .models import (STAGE_PLAN, Client, ClubSubscription, Lead, Message,
-                     MessageFile, Payment,
+from .models import (STAGE_PLAN, Client, ClubSubscription, Contract, Lead,
+                     Message, MessageFile, Payment,
                      Project, Stage, StageTask, Survey,
                      format_phone, normalize_phone)
 import json
@@ -41,6 +41,9 @@ from .services import club as club_service
 from .services import getplatinum as gp
 from .services import telegram as tg_service
 from .works import WORKS
+from . import contract as paper
+from .services import papers
+from .services import summary as digest
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / 'templates' / 'landing'
 
@@ -1933,3 +1936,532 @@ class DatabaseUrlTests(TestCase):
             _database_from('mysql://u:p@h/db')
         with self.assertRaises(ImproperlyConfigured):
             _database_from('postgres://u:p@h/')
+
+
+class MoneyWordsTests(TestCase):
+    """Сумма прописью. Ошибка здесь видна только тому, кто читает договор
+    внимательно, — то есть юристу другой стороны."""
+
+    def test_thousands_are_feminine(self):
+        # «один тысяча» — самая частая ошибка в самодельных прописях,
+        # и договор с ней перестают читать как документ.
+        self.assertEqual(paper.words(1000), 'одна тысяча')
+        self.assertEqual(paper.words(2000), 'две тысячи')
+        self.assertEqual(paper.words(5000), 'пять тысяч')
+
+    def test_teens_are_not_units(self):
+        self.assertEqual(paper.words(11), 'одиннадцать')
+        self.assertEqual(paper.words(112), 'сто двенадцать')
+
+    def test_typical_contract_amount(self):
+        self.assertEqual(paper.words(189000),
+                         'сто восемьдесят девять тысяч')
+
+    def test_plural_forms(self):
+        self.assertEqual(paper.plural(1, paper.RUBLES), 'рубль')
+        self.assertEqual(paper.plural(3, paper.RUBLES), 'рубля')
+        self.assertEqual(paper.plural(5, paper.RUBLES), 'рублей')
+        # Одиннадцать оканчивается на единицу, но берёт третью форму.
+        self.assertEqual(paper.plural(11, paper.RUBLES), 'рублей')
+        self.assertEqual(paper.plural(21, paper.RUBLES), 'рубль')
+
+    def test_money_prints_figure_and_words(self):
+        line = paper.money(Decimal('189000.00'))
+        self.assertIn('189\u00a0000', line)  # неразрывный: сумма не рвётся переносом
+        self.assertIn('(сто восемьдесят девять тысяч)', line)
+        self.assertIn('рублей 00 копеек', line)
+
+    def test_kopecks_survive(self):
+        self.assertIn('50 копеек', paper.money(Decimal('1000.50')))
+
+    def test_zero(self):
+        self.assertIn('ноль', paper.money(0))
+
+
+class ContractTextTests(TestCase):
+    """Текст договора: нумерация и подстановка."""
+
+    def test_sections_are_numbered_from_one(self):
+        body = paper.render({})
+        self.assertEqual(body[0]['number'], 1)
+        self.assertEqual(body[0]['clauses'][0]['number'], '1.1')
+
+    def test_cross_references_point_at_real_clauses(self):
+        """В тексте есть ссылки вида «п. 3.2». Если раздел вырос или
+        сжался, они начинают показывать не туда — а заметить это
+        по диагонали невозможно."""
+        body = paper.render({})
+        existing = {clause['number']
+                    for section in body for clause in section['clauses']}
+        # Раздел 11 (реквизиты) собирается вёрсткой, его в SECTIONS нет.
+        existing |= {'11'}
+
+        whole = ' '.join(clause['text'] for section in body
+                         for clause in section['clauses'])
+        for reference in set(re.findall(r'п\. (\d+\.\d+)', whole)):
+            self.assertIn(reference, existing,
+                          f'Ссылка на п. {reference} никуда не ведёт')
+
+    def test_missing_values_become_dashes_not_crashes(self):
+        """Договор с прочерком печатают и дописывают ручкой. Договор,
+        который не собрался из-за пустого поля, не печатают вовсе."""
+        body = paper.render({'number': '01-2026'})
+        whole = ' '.join(clause['text'] for section in body
+                         for clause in section['clauses'])
+        self.assertIn(paper.BLANK, whole)
+
+    def test_lawyer_notes_are_not_empty(self):
+        self.assertTrue(paper.LAWYER_NOTES)
+        for title, note in paper.LAWYER_NOTES:
+            self.assertTrue(title and note)
+
+    def test_missing_requisites_are_named(self):
+        with self.settings(CONTRACT_ADDRESS='', CONTRACT_ACCOUNT='',
+                           CONTRACT_CARD=''):
+            gaps = paper.missing_requisites()
+        self.assertTrue(any('адрес' in gap for gap in gaps))
+        self.assertTrue(any('счёт' in gap for gap in gaps))
+
+    def test_filled_requisites_leave_no_gaps(self):
+        with self.settings(CONTRACT_ADDRESS='Красноярск, а/я 1',
+                           CONTRACT_ACCOUNT='40802810000000000001'):
+            self.assertEqual(paper.missing_requisites(), [])
+
+
+class ContractFlowTests(TestCase):
+    """Путь договора: собрали, выставили, подписали."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.card = Client.objects.create(
+            name='Дарья', phone='+79130000010',
+            legal_name='ИП Дарья Сергеевна', inn='246000000000',
+            address='Красноярск, ул. Ленина, 1', email='d@example.com')
+        access.issue(self.card)
+        self.card.refresh_from_db()
+
+        self.project = Project.objects.create(client=self.card,
+                                              title='Система для мастерской',
+                                              price=Decimal('189000'))
+        self.project.build_stages()
+
+    def full_requisites(self):
+        return self.settings(CONTRACT_ADDRESS='Красноярск, а/я 1',
+                             CONTRACT_ACCOUNT='40802810000000000001',
+                             CONTRACT_BANK='Банк', CONTRACT_BIK='040407627')
+
+    def make(self):
+        return papers.draft(self.project)
+
+    def test_draft_takes_price_and_term_from_the_project(self):
+        contract = self.make()
+        self.assertEqual(contract.amount, Decimal('189000'))
+        self.assertEqual(contract.term_days,
+                         sum(days for _, _, _, days in STAGE_PLAN))
+        self.assertEqual(contract.status, Contract.Status.DRAFT)
+
+    def test_scope_comes_from_the_stages(self):
+        contract = self.make()
+        self.assertIn('Разбор', contract.scope)
+        self.assertIn('Запуск', contract.scope)
+
+    def test_prepay_is_computed_not_stored(self):
+        contract = self.make()
+        self.assertEqual(contract.prepay, Decimal('94500.00'))
+        self.assertEqual(contract.rest, Decimal('94500.00'))
+
+    def test_numbers_run_within_the_year(self):
+        first = self.make()
+        second = papers.draft(self.project)
+        self.assertNotEqual(first.number, second.number)
+        self.assertTrue(first.number.endswith(str(first.date.year)))
+
+    def test_issue_freezes_the_text(self):
+        """Главное свойство договора: подписанный текст не меняется.
+
+        Проект переименовали и передоговорились о цене — выставленный
+        документ обязан остаться прежним. Иначе однажды придётся
+        объяснять заказчику, почему в его подписанном договоре
+        другая сумма.
+        """
+        contract = self.make()
+        with self.full_requisites():
+            self.assertTrue(papers.issue(contract))
+
+        self.project.price = Decimal('300000')
+        self.project.title = 'Другое название'
+        self.project.save()
+
+        data, body, _ = papers.view_data(contract)
+        self.assertIn('189\u00a0000', data['amount_words'])
+        self.assertIn('Система для мастерской', data['system_name'])
+        self.assertTrue(body)
+
+    def test_issue_twice_changes_nothing(self):
+        contract = self.make()
+        with self.full_requisites():
+            self.assertTrue(papers.issue(contract))
+            self.assertFalse(papers.issue(contract))
+
+    def test_draft_is_recomputed_until_issued(self):
+        contract = self.make()
+        contract.amount = Decimal('250000')
+        contract.save()
+        data, _, _ = papers.view_data(contract)
+        self.assertIn('250\u00a0000', data['amount_words'])
+
+    def test_client_requisites_land_in_the_snapshot(self):
+        contract = self.make()
+        with self.full_requisites():
+            papers.issue(contract)
+        self.assertEqual(contract.data['cl_title'], 'ИП Дарья Сергеевна')
+        self.assertEqual(contract.data['cl_inn'], '246000000000')
+
+    def test_plan_goes_into_the_appendix(self):
+        contract = self.make()
+        with self.full_requisites():
+            papers.issue(contract)
+        plan = contract.data['plan']
+        self.assertEqual(len(plan), len(STAGE_PLAN))
+        self.assertEqual(sum(row['days'] for row in plan), contract.term_days)
+
+    def test_snapshot_survives_json_round_trip(self):
+        """Decimal в JSON не кладётся вовсе, а float однажды напечатает
+        189999.99999. Проверяем, что снимок переживает запись и чтение."""
+        contract = self.make()
+        with self.full_requisites():
+            papers.issue(contract)
+        contract.refresh_from_db()
+        self.assertEqual(contract.data['amount'], '189000.00')
+
+
+class ContractViewTests(TestCase):
+    """Кто что видит и кто что может в договоре."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.card = Client.objects.create(name='Дарья', phone='+79130000011',
+                                          legal_name='ИП Дарья',
+                                          inn='246000000000')
+        access.issue(self.card)
+        self.card.refresh_from_db()
+        self.project = Project.objects.create(client=self.card, title='Система',
+                                              price=Decimal('189000'))
+        self.project.build_stages()
+
+        self.stranger = Client.objects.create(name='Гость',
+                                              phone='+79130000012')
+        access.issue(self.stranger)
+        self.stranger.refresh_from_db()
+
+    def full_requisites(self):
+        return self.settings(CONTRACT_ADDRESS='Красноярск, а/я 1',
+                             CONTRACT_ACCOUNT='40802810000000000001')
+
+    def draft(self):
+        return papers.draft(self.project)
+
+    def issued(self):
+        contract = self.draft()
+        with self.full_requisites():
+            papers.issue(contract)
+        return contract
+
+    def test_owner_collects_a_contract_from_the_project(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_contract_create', args=[self.project.pk]),
+            {'amount': '189 000', 'prepay_percent': '40'})
+        contract = self.project.contracts.get()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(contract.amount, Decimal('189000'))
+        self.assertEqual(contract.prepay_percent, 40)
+
+    def test_second_contract_is_not_collected_silently(self):
+        self.client.force_login(self.owner)
+        self.draft()
+        self.client.post(
+            reverse('cabinet_contract_create', args=[self.project.pk]))
+        self.assertEqual(self.project.contracts.count(), 1)
+
+    def test_client_does_not_see_a_draft(self):
+        contract = self.draft()
+        self.client.force_login(self.card.user)
+        response = self.client.get(
+            reverse('cabinet_contract', args=[contract.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_client_sees_an_issued_contract(self):
+        contract = self.issued()
+        self.client.force_login(self.card.user)
+        body = self.client.get(
+            reverse('cabinet_contract', args=[contract.pk])).content.decode()
+        self.assertIn('сто восемьдесят девять тысяч', body)
+
+    def test_stranger_cannot_read_someone_elses_contract(self):
+        contract = self.issued()
+        self.client.force_login(self.stranger.user)
+        response = self.client.get(
+            reverse('cabinet_contract', args=[contract.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_lawyer_notes_are_owner_only(self):
+        contract = self.issued()
+        self.client.force_login(self.card.user)
+        body = self.client.get(
+            reverse('cabinet_contract', args=[contract.pk])).content.decode()
+        self.assertNotIn('спросить у юриста', body)
+
+    def test_issue_without_requisites_is_refused(self):
+        """Договор без счёта заказчик получит, распечатает, подпишет —
+        и только тогда спросит, куда платить."""
+        contract = self.draft()
+        self.client.force_login(self.owner)
+        with self.settings(CONTRACT_ADDRESS='', CONTRACT_ACCOUNT='',
+                           CONTRACT_CARD=''):
+            response = self.client.post(
+                reverse('cabinet_contract_issue', args=[contract.pk]),
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        contract.refresh_from_db()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(contract.status, Contract.Status.DRAFT)
+
+    def test_issued_contract_is_not_editable(self):
+        contract = self.issued()
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_contract_update', args=[contract.pk]),
+            {'amount': '1'}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        contract.refresh_from_db()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(contract.amount, Decimal('189000'))
+
+    def test_client_uploads_the_signed_scan(self):
+        contract = self.issued()
+        self.client.force_login(self.card.user)
+        scan = SimpleUploadedFile('dogovor.pdf', '%PDF-1.4 подпись'.encode(),
+                                  content_type='application/pdf')
+        response = self.client.post(
+            reverse('cabinet_contract_sign', args=[contract.pk]),
+            {'scan': scan}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        contract.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(contract.status, Contract.Status.SIGNED)
+        self.assertTrue(contract.signed_at)
+
+    def test_word_file_is_not_a_signature(self):
+        contract = self.issued()
+        self.client.force_login(self.card.user)
+        scan = SimpleUploadedFile('dogovor.docx', b'PK\x03\x04')
+        response = self.client.post(
+            reverse('cabinet_contract_sign', args=[contract.pk]),
+            {'scan': scan}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        contract.refresh_from_db()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(contract.status, Contract.Status.ISSUED)
+
+    def test_signed_contract_is_not_cancelled(self):
+        contract = self.issued()
+        contract.status = Contract.Status.SIGNED
+        contract.save(update_fields=['status'])
+        self.client.force_login(self.owner)
+        self.client.post(
+            reverse('cabinet_contract_cancel', args=[contract.pk]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        contract.refresh_from_db()
+        self.assertEqual(contract.status, Contract.Status.SIGNED)
+
+    def test_cancelled_contract_frees_the_project(self):
+        contract = self.draft()
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_contract_cancel', args=[contract.pk]))
+        self.assertIsNone(self.project.contract)
+
+    def test_action_returns_both_the_state_and_the_document(self):
+        """Правка условий меняет и панель, и лист. Вернуть одно, забыв
+        другое, значит показать экран, где сверху новая цена, а в договоре
+        под ней старая."""
+        contract = self.draft()
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_contract_update', args=[contract.pk]),
+            {'amount': '250000'}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertIn('[data-doc-slot]', data['also'])
+        self.assertIn('двести пятьдесят тысяч', data['also']['[data-doc-slot]'])
+
+    def test_contract_appears_on_the_project_page(self):
+        contract = self.issued()
+        self.client.force_login(self.owner)
+        body = self.client.get(
+            reverse('cabinet_project', args=[self.project.pk])).content.decode()
+        self.assertIn(f'№ {contract.number}', body)
+
+
+class SummaryTests(TestCase):
+    """Сводка. Числа здесь читают раз в месяц и принимают по ним решения,
+    поэтому важнее всего не оформление, а то, что именно они считают."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.card = Client.objects.create(name='Дарья', phone='+79130000021')
+        self.project = Project.objects.create(client=self.card, title='Система',
+                                              price=Decimal('189000'))
+
+    def pay(self, amount, days_ago=0):
+        payment = Payment.objects.create(
+            client=self.card, project=self.project, amount=Decimal(amount),
+            purpose=Payment.Purpose.PROJECT, provider='manual')
+        payment.mark_succeeded()
+        Payment.objects.filter(pk=payment.pk).update(
+            paid_at=timezone.now() - timedelta(days=days_ago))
+        return payment
+
+    def test_revenue_is_money_received_not_money_promised(self):
+        """Считать выручкой подписанное, но не оплаченное — самый быстрый
+        способ поверить, что дела идут лучше, чем идут."""
+        self.pay('94500')
+        rows = digest.money()
+        self.assertEqual(rows['paid'], Decimal('94500'))
+        self.assertEqual(rows['agreed'], Decimal('189000'))
+        self.assertEqual(rows['debt'], Decimal('94500'))
+
+    def test_overpayment_is_not_a_negative_debt(self):
+        """Аванс внесли до того, как проставили цену. «Должны −40 000»
+        один раз пугает, а второй — учит не верить числу."""
+        self.project.price = Decimal('100000')
+        self.project.save()
+        self.pay('140000')
+        rows = digest.money()
+        self.assertEqual(rows['debt'], Decimal('0'))
+        self.assertEqual(rows['overpaid'], Decimal('40000'))
+
+    def test_average_skips_projects_without_a_price(self):
+        Project.objects.create(client=self.card, title='Без цены')
+        self.assertEqual(digest.money()['average'], Decimal('189000'))
+
+    def test_empty_months_stay_in_the_row(self):
+        """График без пропусков врёт убедительнее любой подписи."""
+        self.pay('50000')
+        months = digest.by_month()
+        self.assertEqual(len(months), digest.MONTHS_BACK)
+        self.assertEqual(sum(1 for row in months if row['amount']), 1)
+
+    def test_bar_height_is_a_string_not_a_localized_number(self):
+        """При русской локали Django напечатал бы «43,75», и правило
+        height стало бы недействительным — столбик просто исчез бы."""
+        self.pay('50000', days_ago=40)
+        self.pay('25000')
+        for row in digest.by_month():
+            self.assertIsInstance(row['height'], str)
+            self.assertNotIn(',', row['height'])
+
+    def test_conversion_counts_only_closed_leads(self):
+        """Заявки, по которым разговор ещё идёт, — не отказы. В знаменателе
+        они дают падающую конверсию просто от роста числа заявок."""
+        Lead.objects.create(name='А', phone='+79130001001',
+                            status=Lead.Status.WON)
+        Lead.objects.create(name='Б', phone='+79130001002',
+                            status=Lead.Status.LOST)
+        Lead.objects.create(name='В', phone='+79130001003',
+                            status=Lead.Status.NEW)
+        rows = digest.leads()
+        self.assertEqual(rows['total'], 3)
+        self.assertEqual(rows['open'], 1)
+        self.assertEqual(rows['rate'], 50)
+
+    def test_conversion_without_closed_leads_is_zero_not_a_crash(self):
+        Lead.objects.create(name='А', phone='+79130001004')
+        self.assertEqual(digest.leads()['rate'], 0)
+
+    def test_sources_show_who_actually_reaches_the_work(self):
+        for i in range(3):
+            Lead.objects.create(name=f'A{i}', phone=f'+7913000200{i}',
+                                source=Lead.Source.SURVEY,
+                                status=Lead.Status.LOST)
+        Lead.objects.create(name='B', phone='+79130002009',
+                            source=Lead.Source.FORM, status=Lead.Status.WON)
+        rows = {row['label']: row for row in digest.sources()}
+        self.assertEqual(rows['Разбор процессов']['rate'], 0)
+        self.assertEqual(rows['Форма на сайте']['rate'], 100)
+
+    def test_repeated_refusal_reasons_are_counted_together(self):
+        """Три раза «дорого» — это не три случая, а один повод
+        пересмотреть предложение."""
+        for i in range(3):
+            lead = Lead.objects.create(name=f'A{i}', phone=f'+7913000300{i}')
+            lead.set_status(Lead.Status.LOST, reason='Дорого')
+        lead = Lead.objects.create(name='Б', phone='+79130003009')
+        lead.set_status(Lead.Status.LOST, reason='Отложили')
+
+        rows, silent = digest.refusals()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]['times'] + rows[1]['times'], 4)
+        self.assertEqual(silent, 0)
+
+    def test_silent_refusals_are_counted_apart(self):
+        lead = Lead.objects.create(name='А', phone='+79130004001')
+        lead.set_status(Lead.Status.LOST)
+        rows, silent = digest.refusals()
+        self.assertEqual(rows, [])
+        self.assertEqual(silent, 1)
+
+    def test_clients_without_projects_are_not_listed(self):
+        Client.objects.create(name='Никто', phone='+79130005001')
+        rows = digest.clients()
+        self.assertEqual([row['client'].name for row in rows], ['Дарья'])
+
+    def test_debtors_come_first(self):
+        other = Client.objects.create(name='Аня', phone='+79130005002')
+        paid = Project.objects.create(client=other, title='Оплачено',
+                                      price=Decimal('50000'))
+        payment = Payment.objects.create(client=other, project=paid,
+                                         amount=Decimal('50000'))
+        payment.mark_succeeded()
+        rows = digest.clients()
+        # Дарья должна, Аня нет — значит Дарья первая, хотя «А» раньше «Д».
+        self.assertEqual(rows[0]['client'].name, 'Дарья')
+
+    def test_page_opens_for_the_owner(self):
+        self.client.force_login(self.owner)
+        body = self.client.get(reverse('cabinet_summary')).content.decode()
+        self.assertIn('Как идут дела', body)
+
+    def test_page_is_closed_for_a_client(self):
+        access.issue(self.card)
+        self.card.refresh_from_db()
+        self.client.force_login(self.card.user)
+        response = self.client.get(reverse('cabinet_summary'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('cabinet'))
+
+    def test_page_survives_an_empty_database(self):
+        """Первый заход в сводку случается до первой оплаты — и деление
+        на ноль там же."""
+        Project.objects.all().delete()
+        Client.objects.all().delete()
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse('cabinet_summary'))
+        self.assertEqual(response.status_code, 200)
+
+
+class RuPluralTests(TestCase):
+    """Встроенный pluralize молча возвращает пустое окончание, если форм
+    три. На экране от этого остаётся «8 вопрос»."""
+
+    def render(self, number):
+        from django.template import Context, Template
+        return Template(
+            '{% load ru %}{{ n }} {{ n|ru_plural:"вопрос,вопроса,вопросов" }}'
+        ).render(Context({'n': number}))
+
+    def test_forms(self):
+        self.assertEqual(self.render(1), '1 вопрос')
+        self.assertEqual(self.render(2), '2 вопроса')
+        self.assertEqual(self.render(8), '8 вопросов')
+        self.assertEqual(self.render(11), '11 вопросов')
+        self.assertEqual(self.render(21), '21 вопрос')
