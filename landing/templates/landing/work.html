@@ -83,15 +83,14 @@
             Ссылка, а не кнопка: без JavaScript она открывает снимок
             отдельной вкладкой, а с ним — окном поверх страницы.
           {% endcomment %}
-          <a class="shot__open"
-             href="{% static 'landing/img/cases/' %}{{ shot.file }}.webp"
-             data-shot data-cap="{{ shot.cap }}">
-            <img src="{% static 'landing/img/cases/' %}{{ shot.file }}-sm.webp"
+          <a class="shot__open" href="{{ shot.src }}"
+             data-shot data-cap="{{ shot.caption }}">
+            <img src="{{ shot.thumb }}"
                  width="700" height="438" loading="lazy" decoding="async"
-                 alt="{{ shot.cap }}">
+                 alt="{{ shot.caption }}">
             <span class="shot__zoom" aria-hidden="true">крупно</span>
           </a>
-          <figcaption>{{ shot.cap }}</figcaption>
+          <figcaption>{{ shot.caption }}</figcaption>
         </figure>
       {% endfor %}
     </div>

@@ -88,7 +88,37 @@
       {% include 'landing/cabinet/_money.html' %}
     </div>
 
+    {% comment %}
+      Состав системы стоит перед договором намеренно: договор берёт
+      из него Приложение № 1 и сумму, и собирать состав после того,
+      как договор выставлен, — значит собирать его зря.
+    {% endcomment %}
+    <section class="panel">
+      <h2>Состав системы</h2>
+      {% if project.build_blocks %}
+        <p class="panel__line">Блоков: <b>{{ project.build_blocks|length }}</b></p>
+        <p class="muted">
+          Отсюда договор берёт Приложение № 1. Уже выставленный договор
+          при пересборке не меняется.
+        </p>
+      {% else %}
+        <p class="muted">
+          Тот же конструктор, что на сайте. Состав отсюда попадает
+          в цену проекта и в Приложение № 1 к договору.
+        </p>
+      {% endif %}
+      <a class="btn btn--sm btn--block"
+         href="{% url 'cabinet_project_build_page' project.pk %}">
+        {% if project.build_blocks %}Пересобрать{% else %}Собрать состав{% endif %}
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+    </section>
+
     {% include 'landing/cabinet/_contract_box.html' %}
+
+    <div data-files-slot>
+      {% include 'landing/cabinet/_files.html' %}
+    </div>
   </aside>
 </div>
 

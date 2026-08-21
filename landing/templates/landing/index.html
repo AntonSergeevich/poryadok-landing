@@ -208,7 +208,13 @@
         <article class="work rv">
           <a class="work__shot" href="{% url 'work' work.slug %}"
              aria-label="Подробно о работе: {{ work.title }}">
-            <img src="{% static 'landing/img/cases/' %}{{ work.shots.0.file }}-sm.webp"
+            {% comment %}
+              Адрес снимка спрашиваем у самого снимка. Их два вида:
+              снятые руками до появления раздела лежат в статике,
+              загруженные из кабинета — в media. Собирать путь здесь
+              значило бы знать про оба вида в разметке.
+            {% endcomment %}
+            <img src="{{ work.cover.thumb }}"
                  width="700" height="438" loading="lazy" decoding="async" alt="">
           </a>
 

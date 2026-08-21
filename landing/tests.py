@@ -20,10 +20,10 @@ from . import cabinet as cabinet_views
 from . import constructor as build
 from . import survey as survey_logic
 from .forms import LeadForm
-from .models import (STAGE_PLAN, Client, ClubSubscription, Contract, Lead,
-                     Message, MessageFile, Payment,
-                     Project, Stage, StageTask, Survey,
-                     format_phone, normalize_phone)
+from .models import (STAGE_PLAN, Attachment, Client, ClubSubscription,
+                     Contract, Lead, Message, MessageFile, Payment,
+                     Project, Stage, StageTask, Survey, Work, WorkFact,
+                     WorkShot, format_phone, normalize_phone)
 import json
 from decimal import Decimal
 from io import StringIO
@@ -44,6 +44,7 @@ from .works import WORKS
 from . import contract as paper
 from .services import papers
 from .services import summary as digest
+from .services import files
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / 'templates' / 'landing'
 
@@ -1111,7 +1112,13 @@ class CabinetViewTests(TestCase):
 
 
 class WorksTests(TestCase):
-    """Портфолио: данные и снимки должны существовать."""
+    """Портфолио: данные и снимки должны существовать.
+
+    Проверки идут по списку из landing/works.py, хотя работы давно живут
+    в базе. Это намеренно: список остался источником миграции 0010,
+    и пока эти проверки проходят, перенос из кода в базу ничего
+    не потерял по дороге.
+    """
 
     def test_every_screenshot_file_is_in_place(self):
         base = Path(__file__).resolve().parent / 'static' / 'landing' / 'img' / 'cases'
@@ -2465,3 +2472,430 @@ class RuPluralTests(TestCase):
         self.assertEqual(self.render(8), '8 вопросов')
         self.assertEqual(self.render(11), '11 вопросов')
         self.assertEqual(self.render(21), '21 вопрос')
+
+
+class PortfolioTests(TestCase):
+    """Портфолио как раздел кабинета: работа заводится, а не пишется кодом."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.card = Client.objects.create(name='Дарья', phone='+79130000031',
+                                          area='архитектура', city='Красноярск')
+        self.project = Project.objects.create(client=self.card,
+                                              title='Система для мастерской')
+
+    def shot_file(self, name='shot.png'):
+        # Однопиксельный PNG: настоящая картинка нужна потому, что
+        # ImageField проверяет содержимое, а не расширение.
+        import base64
+        raw = base64.b64decode(
+            b'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8'
+            b'z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+        return SimpleUploadedFile(name, raw, content_type='image/png')
+
+    def make(self, **fields):
+        return Work.objects.create(
+            slug=fields.pop('slug', 'proba'),
+            title=fields.pop('title', 'Проба'),
+            role=fields.pop('role', 'мастерская'),
+            **fields)
+
+    # ── Перенос из кода ──────────────────────────────────────────────
+
+    def test_works_from_code_are_in_the_database(self):
+        """Миграция 0010 перенесла обе работы. Если это сломается,
+        сайт покажет пустое портфолио — и никто не заметит, потому что
+        ошибки не будет."""
+        for item in WORKS:
+            with self.subTest(work=item['slug']):
+                work = Work.objects.get(slug=item['slug'])
+                self.assertEqual(work.was, item['was'])
+                self.assertEqual(work.now, item['now'])
+                self.assertEqual(len(work.shots), len(item['shots']))
+
+    def test_transferred_shots_still_point_at_the_static_files(self):
+        """Снимки первых работ остались в статике. Копировать их в media
+        миграцией значило бы завести миграцию, которая трогает файлы, —
+        она ломается там, где её труднее всего чинить."""
+        work = Work.objects.get(slug=WORKS[0]['slug'])
+        self.assertIn('/static/', work.shots[0].thumb)
+        self.assertTrue(work.shots[0].thumb.endswith('-sm.webp'))
+
+    # ── Списки строк ─────────────────────────────────────────────────
+
+    def test_was_and_now_are_lists_not_characters(self):
+        """В шаблоне стоит `{% for line in work.was %}`. Отдай мы туда
+        текст — цикл пошёл бы по буквам, и на странице появился бы
+        столбик из символов."""
+        work = self.make(was_text='Первое\n\nВторое\n')
+        self.assertEqual(work.was, ['Первое', 'Второе'])
+
+    # ── Публикация ───────────────────────────────────────────────────
+
+    def test_unpublished_work_disappears_from_all_three_places(self):
+        """Главная, своя страница и карта сайта. Забыть про третье проще
+        всего: поисковик продолжит водить людей на страницу, которой нет.
+        """
+        work = Work.objects.get(slug='dades')
+        work.is_published = False
+        work.save()
+
+        self.assertNotIn('dades', self.client.get(reverse('index')).content.decode())
+        self.assertEqual(
+            self.client.get(reverse('work', args=['dades'])).status_code, 404)
+        self.assertNotIn('raboty/dades/',
+                         self.client.get(reverse('sitemap')).content.decode())
+
+    def test_work_without_was_and_now_is_not_published(self):
+        """Пустая страница работы — не «пока без описания», а обещание,
+        за которым ничего нет."""
+        work = self.make()
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_work_publish', args=[work.pk]), {'show': '1'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        work.refresh_from_db()
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(work.is_published)
+
+    def test_ready_work_is_published(self):
+        work = self.make(was_text='Было плохо', now_text='Стало хорошо')
+        WorkShot.objects.create(work=work, static_name='dades-site')
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_work_publish', args=[work.pk]), {'show': '1'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        work.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(work.is_published)
+
+    # ── Заведение ────────────────────────────────────────────────────
+
+    def test_work_from_a_project_takes_what_is_already_known(self):
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_work_create'),
+                         {'project': self.project.pk})
+        work = Work.objects.exclude(
+            slug__in=[item['slug'] for item in WORKS]).get()
+        self.assertEqual(work.title, 'Дарья')
+        self.assertEqual(work.role, 'архитектура')
+        self.assertEqual(work.city, 'Красноярск')
+        self.assertEqual(work.project, self.project)
+
+    def test_new_work_is_hidden_until_it_is_written(self):
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_work_create'), {'title': 'Кто-то'})
+        self.assertFalse(Work.objects.get(title='Кто-то').is_published)
+
+    def test_work_without_a_project_is_allowed(self):
+        """Не всё, что стоит показать, проходило через эту систему."""
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_work_create'),
+                         {'title': 'Пётр', 'role': 'сервис'})
+        self.assertIsNone(Work.objects.get(title='Пётр').project)
+
+    def test_taken_address_is_completed_not_refused(self):
+        """Два заказчика с именем «Дарья» — это не ошибка, это два
+        заказчика."""
+        self.make(slug='darya', title='Дарья')
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_work_create'),
+                         {'title': 'Дарья', 'slug': 'darya'})
+        self.assertTrue(Work.objects.filter(slug='darya-2').exists())
+
+    def test_work_needs_a_name(self):
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_work_create'), {'title': '  '})
+        self.assertEqual(Work.objects.count(), len(WORKS))
+
+    # ── Правка, числа, снимки ────────────────────────────────────────
+
+    def test_editing_returns_a_redrawn_card(self):
+        work = self.make()
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_work_update', args=[work.pk]),
+            {'title': 'Другое имя', 'was_text': 'Раз\nДва'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        work.refresh_from_db()
+        self.assertEqual(work.title, 'Другое имя')
+        self.assertIn('Другое имя', response.json()['html'])
+
+    def test_fact_needs_both_halves(self):
+        work = self.make()
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_work_fact', args=[work.pk]), {'label': 'Тестов'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(work.fact_rows.count(), 0)
+
+    def test_facts_come_out_as_pairs_for_the_template(self):
+        work = self.make()
+        WorkFact.objects.create(work=work, label='Автотестов', value='203')
+        self.assertEqual(work.facts, [('Автотестов', '203')])
+
+    def test_uploaded_shot_lands_in_media(self):
+        work = self.make()
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_work_shot', args=[work.pk]),
+            {'image': self.shot_file(), 'caption': 'Первый экран'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
+        shot = work.shot_rows.get()
+        self.assertIn('/media/', shot.src)
+        self.assertEqual(shot.thumb, shot.src)
+        shot.image.delete(save=False)
+
+    def test_a_document_is_not_a_screenshot(self):
+        work = self.make()
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_work_shot', args=[work.pk]),
+            {'image': SimpleUploadedFile('smeta.pdf', b'%PDF-1.4')},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(work.shot_rows.count(), 0)
+
+    def test_cover_is_the_first_shot(self):
+        work = self.make()
+        WorkShot.objects.create(work=work, static_name='second', order=20)
+        WorkShot.objects.create(work=work, static_name='first', order=10)
+        self.assertEqual(work.cover.static_name, 'first')
+
+    # ── Доступ ───────────────────────────────────────────────────────
+
+    def test_portfolio_is_closed_for_a_client(self):
+        access.issue(self.card)
+        self.card.refresh_from_db()
+        self.client.force_login(self.card.user)
+        response = self.client.get(reverse('cabinet_works'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('cabinet'))
+
+    def test_stranger_is_sent_to_the_login_page(self):
+        response = self.client.get(reverse('cabinet_works'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response.url)
+
+
+class AttachmentTests(TestCase):
+    """Файлы к заявке и проекту.
+
+    Переписка тоже умеет файлы, но там файл живёт вместе со словами
+    и вместе с ними уезжает вверх. Здесь полка: то, к чему возвращаются
+    по многу раз.
+    """
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.card = Client.objects.create(name='Дарья', phone='+79130000041')
+        access.issue(self.card)
+        self.card.refresh_from_db()
+        self.project = Project.objects.create(client=self.card, title='Система')
+        self.lead = Lead.objects.create(name='Дарья', phone='+79130000041')
+
+    def doc(self, name='maket.pdf', size=1000):
+        return SimpleUploadedFile(name, b'x' * size,
+                                  content_type='application/pdf')
+
+    def tearDown(self):
+        for row in Attachment.objects.all():
+            row.file.delete(save=False)
+
+    # ── Что принимается ──────────────────────────────────────────────
+
+    def test_documents_and_pictures_go_through(self):
+        for name in ('maket.pdf', 'foto.jpg', 'baza.xlsx', 'chertezh.dwg',
+                     'papka.zip'):
+            with self.subTest(name=name):
+                self.assertEqual(files.check(self.doc(name)), '')
+
+    def test_a_program_is_not_a_document(self):
+        self.assertTrue(files.check(self.doc('virus.exe')))
+
+    def test_empty_file_is_refused(self):
+        self.assertIn('пустой', files.check(self.doc(size=0)))
+
+    def test_oversized_file_is_refused_with_a_way_out(self):
+        big = SimpleUploadedFile('big.pdf', b'x' * 10)
+        big.size = files.MAX_FILE + 1
+        self.assertIn('ссылкой на облако', files.check(big))
+
+    def test_file_with_nowhere_to_go_is_refused(self):
+        row, problem = files.attach(self.doc())
+        self.assertIsNone(row)
+        self.assertTrue(problem)
+
+    # ── Заявка ───────────────────────────────────────────────────────
+
+    def test_owner_attaches_a_file_to_a_lead(self):
+        """У заявки переписки нет вовсе. Присланное до того, как завёлся
+        проект, до сих пор было некуда положить."""
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_lead_file', args=[self.lead.pk]),
+            {'file': self.doc(), 'note': 'Примеры дизайна'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
+        row = self.lead.files.get()
+        self.assertEqual(row.note, 'Примеры дизайна')
+        self.assertIn('maket.pdf', response.json()['html'])
+
+    def test_lead_files_move_into_the_project(self):
+        """Искать примеры дизайна в закрытой заявке никто не станет."""
+        files.attach(self.doc(), lead=self.lead)
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_lead_project', args=[self.lead.pk]),
+                         {'title': 'Система для мастерской'})
+        project = Project.objects.get(title='Система для мастерской')
+        self.assertEqual(project.files.count(), 1)
+        # Связь с заявкой остаётся: откуда файл взялся — тоже история.
+        self.assertEqual(project.files.get().lead, self.lead)
+
+    # ── Проект ───────────────────────────────────────────────────────
+
+    def test_client_attaches_examples_from_their_cabinet(self):
+        """Заказчик присылает примеры не потому, что его попросили,
+        а когда они у него появились."""
+        self.client.force_login(self.card.user)
+        with mock.patch.object(notify, '_to_owner', return_value=True) as told:
+            response = self.client.post(
+                reverse('cabinet_project_file', args=[self.project.pk]),
+                {'file': self.doc('primer.jpg'), 'note': 'нравится такой стиль'},
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
+        row = self.project.files.get()
+        self.assertTrue(row.from_client)
+        # Пример дизайна, о котором я узнаю через неделю, — это неделя,
+        # потраченная не на то.
+        self.assertTrue(told.called)
+
+    def test_client_cannot_remove_what_i_put_there(self):
+        """Удалять присланное мной — это удалять техническое задание,
+        которое ему же и показывают."""
+        row, _ = files.attach(self.doc(), project=self.project)
+        self.client.force_login(self.card.user)
+        response = self.client.post(
+            reverse('cabinet_project_file_delete', args=[row.pk]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Attachment.objects.filter(pk=row.pk).exists())
+
+    def test_client_removes_their_own_file(self):
+        row, _ = files.attach(self.doc(), project=self.project,
+                              from_client=True)
+        self.client.force_login(self.card.user)
+        response = self.client.post(
+            reverse('cabinet_project_file_delete', args=[row.pk]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Attachment.objects.filter(pk=row.pk).exists())
+
+    def test_stranger_cannot_reach_someone_elses_files(self):
+        other = Client.objects.create(name='Гость', phone='+79130000042')
+        access.issue(other)
+        other.refresh_from_db()
+        self.client.force_login(other.user)
+        response = self.client.post(
+            reverse('cabinet_project_file', args=[self.project.pk]),
+            {'file': self.doc()})
+        self.assertEqual(response.status_code, 404)
+
+    def test_size_is_readable(self):
+        row, _ = files.attach(self.doc(size=2 * 1024 * 1024),
+                              project=self.project)
+        self.assertIn('МБ', row.human_size)
+
+    def test_picture_is_recognised_by_name(self):
+        row, _ = files.attach(self.doc('foto.jpg'), project=self.project)
+        self.assertTrue(row.is_image)
+        row2, _ = files.attach(self.doc('smeta.pdf'), project=self.project)
+        self.assertFalse(row2.is_image)
+
+
+class CabinetBuildTests(TestCase):
+    """Конструктор в кабинете. Тот же, что на сайте, — и состав от него
+    доезжает до договора одним списком."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.card = Client.objects.create(name='Дарья', phone='+79130000051')
+        self.lead = Lead.objects.create(name='Дарья', phone='+79130000051')
+        self.project = Project.objects.create(client=self.card, title='Система')
+        self.project.build_stages()
+
+    def test_page_opens_with_the_core_already_on(self):
+        self.client.force_login(self.owner)
+        body = self.client.get(
+            reverse('cabinet_lead_build_page', args=[self.lead.pk])
+        ).content.decode()
+        self.assertIn('Из чего собираем', body)
+
+    def test_composition_is_stored_on_the_lead(self):
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_lead_build', args=[self.lead.pk]),
+                         {'blocks': ['core', 'leads', 'booking'],
+                          'scale': 'team'})
+        self.lead.refresh_from_db()
+        self.assertIn('booking', self.lead.build_blocks)
+        self.assertEqual(self.lead.build_scale, 'team')
+
+    def test_composition_travels_from_the_lead_into_the_project(self):
+        """Пересобирать состав заново значит однажды собрать иначе."""
+        self.lead.build_blocks = ['core', 'leads', 'money']
+        self.lead.build_scale = 'team'
+        self.lead.save()
+
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_lead_project', args=[self.lead.pk]),
+                         {'title': 'Система для мастерской'})
+        project = Project.objects.get(title='Система для мастерской')
+        self.assertEqual(project.build_blocks, ['core', 'leads', 'money'])
+        self.assertEqual(project.build_scale, 'team')
+
+    def test_saving_on_a_project_sets_the_price(self):
+        """Сумма, набранная в другом поле через полчаса, — это ещё одно
+        место, где два числа разойдутся."""
+        self.client.force_login(self.owner)
+        self.client.post(
+            reverse('cabinet_project_build', args=[self.project.pk]),
+            {'blocks': ['core', 'leads', 'booking'], 'scale': 'solo',
+             'set_price': '1'})
+        self.project.refresh_from_db()
+        expected = build.estimate(['core', 'leads', 'booking'], 'solo')['total']
+        self.assertEqual(self.project.price, Decimal(expected))
+
+    def test_price_stays_when_not_asked(self):
+        self.project.price = Decimal('123456')
+        self.project.save()
+        self.client.force_login(self.owner)
+        self.client.post(
+            reverse('cabinet_project_build', args=[self.project.pk]),
+            {'blocks': ['core', 'leads'], 'scale': 'solo'})
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.price, Decimal('123456'))
+
+    def test_appendix_one_is_built_from_the_composition(self):
+        """Состав, названный на словах, и состав, за который подписались,
+        обязаны быть одним списком."""
+        self.project.build_blocks = ['core', 'booking', 'money']
+        self.project.build_scale = 'solo'
+        self.project.save()
+        scope = papers.scope_from(self.project)
+        self.assertIn(build.by_id('booking')['title'], scope)
+        self.assertIn('Масштаб', scope)
+
+    def test_appendix_falls_back_to_the_stages(self):
+        scope = papers.scope_from(self.project)
+        self.assertIn('Разбор', scope)
+
+    def test_composition_is_owner_only(self):
+        response = self.client.get(
+            reverse('cabinet_project_build_page', args=[self.project.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response.url)

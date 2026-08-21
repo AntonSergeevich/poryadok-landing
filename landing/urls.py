@@ -4,7 +4,7 @@ from django.templatetags.static import static as static_url
 from django.shortcuts import redirect
 from django.urls import path, reverse_lazy
 
-from . import cabinet, contract_views, views
+from . import build_views, cabinet, contract_views, portfolio_views, views
 
 
 def _icon(name):
@@ -82,15 +82,56 @@ urlpatterns = [
          name='cabinet_lead_delete'),
     path('cabinet/zayavki/<int:pk>/proekt/', cabinet.lead_to_project,
          name='cabinet_lead_project'),
+    path('cabinet/zayavki/<int:pk>/fayl/', cabinet.lead_file_add,
+         name='cabinet_lead_file'),
+    path('cabinet/zayavka-fayl/<int:pk>/udalit/', cabinet.lead_file_delete,
+         name='cabinet_lead_file_delete'),
+    # Конструктор в кабинете. Тот же, что на сайте: состав должен быть
+    # одним списком на всём пути от заявки до Приложения № 1 к договору.
+    path('cabinet/zayavki/<int:pk>/sobrat/', build_views.lead_build,
+         name='cabinet_lead_build_page'),
+    path('cabinet/zayavki/<int:pk>/sobrat/zapisat/', build_views.lead_build_save,
+         name='cabinet_lead_build'),
     path('cabinet/zakazchiki/', cabinet.clients, name='cabinet_clients'),
     path('cabinet/dengi/', cabinet.money, name='cabinet_money'),
     path('cabinet/svodka/', cabinet.summary, name='cabinet_summary'),
+
+    # Портфолио. Работы заводятся здесь, а не правкой кода: иначе работа
+    # не добавляется никогда — она откладывается до следующего раза,
+    # когда я и так буду в коде.
+    path('cabinet/portfolio/', portfolio_views.works, name='cabinet_works'),
+    path('cabinet/portfolio/novaya/', portfolio_views.work_create,
+         name='cabinet_work_create'),
+    path('cabinet/portfolio/<int:pk>/', portfolio_views.work_detail,
+         name='cabinet_work'),
+    path('cabinet/portfolio/<int:pk>/pravka/', portfolio_views.work_update,
+         name='cabinet_work_update'),
+    path('cabinet/portfolio/<int:pk>/pokazat/', portfolio_views.work_publish,
+         name='cabinet_work_publish'),
+    path('cabinet/portfolio/<int:pk>/udalit/', portfolio_views.work_delete,
+         name='cabinet_work_delete'),
+    path('cabinet/portfolio/<int:pk>/chislo/', portfolio_views.fact_add,
+         name='cabinet_work_fact'),
+    path('cabinet/chislo/<int:pk>/udalit/', portfolio_views.fact_delete,
+         name='cabinet_work_fact_delete'),
+    path('cabinet/portfolio/<int:pk>/snimok/', portfolio_views.shot_add,
+         name='cabinet_work_shot'),
+    path('cabinet/snimok/<int:pk>/udalit/', portfolio_views.shot_delete,
+         name='cabinet_work_shot_delete'),
 
     path('cabinet/proekt/<int:pk>/', cabinet.project_detail, name='cabinet_project'),
     path('cabinet/proekt/<int:pk>/etapy/', cabinet.stages_build,
          name='cabinet_stages_build'),
     path('cabinet/proekt/<int:pk>/oplata/', cabinet.payment_add,
          name='cabinet_payment_add'),
+    path('cabinet/proekt/<int:pk>/sobrat/', build_views.project_build,
+         name='cabinet_project_build_page'),
+    path('cabinet/proekt/<int:pk>/sobrat/zapisat/',
+         build_views.project_build_save, name='cabinet_project_build'),
+    path('cabinet/proekt/<int:pk>/fayl/', cabinet.project_file_add,
+         name='cabinet_project_file'),
+    path('cabinet/fayl/<int:pk>/udalit/', cabinet.project_file_delete,
+         name='cabinet_project_file_delete'),
     path('cabinet/proekt/<int:pk>/summa/', cabinet.project_price,
          name='cabinet_project_price'),
     path('cabinet/oplata/<int:pk>/udalit/', cabinet.payment_delete,

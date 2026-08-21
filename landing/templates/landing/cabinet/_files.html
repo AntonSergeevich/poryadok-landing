@@ -1,0 +1,66 @@
+{% comment %}
+  Полка файлов проекта. Отдельным файлом, потому что перерисовывается
+  после каждой загрузки.
+
+  Зачем она нужна рядом с перепиской, которая тоже умеет файлы: в
+  переписке файл живёт вместе со словами и вместе с ними уезжает вверх.
+  «Макет, который прислали три недели назад» ищут прокруткой и находят
+  не всегда.
+{% endcomment %}
+<section class="panel" id="files">
+  <h2>Файлы</h2>
+
+  {% if rows %}
+    <ul class="files">
+      {% for row in rows %}
+        <li class="file{% if row.from_client %} file--theirs{% endif %}">
+          {% if row.is_image %}
+            {% comment %}
+              У картинок показываем саму картинку: «фото-2026-08-21.jpg»
+              не отвечает на вопрос, что это за фотография.
+            {% endcomment %}
+            <a class="file__thumb" href="{{ row.file.url }}">
+              <img src="{{ row.file.url }}" alt="{{ row.note|default:row.name }}"
+                   loading="lazy" decoding="async">
+            </a>
+          {% endif %}
+          <span class="file__body">
+            <a class="file__name" href="{{ row.file.url }}">{{ row.name }}</a>
+            {% if row.note %}<span class="file__note">{{ row.note }}</span>{% endif %}
+            <span class="file__meta">
+              {{ row.human_size }} · {{ row.created_at|date:"d.m.Y" }}
+              {% if row.from_client %}· прислал заказчик{% endif %}
+            </span>
+          </span>
+          {% if owner_view or row.from_client %}
+            <form method="post"
+                  action="{% url 'cabinet_project_file_delete' row.pk %}"
+                  data-act data-target="[data-files-slot]">
+              {% csrf_token %}
+              <button class="task__del" type="submit"
+                      aria-label="Убрать файл">×</button>
+            </form>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">
+      {% if owner_view %}Пусто. Сюда кладут примеры дизайна, замеры,
+      выгрузки старой базы — всё, к чему возвращаются много раз.
+      {% else %}Пусто. Приложите примеры того, что вам нравится, замеры,
+      фотографии — всё, что поможет сделать под вас.{% endif %}
+    </p>
+  {% endif %}
+
+  <form class="file-add" method="post" enctype="multipart/form-data"
+        action="{% url 'cabinet_project_file' project.pk %}"
+        data-act data-reset data-target="[data-files-slot]">
+    {% csrf_token %}
+    <input class="input input--sm" type="file" name="file" required
+           aria-label="Файл">
+    <input class="input input--sm" type="text" name="note" maxlength="250"
+           placeholder="Что это" aria-label="Что это">
+    <button class="btn btn--sm" type="submit">Приложить</button>
+  </form>
+</section>

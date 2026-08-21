@@ -35,9 +35,10 @@ from django.utils.dateparse import parse_datetime
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
-from .models import (Client, Lead, Message, Payment, Project, Stage,
-                     StageTask)
+from .models import (Attachment, Client, Lead, Message, Payment, Project,
+                     Stage, StageTask)
 from .services import chat
+from .services import files
 from .services import summary as digest
 from .services import notify
 from .services import access
@@ -251,6 +252,7 @@ def lead_detail(request, pk):
     return render(request, 'landing/cabinet/lead.html', {
         'section': 'leads',
         'lead': lead,
+        'files': lead.files.all(),
         'statuses': Lead.Status.choices,
         # Проект заводится отсюда же: заявка и есть его начало.
         'project': Project.objects.filter(client=lead.client).first()
@@ -351,8 +353,16 @@ def lead_to_project(request, pk):
         lead.client = client
         lead.save(update_fields=['client', 'updated_at'])
 
-        project = Project.objects.create(client=client, title=title[:160])
+        project = Project.objects.create(
+            client=client, title=title[:160],
+            # Состав, собранный на заявке, едет в проект: пересобирать
+            # его заново значит однажды собрать иначе.
+            build_blocks=list(lead.build_blocks or []),
+            build_scale=lead.build_scale or '')
         project.build_stages()
+        # Присланные к заявке примеры едут вместе с ней: искать их
+        # в закрытой заявке никто не станет.
+        files.carry_over(lead, project)
         lead.set_status(Lead.Status.WON)
 
     messages.success(request, f'Проект «{project.title}» заведён, этапы разложены.')
@@ -395,6 +405,143 @@ def _lead_fail(request, lead, text):
         messages.error(request, text)
         return redirect('cabinet_lead', pk=lead.pk)
     return JsonResponse({'ok': False, 'error': text}, status=400)
+
+
+# ── Файлы ────────────────────────────────────────────────────────────
+#
+# Заказчик присылает примеры дизайна, замеры, фотографии помещения и
+# выгрузку старой базы. До сих пор всё это жило в переписке — и вместе
+# с ней уезжало вверх: «макет, который прислали три недели назад» ищут
+# прокруткой и находят не всегда.
+
+@owner_only
+@require_POST
+def lead_file_add(request, pk):
+    """Приложить файл к заявке."""
+    lead = get_object_or_404(Lead, pk=pk)
+    row, problem = files.attach(
+        request.FILES.get('file'), lead=lead,
+        # Если проект уже заведён, файл сразу виден и в нём: искать его
+        # в закрытой заявке никто не станет.
+        project=Project.objects.filter(client=lead.client).first()
+                if lead.client_id else None,
+        note=request.POST.get('note'),
+        author_name=request.user.get_full_name() or request.user.username)
+    if problem:
+        return _lead_files_fail(request, lead, problem)
+    return _lead_files_ok(request, lead, f'Приложил: {row.name}')
+
+
+@owner_only
+@require_POST
+def lead_file_delete(request, pk):
+    row = get_object_or_404(Attachment.objects.select_related('lead'), pk=pk)
+    lead = row.lead
+    row.file.delete(save=False)
+    row.delete()
+    if lead is None:
+        return redirect('cabinet_leads')
+    return _lead_files_ok(request, lead, 'Убрал файл.')
+
+
+def _lead_files_ok(request, lead, note):
+    """Отвечает полкой файлов, а не карточкой заявки.
+
+    Слот здесь свой: карточка и файлы — два разных куска страницы,
+    и подменять один вместо другого значит на глазах у человека
+    подставить не то, что он трогал.
+    """
+    if not wants_json(request):
+        messages.success(request, note)
+        return redirect('cabinet_lead', pk=lead.pk)
+    return JsonResponse({
+        'ok': True,
+        'note': note,
+        'html': render_to_string('landing/cabinet/_lead_files.html',
+                                 {'lead': lead, 'files': lead.files.all()},
+                                 request=request),
+    })
+
+
+def _lead_files_fail(request, lead, note):
+    if not wants_json(request):
+        messages.error(request, note)
+        return redirect('cabinet_lead', pk=lead.pk)
+    return JsonResponse({'ok': False, 'error': note}, status=400)
+
+
+@login_required
+@require_POST
+def project_file_add(request, pk):
+    """Приложить файл к проекту. Заказчику это тоже можно.
+
+    Заказчик присылает примеры не потому, что его попросили, а когда
+    они у него появились. Заставлять его для этого писать в чат значит
+    получить файл, который потом никто не найдёт.
+    """
+    project = _project_for(request, pk)
+    owner = is_owner(request.user)
+    client = None if owner else client_of(request.user)
+
+    row, problem = files.attach(
+        request.FILES.get('file'), project=project,
+        note=request.POST.get('note'),
+        from_client=not owner,
+        author_name=chat.visible_name(request.user, client, owner))
+    if problem:
+        return _files_fail(request, project, problem)
+
+    if not owner:
+        notify.file_from_client(row)
+    return _files_ok(request, project, f'Приложил: {row.name}')
+
+
+@login_required
+@require_POST
+def project_file_delete(request, pk):
+    """Убрать файл.
+
+    Заказчик может убрать только свой: удалять присланное мной — это
+    удалять техническое задание, которое ему же и показывают.
+    """
+    row = get_object_or_404(Attachment.objects.select_related('project'), pk=pk)
+    project = row.project
+    if project is None or not _may_touch(request.user, project):
+        raise Http404
+    if not is_owner(request.user) and not row.from_client:
+        return _files_fail(request, project, 'Этот файл убираю я, не вы.')
+
+    row.file.delete(save=False)
+    row.delete()
+    return _files_ok(request, project, 'Убрал файл.')
+
+
+def _files_ok(request, project, note):
+    if not wants_json(request):
+        messages.success(request, note)
+        target = 'cabinet_project' if is_owner(request.user) else 'cabinet_mine'
+        url = (redirect(target, pk=project.pk).url if is_owner(request.user)
+               else redirect(target).url)
+        return redirect(f'{url}#files')
+    return JsonResponse({
+        'ok': True,
+        'note': note,
+        'html': render_to_string('landing/cabinet/_files.html', {
+            'project': project,
+            'rows': files.for_project(project),
+            'owner_view': is_owner(request.user),
+        }, request=request),
+    })
+
+
+def _files_fail(request, project, note):
+    if not wants_json(request):
+        messages.error(request, note)
+        target = 'cabinet_project' if is_owner(request.user) else 'cabinet_mine'
+        url = (redirect(target, pk=project.pk).url if is_owner(request.user)
+               else redirect(target).url)
+        return redirect(f'{url}#files')
+    return JsonResponse({'ok': False, 'error': note}, status=400)
 
 
 # ── Клиенты ──────────────────────────────────────────────────────────
@@ -909,6 +1056,7 @@ def _stage_context(project, owner_view):
     current = project.current_stage
     return {
         'project': project,
+        'files': files.for_project(project),
         # Договор идёт вместе с проектом: на странице проекта он такая же
         # часть ответа «что происходит», как этапы и деньги.
         'contract': project.contract,

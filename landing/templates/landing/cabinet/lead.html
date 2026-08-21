@@ -69,6 +69,32 @@
       {% endif %}
     </section>
 
+    {% comment %}
+      Конструктор рядом с заявкой, а не отдельным разделом: собирают
+      состав в тот момент, когда разговаривают с человеком, и уходить
+      за этим в другое место значит не собрать его вовсе.
+    {% endcomment %}
+    <section class="panel">
+      <h2>Состав системы</h2>
+      {% if lead.build_blocks %}
+        <p class="muted">Собрано блоков: {{ lead.build_blocks|length }}.</p>
+        <p class="muted">
+          При заведении проекта состав переедет в него, а оттуда —
+          в Приложение № 1 к договору.
+        </p>
+      {% else %}
+        <p class="muted">
+          Тот же конструктор, что на сайте. Собранное здесь останется
+          в системе и поедет дальше само.
+        </p>
+      {% endif %}
+      <a class="btn btn--sm btn--block"
+         href="{% url 'cabinet_lead_build_page' lead.pk %}">
+        {% if lead.build_blocks %}Пересобрать{% else %}Собрать систему{% endif %}
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+    </section>
+
     <section class="panel">
       <h2>Правка</h2>
       <form method="post" action="{% url 'cabinet_lead_update' lead.pk %}"
@@ -86,6 +112,10 @@
         <button class="btn btn--sm" type="submit">Сохранить</button>
       </form>
     </section>
+
+    <div data-lead-files-slot>
+      {% include 'landing/cabinet/_lead_files.html' %}
+    </div>
 
     <section class="panel panel--danger">
       <h2>Удалить</h2>

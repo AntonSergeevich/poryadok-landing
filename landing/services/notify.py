@@ -201,3 +201,25 @@ def contract_signed(contract):
         '',
         url,
     ]))
+
+
+def file_from_client(row):
+    """Сказать мне, что заказчик что-то прислал.
+
+    Файл, положенный на полку проекта, — это не сообщение: заказчик
+    не ждёт ответа и часто ничего не пишет. Но пример дизайна, о котором
+    я узнаю через неделю, — это неделя, потраченная не на то.
+    """
+    project = row.project
+    if project is None:
+        return False
+    url = _cabinet_url(reverse('cabinet_project', args=[project.pk]))
+    lines = [
+        f'{project.client.name} приложил файл.',
+        '',
+        f'{row.name} · {row.human_size}',
+    ]
+    if row.note:
+        lines.append(row.note[:200])
+    lines += ['', url]
+    return _to_owner('\n'.join(lines))

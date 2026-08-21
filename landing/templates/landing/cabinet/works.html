@@ -1,0 +1,90 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+{% load ru %}
+
+{% block cab_title %}Портфолио{% endblock %}
+
+{% block cab_content %}
+<div class="cab__head">
+  <div>
+    <span class="tag">Портфолио</span>
+    <h1>Работы на сайте</h1>
+    <p class="lede">
+      Раньше работа добавлялась правкой кода и выкладкой. Так работа
+      не добавляется никогда — она откладывается до следующего раза,
+      когда я и так буду в коде.
+    </p>
+  </div>
+</div>
+
+<section class="panel panel--wide">
+  <h2>Завести работу</h2>
+  {% if candidates %}
+    <p class="muted">
+      Из проекта: имя, сфера и город возьмутся из карточки заказчика.
+    </p>
+    <form class="work-new" method="post" action="{% url 'cabinet_work_create' %}">
+      {% csrf_token %}
+      <label class="field">
+        <span>Проект</span>
+        <select class="input input--sm" name="project">
+          {% for project in candidates %}
+            <option value="{{ project.pk }}">
+              {{ project.client.name }} — {{ project.title }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="btn btn--sm" type="submit">Завести из проекта</button>
+    </form>
+  {% endif %}
+
+  {% comment %}
+    Работа без проекта тоже нужна: не всё, что стоит показать, проходило
+    через эту систему. Первые две работы — ровно такие.
+  {% endcomment %}
+  <form class="work-new" method="post" action="{% url 'cabinet_work_create' %}">
+    {% csrf_token %}
+    <label class="field">
+      <span>Или просто именем</span>
+      <input class="input input--sm" type="text" name="title" maxlength="120"
+             placeholder="Как обращаться к человеку">
+    </label>
+    <label class="field">
+      <span>Чем занимается</span>
+      <input class="input input--sm" type="text" name="role" maxlength="160"
+             placeholder="архитектор-дизайнер">
+    </label>
+    <button class="btn btn--sm" type="submit">Завести</button>
+  </form>
+</section>
+
+<section class="panel panel--wide">
+  <h2>Все работы <span class="muted">— {{ rows|length }}</span></h2>
+  {% if rows %}
+    <div class="lead-list">
+      {% for work in rows %}
+        <a class="lead-row{% if not work.is_published %} is-quiet{% endif %}"
+           href="{% url 'cabinet_work' work.pk %}">
+          <span class="lead-row__who">
+            <b>{{ work.title }}</b>
+            <span class="lead-row__phone">{{ work.role }}</span>
+          </span>
+          <span class="lead-row__area">
+            {{ work.shot_rows.count }}
+            {{ work.shot_rows.count|ru_plural:"снимок,снимка,снимков" }}
+          </span>
+          <span class="lead-row__area">
+            {% if work.project %}{{ work.project.title }}
+            {% else %}<span class="muted">без проекта</span>{% endif %}
+          </span>
+          <span class="lead-row__when">
+            {% if work.is_published %}на сайте{% else %}<span class="muted">скрыта</span>{% endif %}
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">Работ пока нет.</p>
+  {% endif %}
+</section>
+{% endblock %}

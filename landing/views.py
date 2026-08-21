@@ -11,7 +11,7 @@ from django.conf import settings
 from django.db import transaction
 from django.http import (Http404, HttpResponse, HttpResponseBadRequest,
                          JsonResponse)
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.urls import reverse
@@ -19,7 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from .forms import ClubForm, LeadForm, SurveyForm
-from .models import (Client, ClubSubscription, Lead, Payment, Survey,
+from .models import (Client, ClubSubscription, Lead, Payment, Survey, Work,
                      normalize_phone)
 from .services import club as club_service
 from .services import getplatinum as gp
@@ -27,7 +27,9 @@ from .services import payments as pay
 from .services import telegram as tg
 from .survey import QUESTIONS
 from . import constructor as build
-from .works import WORKS, by_slug
+# Работы живут в базе и заводятся из кабинета. Модуль landing/works.py
+# остался источником переноса (миграция 0010) — из кода их больше
+# не читают.
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +72,7 @@ def index(request):
         'form': form,
         'success': success,
         'club_prices': CLUB_PRICES,
-        'works': WORKS,
+        'works': published_works(),
     })
 
 
@@ -670,14 +672,23 @@ def work(request, slug):
     было, стало, проверяемые числа и снимки — живёт здесь, и сюда
     приходят те, кому это правда интересно.
     """
-    item = by_slug(slug)
-    if item is None:
-        raise Http404
+    item = get_object_or_404(published_works(), slug=slug)
     return render(request, 'landing/work.html', {
         'work': item,
         # Соседняя работа — чтобы со страницы был выход не только назад.
-        'others': [w for w in WORKS if w['slug'] != slug],
+        'others': published_works().exclude(pk=item.pk),
     })
+
+
+def published_works():
+    """Работы для сайта — одним заходом в базу.
+
+    Снятая с публикации работа исчезает и с главной, и со своей страницы,
+    и из карты сайта. Три места, и забыть про третье проще всего:
+    поисковик продолжит водить людей на страницу, которой уже нет.
+    """
+    return (Work.objects.filter(is_published=True)
+            .prefetch_related('fact_rows', 'shot_rows'))
 
 def privacy(request):
     return render(request, 'landing/privacy.html', {
@@ -702,7 +713,8 @@ def robots_txt(request):
 
 def sitemap_xml(request):
     paths = ['', 'razbor/', 'sobrat/', 'club/', 'privacy/']
-    paths += [f'raboty/{w["slug"]}/' for w in WORKS]
+    paths += [f'raboty/{slug}/' for slug in
+              published_works().values_list('slug', flat=True)]
     base = f'{request.scheme}://{request.get_host()}/'
     urls = ''.join(f'<url><loc>{base}{p}</loc></url>' for p in paths)
     xml = ('<?xml version="1.0" encoding="UTF-8"?>'

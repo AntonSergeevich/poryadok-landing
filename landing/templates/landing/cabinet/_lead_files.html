@@ -1,0 +1,55 @@
+{% comment %}
+  Файлы заявки. У заявки нет переписки, и до сих пор присланное до
+  заведения проекта было некуда положить: оно оставалось в мессенджере
+  и терялось вместе с ним.
+
+  При заведении проекта эти файлы едут в него — искать их в закрытой
+  заявке никто не станет.
+{% endcomment %}
+<section class="panel">
+  <h2>Файлы</h2>
+
+  {% if files %}
+    <ul class="files">
+      {% for row in files %}
+        <li class="file">
+          {% if row.is_image %}
+            <a class="file__thumb" href="{{ row.file.url }}">
+              <img src="{{ row.file.url }}" alt="{{ row.note|default:row.name }}"
+                   loading="lazy" decoding="async">
+            </a>
+          {% endif %}
+          <span class="file__body">
+            <a class="file__name" href="{{ row.file.url }}">{{ row.name }}</a>
+            {% if row.note %}<span class="file__note">{{ row.note }}</span>{% endif %}
+            <span class="file__meta">
+              {{ row.human_size }} · {{ row.created_at|date:"d.m.Y" }}
+            </span>
+          </span>
+          <form method="post"
+                action="{% url 'cabinet_lead_file_delete' row.pk %}"
+                data-act data-target="[data-lead-files-slot]">
+            {% csrf_token %}
+            <button class="task__del" type="submit" aria-label="Убрать файл">×</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">
+      Примеры дизайна, замеры, фотографии, выгрузка старой базы — всё,
+      что человек прислал до начала работы.
+    </p>
+  {% endif %}
+
+  <form class="file-add" method="post" enctype="multipart/form-data"
+        action="{% url 'cabinet_lead_file' lead.pk %}"
+        data-act data-reset data-target="[data-lead-files-slot]">
+    {% csrf_token %}
+    <input class="input input--sm" type="file" name="file" required
+           aria-label="Файл">
+    <input class="input input--sm" type="text" name="note" maxlength="250"
+           placeholder="Что это" aria-label="Что это">
+    <button class="btn btn--sm" type="submit">Приложить</button>
+  </form>
+</section>

@@ -8,9 +8,9 @@ from django.contrib import admin, messages
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import (Client, ClubSubscription, Contract, Lead, Message,
-                     MessageFile, Payment, Project, Stage, StageTask,
-                     Survey, format_phone)
+from .models import (Attachment, Client, ClubSubscription, Contract, Lead,
+                     Message, MessageFile, Payment, Project, Stage, StageTask,
+                     Survey, Work, WorkFact, WorkShot, format_phone)
 from .services import telegram as tg
 
 admin.site.site_header = 'Порядок — рабочий стол'
@@ -201,6 +201,49 @@ class ContractAdmin(admin.ModelAdmin):
     @admin.display(description='заказчик')
     def client_column(self, obj):
         return obj.project.client.name
+
+
+@admin.register(Attachment)
+class AttachmentAdmin(admin.ModelAdmin):
+    """Файлы к заявкам и проектам. Прикладываются в кабинете, здесь —
+    только список: посмотреть, что вообще лежит, и убрать лишнее."""
+    list_display = ('name', 'human_size', 'where', 'from_client', 'created_at')
+    list_filter = ('from_client', 'created_at')
+    search_fields = ('name', 'note', 'project__title', 'lead__name')
+
+    @admin.display(description='к чему')
+    def where(self, obj):
+        if obj.project_id:
+            return str(obj.project)
+        if obj.lead_id:
+            return f'заявка: {obj.lead}'
+        return '—'
+
+
+class WorkFactInline(admin.TabularInline):
+    model = WorkFact
+    extra = 1
+
+
+class WorkShotInline(admin.TabularInline):
+    model = WorkShot
+    extra = 1
+
+
+@admin.register(Work)
+class WorkAdmin(admin.ModelAdmin):
+    """Портфолио правится в кабинете, а не здесь.
+
+    Здесь оно на случай, когда надо поменять что-то быстро и точечно —
+    порядок, адрес страницы — или посмотреть, что вообще заведено.
+    """
+    list_display = ('title', 'role', 'slug', 'is_published', 'order')
+    list_filter = ('is_published',)
+    list_editable = ('is_published', 'order')
+    search_fields = ('title', 'role', 'slug', 'lede')
+    prepopulated_fields = {'slug': ('title',)}
+    autocomplete_fields = ('project',)
+    inlines = (WorkFactInline, WorkShotInline)
 
 
 class StageTaskInline(admin.TabularInline):

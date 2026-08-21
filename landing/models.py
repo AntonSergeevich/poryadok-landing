@@ -152,6 +152,14 @@ class Lead(TimeStamped):
     # чинить в предложении, — если его заполнять.
     lost_reason = models.CharField('причина отказа', max_length=250, blank=True)
 
+    # Состав, собранный в конструкторе. Хранится списком кодов блоков,
+    # а не текстом: текст годится для чтения, но по нему нельзя
+    # пересчитать цену, когда цены изменятся, и нельзя перенести набор
+    # в проект. Пришедшее с сайта попадает сюда же — разговор начинается
+    # не с нуля, а с того, что человек собрал сам.
+    build_blocks = models.JSONField('состав системы', default=list, blank=True)
+    build_scale = models.CharField('масштаб', max_length=16, blank=True)
+
     delivered_to_telegram = models.BooleanField('ушла в Telegram', default=False)
     client = models.ForeignKey(Client, verbose_name='клиент', null=True, blank=True,
                                on_delete=models.SET_NULL, related_name='leads')
@@ -234,6 +242,13 @@ class Project(TimeStamped):
     started_at = models.DateField('начали', null=True, blank=True)
     launched_at = models.DateField('запустили', null=True, blank=True)
     note = models.TextField('заметки', blank=True)
+
+    # Состав системы. Приезжает из заявки и правится в кабинете тем же
+    # конструктором, что и на сайте. Отсюда же берётся Приложение № 1
+    # к договору: состав, названный на словах, и состав, за который
+    # подписались, обязаны быть одним списком.
+    build_blocks = models.JSONField('состав системы', default=list, blank=True)
+    build_scale = models.CharField('масштаб', max_length=16, blank=True)
 
     class Meta:
         verbose_name = 'проект'
@@ -757,6 +772,268 @@ class Contract(TimeStamped):
         when = when or timezone.localdate()
         used = cls.objects.filter(date__year=when.year).count()
         return f'{used + 1:02d}-{when.year}'
+
+
+# ── Файлы к заявке и проекту ─────────────────────────────────────────
+#
+# Переписка уже умеет файлы, и на первый взгляд этого достаточно. Но
+# в переписке файл живёт вместе со словами и вместе с ними уезжает вверх:
+# «макет, который прислали три недели назад» ищут прокруткой, и находят
+# не всегда.
+#
+# Здесь другое: полка. Примеры дизайна, замеры, выгрузка старой базы,
+# фотографии помещения — то, к чему возвращаются по многу раз и что
+# не должно зависеть от того, в каком сообщении его прислали.
+#
+# И главное: у заявки переписки нет вовсе. Файл, присланный до того, как
+# завёлся проект, до сих пор было некуда положить.
+
+
+def attachment_upload_to(instance, filename):
+    """По месяцам — как и файлы переписки. Одна папка на все проекты
+    перестаёт открываться раньше, чем кажется."""
+    return f'files/{timezone.now():%Y/%m}/{filename}'
+
+
+class Attachment(TimeStamped):
+    """Документ или фотография, приложенные к заявке или проекту."""
+
+    IMAGE_SUFFIXES = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic',
+                      '.avif', '.svg')
+
+    # Обе связи необязательные, но пустыми обе быть не должны: файл,
+    # не привязанный ни к чему, не показывается нигде и остаётся занимать
+    # место. Проверка в clean(), а не в базе: правило это прикладное,
+    # и объяснить его человеку должна форма, а не сообщение о нарушении
+    # ограничения целостности.
+    lead = models.ForeignKey('Lead', verbose_name='заявка', null=True,
+                             blank=True, on_delete=models.CASCADE,
+                             related_name='files')
+    project = models.ForeignKey('Project', verbose_name='проект', null=True,
+                                blank=True, on_delete=models.CASCADE,
+                                related_name='files')
+
+    file = models.FileField('файл', upload_to=attachment_upload_to)
+    name = models.CharField('имя файла', max_length=250)
+    size = models.PositiveIntegerField('размер, байт', default=0)
+    note = models.CharField('что это', max_length=250, blank=True)
+
+    # Кто принёс. Заказчик присылает примеры дизайна сам, и в списке
+    # это должно быть видно: «прислали» и «положил сам» — разные вещи.
+    from_client = models.BooleanField('от заказчика', default=False)
+    author_name = models.CharField('кто добавил', max_length=120, blank=True)
+
+    class Meta:
+        verbose_name = 'файл'
+        verbose_name_plural = 'файлы'
+        ordering = ('-created_at', '-pk')
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def is_image(self):
+        return self.name.lower().endswith(self.IMAGE_SUFFIXES)
+
+    @property
+    def human_size(self):
+        """«2,4 МБ» вместо «2517948». Второе не читает никто."""
+        size = self.size or 0
+        if size < 1024:
+            return f'{size} Б'
+        if size < 1024 * 1024:
+            return f'{size / 1024:.0f} КБ'
+        return f'{size / (1024 * 1024):.1f} МБ'.replace('.', ',')
+
+
+# ── Портфолио ────────────────────────────────────────────────────────
+#
+# Работы жили списком в landing/works.py — двумя словарями в коде.
+# Пока работ две, это честнее базы: править их приходилось раз в полгода,
+# а код виден в истории изменений целиком.
+#
+# Дальше так нельзя. Заказчиков будет больше, и добавление работы
+# не должно означать правку файла, выкладку и перезапуск: так работа
+# не добавляется никогда — она откладывается «до следующего раза, когда
+# буду в коде». Поэтому работы переезжают в базу и заводятся из кабинета,
+# рядом с проектом, из которого выросли.
+#
+# Связь с проектом необязательная. Первые две работы сделаны до того,
+# как появились проекты в кабинете, и требовать связь значило бы
+# придумывать им задним числом проекты, которых не было.
+
+
+def work_upload_to(instance, filename):
+    """Снимки работ — по адресу работы. Файлов на работу четыре-шесть,
+    и в общей папке они перемешиваются уже на третьей работе."""
+    slug = getattr(instance, 'work', None) and instance.work.slug or 'raboty'
+    return f'works/{slug}/{filename}'
+
+
+class Work(TimeStamped):
+    """Работа в портфолио: что было у заказчика до системы и что стало.
+
+    Поля `was_text` и `now_text` хранятся текстом по строке на пункт,
+    а наружу отдаются списками (`was`, `now`). Причина в том, что вводят
+    их в одно поле — списком строк, — а отдельная таблица на каждый пункт
+    превратила бы добавление работы в двадцать нажатий «добавить строку».
+    """
+
+    project = models.ForeignKey(
+        Project, verbose_name='проект', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='works',
+        help_text='Необязательно. Связь нужна, чтобы видеть, из какой '
+                  'работы выросла эта страница.')
+
+    slug = models.SlugField('адрес', max_length=60, unique=True,
+                            help_text='Латиницей: адрес страницы работы.')
+    title = models.CharField('как обращаться', max_length=120)
+    role = models.CharField('чем занимается', max_length=160)
+    site = models.CharField('сайт', max_length=160, blank=True,
+                            help_text='Без https:// — оно добавится само.')
+    city = models.CharField('город', max_length=120, blank=True)
+
+    # Срок и «когда открылся» — две разные вещи, и путать их нельзя:
+    # «две недели» звучит долго, пока не сказано, что работать система
+    # начала на третий день, а остальное время её доводили под человека.
+    term = models.CharField('срок', max_length=60, blank=True)
+    term_note = models.CharField('что было со сроком', max_length=250,
+                                 blank=True)
+
+    lede = models.TextField('одна строка о деле', blank=True)
+    was_text = models.TextField(
+        'было', blank=True,
+        help_text='По строке на пункт. Словами заказчика, а не «оптимизация '
+                  'бизнес-процессов»: читатель узнаёт себя именно в них.')
+    now_text = models.TextField('стало', blank=True,
+                                help_text='По строке на пункт.')
+
+    order = models.PositiveSmallIntegerField('порядок', default=100)
+    # По умолчанию не показывается. Работа заводится пустой — без «было»,
+    # «стало» и снимков, — и опубликованная в этот момент она обещает
+    # читателю страницу, за которой ничего нет.
+    is_published = models.BooleanField(
+        'показывать на сайте', default=False,
+        help_text='Снятая с публикации работа остаётся в кабинете, '
+                  'но исчезает с сайта.')
+
+    class Meta:
+        verbose_name = 'работа в портфолио'
+        verbose_name_plural = 'портфолио'
+        ordering = ('order', '-created_at')
+
+    def __str__(self):
+        return f'{self.title} · {self.role}'
+
+    @staticmethod
+    def _lines(text):
+        return [line.strip() for line in (text or '').splitlines() if line.strip()]
+
+    @property
+    def was(self):
+        return self._lines(self.was_text)
+
+    @property
+    def now(self):
+        return self._lines(self.now_text)
+
+    @property
+    def facts(self):
+        """Пары «подпись — число» для шаблона.
+
+        Отдаются парами, а не объектами, потому что шаблон разбирает их
+        как `{% for label, value in work.facts %}` — ровно так же, как
+        когда работы лежали списком в коде. Разметку из-за переезда
+        в базу переписывать не пришлось.
+        """
+        return [(fact.label, fact.value) for fact in self.fact_rows.all()]
+
+    @property
+    def shots(self):
+        return list(self.shot_rows.all())
+
+    @property
+    def cover(self):
+        """Снимок для плитки на главной. Первый — потому что первым ставят
+        главный, а не потому, что так вышло."""
+        return self.shot_rows.first()
+
+
+class WorkFact(TimeStamped):
+    """Проверяемое число рядом с работой.
+
+    «Автотестов — 203» работает не потому, что число большое, а потому,
+    что его можно проверить. Поэтому здесь текст, а не число: «две недели»
+    и «19» одинаково уместны.
+    """
+
+    work = models.ForeignKey(Work, verbose_name='работа',
+                             on_delete=models.CASCADE, related_name='fact_rows')
+    label = models.CharField('подпись', max_length=120)
+    value = models.CharField('значение', max_length=60)
+    order = models.PositiveSmallIntegerField('порядок', default=10)
+
+    class Meta:
+        verbose_name = 'число в работе'
+        verbose_name_plural = 'числа в работе'
+        ordering = ('order', 'pk')
+
+    def __str__(self):
+        return f'{self.label}: {self.value}'
+
+
+class WorkShot(TimeStamped):
+    """Снимок экрана.
+
+    Источников два, и это не небрежность. Снимки первых работ лежат
+    в статике: они сняты руками до того, как появился этот раздел,
+    и там же и должны остаться. Новые загружаются из кабинета и попадают
+    в media.
+
+    Копировать старые в media отдельной миграцией было бы красивее
+    в описании и хуже на деле: миграция, которая трогает файлы, ломается
+    там, где её труднее всего чинить, — на боевом сервере, где у папки
+    другой владелец.
+    """
+
+    work = models.ForeignKey(Work, verbose_name='работа',
+                             on_delete=models.CASCADE, related_name='shot_rows')
+    caption = models.CharField('подпись', max_length=250, blank=True)
+    order = models.PositiveSmallIntegerField('порядок', default=10)
+
+    image = models.ImageField('снимок', blank=True, upload_to=work_upload_to)
+    static_name = models.CharField(
+        'имя файла в статике', max_length=120, blank=True,
+        help_text='Для снимков, лежащих в landing/static/landing/img/cases/. '
+                  'Без расширения: рядом должны быть имя.webp и имя-sm.webp.')
+
+    class Meta:
+        verbose_name = 'снимок работы'
+        verbose_name_plural = 'снимки работы'
+        ordering = ('order', 'pk')
+
+    def __str__(self):
+        return self.caption or self.static_name or str(self.image)
+
+    @property
+    def src(self):
+        """Полный снимок."""
+        if self.image:
+            return self.image.url
+        if self.static_name:
+            return f'{settings.STATIC_URL}landing/img/cases/{self.static_name}.webp'
+        return ''
+
+    @property
+    def thumb(self):
+        """Плитка. У загруженных снимков уменьшенной копии нет — показываем
+        тот же файл: заводить пережатие ради четырёх картинок на работу
+        значит завести ещё и очередь, и место, где она однажды встанет."""
+        if self.image:
+            return self.image.url
+        if self.static_name:
+            return f'{settings.STATIC_URL}landing/img/cases/{self.static_name}-sm.webp'
+        return ''
 
 
 class ClubSubscription(TimeStamped):

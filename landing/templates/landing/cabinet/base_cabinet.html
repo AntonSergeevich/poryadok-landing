@@ -25,6 +25,7 @@
     <a href="{% url 'cabinet_clients' %}"{% if section == 'clients' %} class="is-here"{% endif %}>Заказчики</a>
     <a href="{% url 'cabinet_money' %}"{% if section == 'money' %} class="is-here"{% endif %}>Деньги</a>
     <a href="{% url 'cabinet_summary' %}"{% if section == 'summary' %} class="is-here"{% endif %}>Сводка</a>
+    <a href="{% url 'cabinet_works' %}"{% if section == 'works' %} class="is-here"{% endif %}>Портфолио</a>
     <a href="{% url 'admin:index' %}">Админка</a>
   {% else %}
     <a href="{% url 'cabinet' %}">Мой проект</a>

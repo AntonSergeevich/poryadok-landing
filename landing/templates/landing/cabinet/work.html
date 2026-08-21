@@ -1,0 +1,157 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+{% load static %}
+
+{% block extra_head %}
+  {{ block.super }}
+  {% comment %}
+    Формы правки и плашки состояния оформлены там же, где договор:
+    это один и тот же приём — длинная форма в две колонки.
+  {% endcomment %}
+  <link rel="stylesheet" href="{% static 'landing/css/contract.css' %}">
+{% endblock %}
+
+{% block cab_title %}{{ work.title }} — портфолио{% endblock %}
+
+{% block cab_content %}
+<p class="cab__back"><a href="{% url 'cabinet_works' %}">← Портфолио</a></p>
+
+<div class="cab__head">
+  <div>
+    <span class="tag">Работа</span>
+    <h1>{{ work.title }}</h1>
+    <p class="lede">{{ work.role }}</p>
+  </div>
+  <div class="cab__head-side">
+    {% if work.is_published %}
+      <a class="btn btn--sm" href="{% url 'work' work.slug %}" target="_blank"
+         rel="noopener">Смотреть на сайте ↗</a>
+    {% endif %}
+  </div>
+</div>
+
+{% comment %}
+  Карточка состояния перерисовывается после каждого действия: добавили
+  снимок — исчезла строчка «нет ни одного снимка», и кнопка «показать
+  на сайте» перестала быть недоступной. Держать эти два факта в двух
+  местах значит однажды получить кнопку, которая обещает не то.
+{% endcomment %}
+<div data-work-slot>
+  {% include 'landing/cabinet/_work_card.html' %}
+</div>
+
+<section class="panel panel--wide">
+  <h2>Что на странице</h2>
+  <form class="doc-form" method="post"
+        action="{% url 'cabinet_work_update' work.pk %}"
+        data-act data-target="[data-work-slot]">
+    {% csrf_token %}
+    <label class="field">
+      <span>Как обращаться</span>
+      <input class="input input--sm" type="text" name="title" maxlength="120"
+             value="{{ work.title }}">
+    </label>
+    <label class="field">
+      <span>Чем занимается</span>
+      <input class="input input--sm" type="text" name="role" maxlength="160"
+             value="{{ work.role }}">
+    </label>
+    <label class="field">
+      <span>Сайт — без https://</span>
+      <input class="input input--sm" type="text" name="site" maxlength="160"
+             value="{{ work.site }}" placeholder="da-des.ru">
+    </label>
+    <label class="field">
+      <span>Город</span>
+      <input class="input input--sm" type="text" name="city" maxlength="120"
+             value="{{ work.city }}">
+    </label>
+    <label class="field">
+      <span>Срок</span>
+      <input class="input input--sm" type="text" name="term" maxlength="60"
+             value="{{ work.term }}" placeholder="2 недели">
+    </label>
+    <label class="field">
+      <span>Адрес страницы</span>
+      <input class="input input--sm" type="text" name="slug" maxlength="60"
+             value="{{ work.slug }}">
+    </label>
+    <label class="field field--wide">
+      <span>Что было со сроком — почему он такой</span>
+      <input class="input input--sm" type="text" name="term_note" maxlength="250"
+             value="{{ work.term_note }}"
+             placeholder="сайт открылся на третий день, дальше — доводка">
+    </label>
+    <label class="field field--wide">
+      <span>Одна строка о деле</span>
+      <textarea class="input input--sm" name="lede" rows="2">{{ work.lede }}</textarea>
+    </label>
+
+    {% comment %}
+      «Было» — словами заказчика, а не «оптимизация бизнес-процессов».
+      Читатель узнаёт себя именно в них, и подсказка про это стоит здесь,
+      а не в документации, которую никто не откроет.
+    {% endcomment %}
+    <label class="field field--wide">
+      <span>Было — по строке на пункт, словами заказчика</span>
+      <textarea class="input input--sm" name="was_text" rows="7">{{ work.was_text }}</textarea>
+    </label>
+    <label class="field field--wide">
+      <span>Стало — по строке на пункт</span>
+      <textarea class="input input--sm" name="now_text" rows="7">{{ work.now_text }}</textarea>
+    </label>
+    <button class="btn btn--sm" type="submit">Сохранить</button>
+  </form>
+</section>
+
+<div class="cab__cols">
+  <section class="panel">
+    <h2>Проверяемые числа</h2>
+    <p class="muted">
+      «Автотестов — 203» работает не потому, что число большое, а потому,
+      что его можно проверить.
+    </p>
+    <form class="work-add" method="post"
+          action="{% url 'cabinet_work_fact' work.pk %}"
+          data-act data-reset data-target="[data-work-slot]">
+      {% csrf_token %}
+      <input class="input input--sm" type="text" name="label" maxlength="120"
+             placeholder="Подпись" aria-label="Подпись" required>
+      <input class="input input--sm" type="text" name="value" maxlength="60"
+             placeholder="Значение" aria-label="Значение" required>
+      <button class="btn btn--sm" type="submit">Добавить</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Снимки</h2>
+    <p class="muted">
+      На снимках должны быть демонстрационные данные, а не живые
+      заказчики: чужие телефоны и суммы в портфолио не показывают.
+      Первый снимок идёт на плитку. До {{ max_mb }} МБ.
+    </p>
+    <form class="work-add" method="post" enctype="multipart/form-data"
+          action="{% url 'cabinet_work_shot' work.pk %}"
+          data-act data-reset data-target="[data-work-slot]">
+      {% csrf_token %}
+      <input class="input input--sm" type="file" name="image" required
+             accept="image/*" aria-label="Снимок">
+      <input class="input input--sm" type="text" name="caption" maxlength="250"
+             placeholder="Подпись под снимком" aria-label="Подпись">
+      <button class="btn btn--sm" type="submit">Загрузить</button>
+    </form>
+  </section>
+</div>
+
+<section class="panel panel--wide">
+  <h2>Убрать работу</h2>
+  <p class="muted">
+    Снять с сайта можно, не удаляя, — обычно нужно именно это. Удаляют
+    то, что завели по ошибке.
+  </p>
+  <form method="post" action="{% url 'cabinet_work_delete' work.pk %}"
+        onsubmit="return confirm('Удалить работу вместе со снимками?')">
+    {% csrf_token %}
+    <button class="linkish" type="submit">Удалить работу</button>
+  </form>
+</section>
+{% endblock %}

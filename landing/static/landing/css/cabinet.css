@@ -609,3 +609,60 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 
 .plain{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px;
   font-size:var(--t-small)}
+
+/* ---------- Портфолио в кабинете ---------- */
+
+.work-new,.work-add{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:10px;
+}
+.work-new .field,.work-add .input{flex:1 1 180px;min-width:0}
+.work-new button,.work-add button{flex:none}
+
+.work-state{
+  display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;
+  justify-content:space-between;margin-bottom:12px;
+}
+
+/* Снятая с сайта работа в списке приглушена, но читается. Прятать её
+   нельзя: чаще всего именно её и ищут — чтобы дописать и показать. */
+.lead-row.is-quiet{opacity:.62}
+.lead-row.is-quiet:hover{opacity:1}
+
+.work-shots{
+  display:grid;gap:12px;margin-top:10px;
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr));
+}
+.work-shot{margin:0;display:grid;gap:6px}
+.work-shot img{
+  width:100%;height:auto;display:block;
+  border:1px solid var(--line);background:var(--sheet);
+}
+.work-shot figcaption{
+  display:flex;gap:8px;align-items:baseline;justify-content:space-between;
+  font-size:var(--t-tag);color:var(--muted);line-height:1.4;
+}
+.work-shot figcaption form{display:contents}
+.work-state__who{display:grid;gap:2px;min-width:0}
+.work-state__who b{font-size:1.05rem}
+
+/* ---------- Файлы ---------- */
+
+.files{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:10px}
+.file{
+  display:flex;gap:12px;align-items:flex-start;
+  padding-bottom:10px;border-bottom:1px solid var(--line);
+}
+.file:last-child{border-bottom:0;padding-bottom:0}
+/* Присланное заказчиком отмечено линией слева: «прислали» и «положил
+   сам» — разные вещи, и разбираться в этом по именам файлов нельзя. */
+.file--theirs{border-left:3px solid var(--ink);padding-left:10px}
+.file__thumb{flex:none;width:64px;height:64px;display:block;
+  border:1px solid var(--line);background:var(--sheet);overflow:hidden}
+.file__thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.file__body{flex:1;min-width:0;display:grid;gap:3px}
+.file__name{font-size:var(--t-small);overflow-wrap:anywhere}
+.file__note{font-size:var(--t-small);color:var(--muted);overflow-wrap:anywhere}
+.file__meta{font:400 var(--t-tag)/1.4 var(--f-mono);color:var(--muted)}
+.file-add{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.file-add .input{flex:1 1 160px;min-width:0}
+.file-add button{flex:none}
