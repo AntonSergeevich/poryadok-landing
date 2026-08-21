@@ -1,0 +1,258 @@
+{% extends "landing/base.html" %}
+{% load static %}
+
+{% block title %}Собрать систему — Системы Порядок{% endblock %}
+{% block description %}Соберите свою систему из блоков и увидите цену. Ядро от 50 000 ₽, дальше — только то, что нужно вам.{% endblock %}
+{% block og_title %}Соберите систему сами и посмотрите, во что она обойдётся{% endblock %}
+{% block og_description %}Не «от 50 000» и не «договорная». Отмечаете блоки — видите состав и цену.{% endblock %}
+
+{% block nav %}
+<a href="{% url 'index' %}#what">Что делаю</a>
+<a href="{% url 'index' %}#cases">Работы</a>
+<a href="{% url 'survey' %}">Разбор</a>
+<a href="{% url 'club' %}">Клуб</a>
+{% endblock %}
+{% block head_cta_href %}#cta{% endblock %}
+{% block head_cta %}Оставить заявку{% endblock %}
+{% block dock_href %}#cta{% endblock %}
+{% block dock_cta %}Оставить заявку{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'landing/css/constructor.css' %}">
+{% endblock %}
+
+{% block content %}
+{% include 'landing/_build_icons.html' %}
+
+<section class="sheet sheet--first">
+  <div class="wrap">
+    <span class="tag tag--ink">Лист 00 · Конструктор</span>
+    <h1>Соберите свою систему</h1>
+    <p class="lede">
+      Ядро есть всегда — на нём стоит остальное. Всё прочее вы ставите
+      на схему сами и сразу видите, во что это обходится.
+    </p>
+    <p class="lede">
+      Это не прайс и не «пакеты». Это тот же разговор, что был бы голосом,
+      только вести его вам никто не мешает.
+    </p>
+  </div>
+</section>
+
+{% comment %}
+  Форма одна на всю страницу: и схема, и масштаб, и контакты. Так состав,
+  который человек собрал, гарантированно уезжает вместе с заявкой —
+  а не остаётся на странице, пока в почту приходит «здравствуйте,
+  расскажите про цены».
+
+  Без JavaScript она отправляется обычным POST и возвращается с новым
+  расчётом: галочки — обычные checkbox, кнопка пересчёта настоящая.
+{% endcomment %}
+<form class="build" method="post" action="{% url 'constructor' %}"
+      data-build data-price-url="{% url 'constructor_price' %}">
+  {% csrf_token %}
+
+  <section class="sheet">
+    <div class="wrap">
+      <div class="build__grid">
+
+        {# ── Слева: схема и счёт ────────────────────────────────── #}
+        <div class="build__left">
+          <div class="scheme" data-scheme aria-hidden="true">
+            <svg class="scheme__wires" data-wires aria-hidden="true"></svg>
+            {% comment %}
+              Схема — картинка, а не орган управления: переключают блоки
+              списком, где у каждого есть название, польза и цена.
+              Дублировать управление в двух местах значит однажды
+              получить два разных состояния одного набора.
+
+              Подписи заменены значками: одиннадцать слов по кругу
+              не помещались и лезли друг на друга, а на схеме важно
+              не прочитать название, а увидеть, что подключено.
+              Название всё равно рядом — в списке.
+            {% endcomment %}
+            <div class="scheme__core">
+              <span class="scheme__core-name">Ядро</span>
+              <span class="scheme__core-sub">клиенты · услуги · цены</span>
+            </div>
+            <div class="scheme__ring">
+              {% for block in blocks %}
+                {% if not block.core %}
+                  <span class="node{% if block.id in picked %} is-on{% endif %}"
+                        data-node="{{ block.id }}" title="{{ block.title }}">
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                      <use href="#ico-{{ block.id }}"></use>
+                    </svg>
+                  </span>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+
+          <p class="scheme__note">
+            <span class="scheme__note-wires">Подключённое соединено с ядром
+            сплошной линией, отключённое стоит пунктиром в стороне.</span>
+            <span class="scheme__note-flat">Подключённое выделено, остальное
+            стоит пунктиром.</span>
+            Блоки не живут сами по себе: они смотрят в одни и те же данные.
+          </p>
+
+          {% comment %}
+            Счёт под схемой, а не сбоку от списка. Раньше он был липким
+            справа, и при прокрутке списка схема уезжала вверх — а именно
+            она показывает, что происходит с набором. Теперь уезжает
+            список, а картинка с ценой остаётся на месте.
+          {% endcomment %}
+          <div class="total" data-total>
+            {% include 'landing/_total.html' %}
+          </div>
+
+          <button class="btn btn--block build__recount" type="submit"
+                  formnovalidate>Пересчитать</button>
+
+          <a class="btn btn--block" href="#cta">
+            Оставить заявку <span class="arrow" aria-hidden="true">→</span>
+          </a>
+          <p class="small">
+            Цена ориентировочная и всегда «от». Точную называю после
+            разбора — когда видно, что у вас уже есть и чего на самом
+            деле не хватает.
+          </p>
+        </div>
+
+        {# ── Справа: лента блоков ───────────────────────────────── #}
+        <div class="build__list">
+          <h2 class="build__h">Из чего собираем</h2>
+
+          <div class="blocks">
+            {% for block in blocks %}
+              <label class="block{% if block.core %} block--core{% endif %}">
+                <input type="checkbox" name="blocks" value="{{ block.id }}"
+                       {% if block.id in picked %}checked{% endif %}
+                       {% if block.core %}disabled{% endif %}
+                       data-block>
+                {% if block.core %}
+                  {% comment %}
+                    Отключённое поле не отправляется. Ядро всё равно
+                    дописывается на сервере, но пусть уедет и отсюда.
+                  {% endcomment %}
+                  <input type="hidden" name="blocks" value="{{ block.id }}">
+                {% endif %}
+                <span class="block__box" aria-hidden="true">
+                  <svg viewBox="0 0 16 16" width="11" height="11">
+                    <path d="M3 8.5 6.4 12 13 4.5" fill="none" stroke="currentColor"
+                          stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="block__body">
+                  <span class="block__head">
+                    <span class="block__name">
+                      <svg class="block__ico" viewBox="0 0 24 24" width="16" height="16"
+                           aria-hidden="true"><use href="#ico-{{ block.id }}"></use></svg>
+                      <b>{{ block.title }}</b>
+                    </span>
+                    <span class="block__price">
+                      {% if block.core %}входит всегда{% else %}+{{ block.price|floatformat:"0g" }} ₽{% endif %}
+                    </span>
+                  </span>
+                  <span class="block__gain">{{ block.gain }}</span>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+
+          <h2 class="build__h">Какой у вас масштаб</h2>
+          <div class="scales">
+            {% for scale in scales %}
+              <label class="scale">
+                <input type="radio" name="scale" value="{{ scale.id }}"
+                       {% if scale.id == scale_id %}checked{% endif %} data-scale>
+                <span class="scale__body">
+                  <b>{{ scale.title }}</b>
+                  <span>{{ scale.note }}</span>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+          <p class="small">
+            Масштаб меняет цену не «за размер». С ростом появляются роли
+            и права, и каждый экран обязан знать, кому что показывать —
+            это работа в каждом блоке, а не строчка в договоре.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ── Заявка ───────────────────────────────────────────────────── #}
+  <section class="sheet cta on-graphite" id="cta">
+    <div class="wrap">
+      {% if success %}
+        <div class="ok">
+          <span class="tag">Принято</span>
+          <h2>Записал состав и позвоню</h2>
+          <p class="lede">
+            Ваш набор у меня вместе с заявкой — начнём разговор не с нуля,
+            а с того, что вы собрали.
+          </p>
+        </div>
+      {% else %}
+        <div class="cta__in">
+          <div>
+            <span class="tag">Заявка</span>
+            <h2>Позвоню и разберём собранное</h2>
+            <p class="lede">
+              Состав уедет вместе с заявкой. Разговор начнётся с ваших
+              блоков, а не с «расскажите, чем занимаетесь».
+            </p>
+          </div>
+
+          <div class="cta__form">
+            <label class="field">
+              <span>Как к вам обращаться</span>
+              <input class="input" type="text" name="name" required
+                     autocomplete="name" value="{{ form.name.value|default:'' }}">
+              {% if form.name.errors %}
+                <p class="err err--shown">{{ form.name.errors|join:" " }}</p>
+              {% endif %}
+            </label>
+            <label class="field">
+              <span>Телефон</span>
+              <input class="input" type="tel" name="phone" required
+                     autocomplete="tel" placeholder="+7 (999) 000-00-00"
+                     value="{{ form.phone.value|default:'' }}">
+              {% if form.phone.errors %}
+                <p class="err err--shown">{{ form.phone.errors|join:" " }}</p>
+              {% endif %}
+            </label>
+            <label class="field">
+              <span>Чем занимаетесь</span>
+              <input class="input" type="text" name="area"
+                     placeholder="Барбершоп, школа, стоматология…"
+                     value="{{ form.area.value|default:'' }}">
+            </label>
+            <label class="check">
+              <input type="checkbox" name="consent" required
+                     {% if form.consent.value %}checked{% endif %}>
+              <span>
+                Согласен на обработку данных согласно
+                <a href="{% url 'privacy' %}">политике конфиденциальности</a>
+              </span>
+            </label>
+            {% if form.consent.errors %}
+              <p class="err err--shown">{{ form.consent.errors|join:" " }}</p>
+            {% endif %}
+            <button class="btn btn--block btn--lg" type="submit">
+              Отправить <span class="arrow" aria-hidden="true">→</span>
+            </button>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'landing/js/constructor.js' %}" defer></script>
+{% endblock %}

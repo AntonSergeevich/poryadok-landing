@@ -1,0 +1,104 @@
+{% comment %}
+  Состояние работы: чего не хватает, что уже есть, и кнопка публикации.
+  Отдельным файлом, потому что перерисовывается после каждого действия:
+  добавили снимок — исчезла строчка «нет ни одного снимка», и кнопка
+  «показать на сайте» заработала.
+{% endcomment %}
+<section class="panel panel--wide">
+  <div class="work-state">
+    {% comment %}
+      Имя и занятие стоят здесь, а не только в заголовке страницы:
+      их правят той же формой, что и всё остальное, и заголовок при этом
+      не перерисовывается. Без этой строки переименование выглядело бы
+      как «не сохранилось».
+    {% endcomment %}
+    <span class="work-state__who">
+      <b>{{ work.title }}</b>
+      <span class="muted">{{ work.role }}</span>
+    </span>
+    <span class="doc-state doc-state--{% if work.is_published %}signed{% else %}draft{% endif %}">
+      {% if work.is_published %}На сайте{% else %}Не показывается{% endif %}
+    </span>
+
+    <form method="post" action="{% url 'cabinet_work_publish' work.pk %}"
+          data-act data-target="[data-work-slot]">
+      {% csrf_token %}
+      {% if work.is_published %}
+        <button class="btn btn--sm" type="submit" name="show" value="0">
+          Снять с сайта
+        </button>
+      {% else %}
+        <button class="btn btn--sm btn--ink" type="submit" name="show" value="1">
+          Показать на сайте
+        </button>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if gaps %}
+    {% comment %}
+      Пустая страница работы — не «пока без описания», а обещание,
+      за которым ничего нет: человек нажал «подробно» и получил заголовок.
+    {% endcomment %}
+    <div class="doc-warn">
+      <b>Пока показывать рано.</b>
+      <ul>{% for gap in gaps %}<li>{{ gap }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+
+  <dl class="money">
+    <div><dt>Адрес</dt><dd>/raboty/{{ work.slug }}/</dd></div>
+    {% if work.site %}
+      <div><dt>Сайт</dt><dd>
+        <a href="https://{{ work.site }}" target="_blank" rel="noopener">{{ work.site }}</a>
+      </dd></div>
+    {% endif %}
+    {% if work.project %}
+      <div><dt>Проект</dt><dd>
+        <a href="{% url 'cabinet_project' work.project.pk %}">{{ work.project.title }}</a>
+      </dd></div>
+    {% endif %}
+    <div><dt>Было / стало</dt><dd>{{ work.was|length }} / {{ work.now|length }}</dd></div>
+  </dl>
+
+  {% if work.facts %}
+    <h3 class="money__h">Числа</h3>
+    <ul class="pay-list">
+      {% for fact in work.fact_rows.all %}
+        <li>
+          <b>{{ fact.value }}</b>
+          <span>{{ fact.label }}</span>
+          <form method="post"
+                action="{% url 'cabinet_work_fact_delete' fact.pk %}"
+                data-act data-target="[data-work-slot]">
+            {% csrf_token %}
+            <button class="task__del" type="submit" aria-label="Убрать число">×</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if work.shot_rows.all %}
+    <h3 class="money__h">Снимки</h3>
+    <div class="work-shots">
+      {% for shot in work.shot_rows.all %}
+        <figure class="work-shot">
+          <a href="{{ shot.src }}" target="_blank" rel="noopener">
+            <img src="{{ shot.thumb }}" alt="{{ shot.caption }}"
+                 loading="lazy" decoding="async">
+          </a>
+          <figcaption>
+            {{ shot.caption|default:"без подписи" }}
+            <form method="post"
+                  action="{% url 'cabinet_work_shot_delete' shot.pk %}"
+                  data-act data-target="[data-work-slot]">
+              {% csrf_token %}
+              <button class="task__del" type="submit" aria-label="Убрать снимок">×</button>
+            </form>
+          </figcaption>
+        </figure>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>

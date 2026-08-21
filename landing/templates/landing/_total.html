@@ -1,0 +1,38 @@
+{% comment %}
+  Итог. Отдельным файлом, потому что он перерисовывается: и при загрузке
+  страницы, и в ответ на пересчёт — одним и тем же шаблоном. Второй копии
+  на JavaScript быть не должно, иначе на экране однажды окажется одно
+  число, а в заявке приедет другое.
+{% endcomment %}
+<p class="total__label mono">Ориентир</p>
+<p class="total__fig">от {{ result.total|floatformat:"0g" }} <span>₽</span></p>
+
+<dl class="total__rows">
+  <div>
+    <dt>Блоков сверх ядра</dt>
+    <dd>{{ result.extra }}</dd>
+  </div>
+  <div>
+    <dt>Масштаб</dt>
+    <dd>{{ result.scale.title }}</dd>
+  </div>
+  {% if result.discount %}
+    <div class="total__save">
+      <dt>За объём</dt>
+      <dd>−{{ result.discount }}% · {{ result.saved|floatformat:"0g" }} ₽</dd>
+    </div>
+  {% endif %}
+</dl>
+
+{% if result.discount %}
+  <p class="small">
+    Пятый блок собирается вчетверо быстрее первого: модели, доступы
+    и сборка уже сделаны. Не поделиться этим значит брать деньги
+    за то, чего не делаешь.
+  </p>
+{% elif result.extra < 4 %}
+  <p class="small">
+    От четырёх блоков сверх ядра цена идёт вниз: общая часть у них одна,
+    и второй раз я её не делаю.
+  </p>
+{% endif %}

@@ -1,0 +1,69 @@
+{% extends 'landing/base.html' %}
+{% load static %}
+
+{% comment %}
+  Кабинет живёт на том же сайте и в той же дизайн-системе: чертёж, сетка,
+  штамп листа. Отдельная шкура сделала бы его чужим приложением, куда
+  «надо ещё зайти», — а это ровно то ощущение, из-за которого в кабинеты
+  и перестают заходить.
+
+  Меню шапки подменено: разделы лендинга внутри кабинета ведут в никуда.
+{% endcomment %}
+
+{% block title %}{% block cab_title %}Кабинет{% endblock %} — Системы Порядок{% endblock %}
+{% block description %}Личный кабинет по проекту.{% endblock %}
+
+{% block nav %}
+  {% comment %}
+    Меню кабинета, а не сайта. Разделы лендинга внутри кабинета ведут
+    в никуда, а переходить между заявками, клиентами и деньгами
+    приходится постоянно — и до сих пор было нечем.
+  {% endcomment %}
+  {% if user.is_staff %}
+    <a href="{% url 'cabinet' %}"{% if section == 'desk' %} class="is-here"{% endif %}>Сегодня</a>
+    <a href="{% url 'cabinet_leads' %}"{% if section == 'leads' %} class="is-here"{% endif %}>Заявки</a>
+    <a href="{% url 'cabinet_clients' %}"{% if section == 'clients' %} class="is-here"{% endif %}>Заказчики</a>
+    <a href="{% url 'cabinet_money' %}"{% if section == 'money' %} class="is-here"{% endif %}>Деньги</a>
+    <a href="{% url 'cabinet_summary' %}"{% if section == 'summary' %} class="is-here"{% endif %}>Сводка</a>
+    <a href="{% url 'cabinet_works' %}"{% if section == 'works' %} class="is-here"{% endif %}>Портфолио</a>
+    <a href="{% url 'admin:index' %}">Админка</a>
+  {% else %}
+    <a href="{% url 'cabinet' %}">Мой проект</a>
+    <a href="{% url 'cabinet_password' %}">Пароль</a>
+  {% endif %}
+  <a href="{% url 'index' %}">Сайт</a>
+{% endblock %}
+
+{% block head_action %}
+  <form class="head__out" method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button class="btn btn--sm" type="submit">Выйти</button>
+  </form>
+{% endblock %}
+{% block dock_href %}{% url 'cabinet' %}{% endblock %}
+{% block dock_cta %}Кабинет{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'landing/css/cabinet.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="sheet cab">
+  <div class="wrap">
+    {% if messages %}
+      <ul class="notes">
+        {% for message in messages %}
+          <li class="note note--{{ message.tags|default:'info' }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% block cab_content %}{% endblock %}
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'landing/js/cabinet.js' %}" defer></script>
+  <script src="{% static 'landing/js/chat.js' %}" defer></script>
+{% endblock %}

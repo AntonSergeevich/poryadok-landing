@@ -1,0 +1,38 @@
+{% comment %}
+  Доступ выдан — окно поверх страницы.
+
+  Пароль показывается ровно один раз: в базе он лежит хешем, и достать
+  его потом нельзя. Значит этот момент единственный, и он не должен
+  выглядеть строчкой среди прочих. Отсюда окно, а не плашка.
+
+  Главное здесь — готовый текст. Доступ отправляют в мессенджер, и
+  собирать сообщение из трёх полей руками означает лишнюю минуту
+  и шанс перепутать символ в пароле.
+
+  Работает и без JavaScript: окно открыто атрибутом open, закрывается
+  ссылкой обратно на страницу — пароль к тому моменту уже вынут
+  из сессии и второй раз не покажется.
+{% endcomment %}
+<dialog class="creds" id="creds" open>
+  <div class="creds__box">
+    <h2>Кабинет заказчика открыт</h2>
+    <p class="muted">
+      Пароль показывается один раз. Скопируйте сообщение и отправьте сейчас —
+      потом останется только выдать новый.
+    </p>
+
+    <dl class="creds__rows">
+      <div><dt>Ссылка</dt><dd>{{ issued.url }}</dd></div>
+      <div><dt>Логин</dt><dd><b>{{ issued.login }}</b></dd></div>
+      <div><dt>Пароль</dt><dd><b>{{ issued.password }}</b></dd></div>
+    </dl>
+
+    <label class="creds__label" for="creds-text">Готовое сообщение</label>
+    <textarea class="creds__text" id="creds-text" rows="9" readonly>{{ issued.text }}</textarea>
+
+    <div class="creds__actions">
+      <button class="btn" type="button" data-copy="#creds-text">Скопировать сообщение</button>
+      <a class="btn btn--ghost" href="{{ request.path }}">Готово</a>
+    </div>
+  </div>
+</dialog>

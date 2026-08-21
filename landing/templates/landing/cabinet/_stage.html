@@ -1,0 +1,120 @@
+{% comment %}
+  Карточка этапа: всё про него и ничего лишнего.
+
+  Один и тот же шаблон рисуется и при загрузке страницы, и в ответ на
+  действие. Второй копии на JavaScript не появляется — иначе две версии
+  одного этапа однажды разойдутся, и стороны увидят разное.
+
+  `owner_view` решает не «что спрятать», а «что можно». Проверка прав
+  всё равно живёт на сервере: спрятанная в разметке кнопка — это не
+  запрет, а вежливая просьба.
+{% endcomment %}
+<article class="stage{% if current and stage.pk == current.pk %} is-current{% endif %}"
+         id="stage-{{ stage.pk }}" data-stage="stage-{{ stage.pk }}"
+         {% if open_id and stage.pk != open_id %}hidden{% endif %}>
+  <header class="stage__head">
+    <span class="stage__n">{{ stage.number }}</span>
+    <div class="stage__who">
+      <h3>{{ stage.title }}</h3>
+      <p class="stage__flags">
+        <span class="flag flag--{{ stage.status }}">{{ stage.get_status_display }}</span>
+        {% if stage.waits_client %}<span class="flag flag--wait">ждём вас</span>{% endif %}
+        {% if stage.started_at %}<span class="stage__date">начат {{ stage.started_at|date:"d.m.Y" }}</span>{% endif %}
+        {% if stage.finished_at %}<span class="stage__date">закрыт {{ stage.finished_at|date:"d.m.Y" }}</span>{% endif %}
+      </p>
+    </div>
+  </header>
+
+  {% if stage.summary %}<p class="stage__sum">{{ stage.summary }}</p>{% endif %}
+
+  {% if owner_view %}
+    {% comment %}
+      Статус меняется прямо здесь, а не на отдельной странице: за время
+      проекта его трогают полсотни раз, и три нажатия вместо одного
+      превращаются в «поменяю потом», то есть никогда.
+    {% endcomment %}
+    <form class="stage__status" method="post"
+          action="{% url 'cabinet_stage_status' stage.pk %}" data-act>
+      {% csrf_token %}
+      {% for value, label in statuses %}
+        <button class="chip{% if stage.status == value %} is-on{% endif %}"
+                type="submit" name="status" value="{{ value }}">{{ label }}</button>
+      {% endfor %}
+    </form>
+
+    {% if stage.status != 'done' %}
+      {% comment %}
+        «Ждём заказчика» — отдельная форма, а не ещё одна кнопка в форме
+        статуса. Иначе в одном отправлении оказалось бы два поля status
+        (текущее и нажатое), и какое из них дойдёт до сервера — вопрос
+        порядка в разметке, а не замысла.
+      {% endcomment %}
+      <form class="stage__status" method="post"
+            action="{% url 'cabinet_stage_status' stage.pk %}" data-act>
+        {% csrf_token %}
+        <input type="hidden" name="status" value="{{ stage.status }}">
+        <button class="chip chip--wait{% if stage.waits_client %} is-on{% endif %}"
+                type="submit" name="waiting_on"
+                value="{% if stage.waits_client %}me{% else %}client{% endif %}">
+          {% if stage.waits_client %}снять «ждём вас»{% else %}ждём заказчика{% endif %}
+        </button>
+      </form>
+    {% endif %}
+  {% endif %}
+
+  <ul class="tasks">
+    {% for task in stage.tasks.all %}
+      <li class="task{% if task.is_done %} is-done{% endif %} task--{{ task.who }}">
+        <form method="post" action="{% url 'cabinet_task_toggle' task.pk %}" data-act>
+          {% csrf_token %}
+          <input type="hidden" name="done" value="{% if task.is_done %}0{% else %}1{% endif %}">
+          <button class="task__box" type="submit"
+                  {% if not owner_view and not task.is_client %}disabled
+                  title="Эту строку закрываю я"{% endif %}
+                  aria-label="{% if task.is_done %}Снять отметку{% else %}Отметить сделанным{% endif %}">
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+              <path d="M3 8.5 6.4 12 13 4.5" fill="none" stroke="currentColor"
+                    stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </form>
+        <div class="task__body">
+          <p class="task__title">{{ task.title }}</p>
+          <p class="task__meta">
+            <span class="who who--{{ task.who }}">{{ task.get_who_display }}</span>
+            {% if task.is_done and task.done_at %}
+              <span>сделано {{ task.done_at|date:"d.m.Y" }}</span>
+            {% endif %}
+          </p>
+          {% if task.comment %}<p class="task__note">{{ task.comment }}</p>{% endif %}
+        </div>
+        {% if owner_view %}
+          <form method="post" action="{% url 'cabinet_task_delete' task.pk %}" data-act>
+            {% csrf_token %}
+            <button class="task__del" type="submit" aria-label="Убрать задачу">×</button>
+          </form>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li class="tasks__none">
+        {% if owner_view %}Задач тут пока нет.
+        {% else %}На этом этапе от вас ничего не нужно.{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if owner_view %}
+    <form class="task-add" method="post"
+          action="{% url 'cabinet_task_add' stage.pk %}" data-act data-reset>
+      {% csrf_token %}
+      <input class="input input--sm" type="text" name="title" maxlength="250"
+             placeholder="Что сделать" aria-label="Что сделать" required>
+      <select class="input input--sm" name="who" aria-label="Кто делает">
+        {% for value, label in whos %}
+          <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn--sm" type="submit">Добавить</button>
+    </form>
+  {% endif %}
+</article>

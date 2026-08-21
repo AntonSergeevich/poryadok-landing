@@ -1,0 +1,15 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+
+{% block cab_title %}Кабинет{% endblock %}
+
+{% block cab_content %}
+<div class="wrap--narrow">
+  <span class="tag">Кабинет</span>
+  <h1>{{ client.name }}, здравствуйте</h1>
+  <p class="lede">
+    Проект ещё не заведён. Как только он появится, здесь будет шкала
+    этапов: что сделано, что идёт сейчас и что нужно от вас.
+  </p>
+  <p class="muted">Ничего делать не надо — я напишу.</p>
+</div>
+{% endblock %}

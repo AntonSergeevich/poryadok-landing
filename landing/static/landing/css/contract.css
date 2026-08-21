@@ -1,0 +1,169 @@
+/* =========================================================================
+   ДОГОВОР
+   Документ, а не страница сайта. Отсюда и вёрстка: узкая колонка, засечки,
+   нумерация пунктов слева, поля как на листе А4.
+
+   Печать здесь — не «дополнительная возможность», а основной способ
+   использования: договор распечатывают или сохраняют в PDF через окно
+   печати браузера. Поэтому правила @media print не украшение, а половина
+   этого файла.
+   ========================================================================= */
+
+/* ---------- Управление (только на экране) ---------- */
+
+.doc-bar{
+  display:grid;gap:12px;
+  border:1px solid var(--line);background:var(--sheet);
+  padding:clamp(16px,2vw,22px);margin-bottom:var(--gut);
+}
+.doc-bar__top{
+  display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;
+  justify-content:space-between;
+}
+.doc-bar__acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.doc-bar__acts form{display:contents}
+.doc-state{
+  display:inline-flex;gap:8px;align-items:center;
+  font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted);
+}
+.doc-state::before{
+  content:'';width:8px;height:8px;border:1px solid currentColor;
+}
+.doc-state--issued{color:var(--ink)}
+.doc-state--issued::before{background:currentColor}
+.doc-state--signed{color:#1c6b3f}
+.doc-state--signed::before{background:currentColor;border-radius:50%}
+.doc-state--canceled{text-decoration:line-through}
+
+.doc-warn{
+  border-left:3px solid var(--ink);background:var(--graphite-wash);
+  padding:12px 14px;font-size:var(--t-small);line-height:1.55;
+}
+.doc-warn ul{margin:6px 0 0;padding-left:18px}
+
+.doc-scan{display:grid;gap:8px}
+.doc-scan__row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* Свёрнутые блоки правки. Свёрнуты потому, что открывают их редко:
+   реквизиты заполняют один раз, условия — перед выставлением. Развёрнутые
+   они заслоняли бы сам документ, а на страницу приходят читать его. */
+.doc-notes{border-top:1px solid var(--line);padding-top:12px}
+.doc-notes summary{cursor:pointer;font-size:var(--t-small)}
+
+/* ---------- Сам документ ---------- */
+
+.doc{
+  background:var(--sheet);border:1px solid var(--line);
+  padding:clamp(20px,4vw,52px);
+  max-width:820px;margin:0 auto;
+  /* Засечки — единственное место на сайте, где они уместны. Договор
+     читают глазами юриста, а не глазами посетителя лендинга, и он
+     обязан выглядеть как документ, а не как ещё один экран. */
+  font-family:Georgia,'Times New Roman','Liberation Serif',serif;
+  font-size:15px;line-height:1.6;
+  /* Переносы включены намеренно: в узкой колонке юридический текст
+     с длинными словами иначе рвётся дырами по всей строке. */
+  hyphens:auto;
+}
+.doc__head{text-align:center;margin-bottom:26px}
+.doc__head h1{
+  font:500 1.15rem/1.4 var(--f-sans);letter-spacing:.02em;
+  text-transform:uppercase;margin:0 0 6px;
+}
+.doc__place{
+  display:flex;justify-content:space-between;gap:16px;
+  margin-top:20px;font-size:14px;
+}
+.doc__lead{margin:0 0 24px;text-align:justify}
+
+.doc__sec{margin:0 0 20px;break-inside:avoid}
+.doc__sec h2{
+  font:500 .9rem/1.4 var(--f-sans);text-transform:uppercase;
+  letter-spacing:.04em;margin:0 0 10px;
+}
+.doc__cl{display:flex;gap:10px;margin:0 0 8px;text-align:justify}
+.doc__cl b{
+  flex:none;min-width:34px;font-weight:400;
+  font-variant-numeric:tabular-nums;
+}
+
+.doc__req{
+  display:grid;gap:22px;margin-top:8px;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));
+}
+.doc__req h3{font:500 .85rem/1.4 var(--f-sans);text-transform:uppercase;
+  letter-spacing:.04em;margin:0 0 8px}
+.doc__req p{margin:0 0 3px;font-size:13.5px;line-height:1.5}
+.doc__sign{
+  margin-top:26px;padding-top:8px;border-top:1px solid var(--ink);
+  font-size:13px;color:var(--muted);
+}
+
+.doc__app{
+  margin-top:34px;padding-top:24px;border-top:1px solid var(--line);
+  /* Приложение начинается с новой страницы: его подписывают отдельно
+     и часто отправляют отдельно. */
+  break-before:page;
+}
+.doc__app h2{font:500 .95rem/1.4 var(--f-sans);text-transform:uppercase;
+  letter-spacing:.04em;margin:0 0 4px}
+.doc__app-sub{font-size:13px;color:var(--muted);margin:0 0 16px}
+.doc__list{margin:0;padding-left:22px}
+.doc__list li{margin-bottom:6px;text-align:justify}
+
+.doc__table{width:100%;border-collapse:collapse;font-size:13.5px}
+.doc__table th,.doc__table td{
+  border:1px solid var(--line);padding:7px 9px;text-align:left;
+  vertical-align:top;
+}
+.doc__table th{font:500 var(--t-tag)/1.3 var(--f-mono);
+  text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.doc__table td:last-child,.doc__table th:last-child{
+  text-align:right;white-space:nowrap;
+}
+.doc__wrap{overflow-x:auto}
+
+.doc__blank{
+  display:inline-block;min-width:120px;border-bottom:1px solid var(--ink);
+}
+
+/* ---------- Печать ----------
+   Всё, что не документ, с листа убирается: шапка сайта, меню, кнопки,
+   подсказки. Печатают договор, а не экран, на котором он открыт. */
+
+@media print{
+  @page{size:A4;margin:18mm 16mm}
+  html,body{background:#fff!important;color:#000!important}
+  .head,.dock,.foot,.doc-bar,.notes,.cab__back,.skip,
+  .cookie{display:none!important}
+  .sheet,.wrap,main{padding:0!important;margin:0!important;
+    max-width:none!important;border:0!important}
+  .doc{
+    border:0;padding:0;max-width:none;background:#fff;
+    font-size:11.5pt;line-height:1.45;
+  }
+  .doc__head h1{font-size:13pt}
+  .doc__sec{margin-bottom:14px}
+  /* Заголовок раздела не должен остаться внизу листа один. */
+  .doc__sec h2{break-after:avoid}
+  .doc__cl{margin-bottom:5px}
+  a{text-decoration:none;color:#000}
+}
+
+/* Печать вызывается скриптом, и без него кнопка была бы мёртвой.
+   Ctrl+P при этом работает всегда — возможность распечатать
+   не пропадает, пропадает только обещание кнопки. */
+html:not([data-js]) [data-print]{display:none}
+
+/* Формы черновика. Двумя колонками, потому что полей много, а каждое
+   короткое: в одну колонку это экран прокрутки ради семи чисел. */
+.doc-form{
+  display:grid;gap:12px;margin-top:12px;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));
+  align-items:end;
+}
+.doc-form .field--wide{grid-column:1/-1}
+.doc-form textarea.input{resize:vertical;min-height:120px;font:inherit;
+  font-size:var(--t-small);line-height:1.5}
+.doc-form button{justify-self:start}

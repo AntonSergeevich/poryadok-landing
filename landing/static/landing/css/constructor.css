@@ -1,0 +1,252 @@
+/* =========================================================================
+   КОНСТРУКТОР
+   Схема системы на листе: ядро в центре, блоки вокруг. Подключённый блок
+   соединён с ядром сплошной линией, отключённый стоит пунктиром в стороне.
+
+   Метафора не украшение. Она отвечает на вопрос, который иначе задают
+   голосом: «а это отдельно или вместе?». Линия к ядру говорит, что вместе,
+   раньше любого текста.
+   ========================================================================= */
+
+.build{display:block}
+
+/* Схема и цена слева, блоки лентой справа.
+
+   Раньше схема стояла во всю ширину сверху, а цена липла сбоку
+   от списка — и при прокрутке списка картинка уезжала вверх, хотя
+   именно она показывает, что происходит с набором. Теперь на месте
+   остаётся то, что смотрят: схема с ценой; листается то, что выбирают. */
+.build__grid{display:grid;gap:var(--gut);align-items:start}
+@media (min-width:960px){
+  .build__grid{grid-template-columns:minmax(300px,.85fr) minmax(0,1.15fr)}
+  .build__left{position:sticky;top:88px}
+}
+.build__h{font-size:var(--t-h3);margin:0 0 16px}
+.build__list .build__h{margin-top:32px}
+.build__list .build__h:first-child{margin-top:0}
+
+/* Лента блоков: прокручивается своей полосой, не утаскивая страницу.
+   Одиннадцать блоков подряд — это два экрана, после которых схема
+   с ценой оказывалась бы далеко позади. */
+.blocks{
+  display:grid;gap:8px;
+  max-height:min(56vh,560px);overflow-y:auto;
+  padding-right:6px;
+  scrollbar-width:thin;
+  /* Обрез сверху и снизу говорит, что список продолжается. Без него
+     непонятно, кончился он или просто упёрся в край. */
+  mask-image:linear-gradient(to bottom,transparent,#000 12px,
+             #000 calc(100% - 12px),transparent);
+}
+@media (max-width:959px){
+  /* На узком экране своя полоса прокрутки внутри страницы — это две
+     прокрутки друг в друге, и палец попадает не в ту. */
+  .blocks{max-height:none;overflow:visible;mask-image:none;padding-right:0}
+}
+
+/* ---------- Схема ---------- */
+
+.scheme{
+  position:relative;
+  height:clamp(260px,30vw,340px);
+  border:1px solid var(--line);background:var(--sheet);
+  background-image:
+    linear-gradient(var(--grid-minor) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-minor) 1px,transparent 1px);
+  background-size:16px 16px,16px 16px;
+  overflow:hidden;
+}
+
+.scheme__wires{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+.scheme__wires line{
+  stroke:var(--line);stroke-width:1;stroke-dasharray:3 4;
+  transition:stroke .3s ease;
+}
+.scheme__wires line.is-on{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:none}
+
+.scheme__core{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:3;
+  display:grid;gap:4px;place-items:center;text-align:center;
+  width:132px;height:80px;
+  border:2px solid var(--graphite);background:var(--paper);
+  padding:8px;
+}
+.scheme__core-name{font:500 1rem/1 var(--f-sans)}
+.scheme__core-sub{font:400 .625rem/1.3 var(--f-mono);color:var(--muted)}
+
+/* Блоки на схеме — значки без подписей. Одиннадцать слов по кругу
+   не помещались и лезли друг на друга; а на схеме важно не прочитать
+   название, а увидеть, что подключено. Название рядом, в списке. */
+.scheme__ring{position:absolute;inset:0;z-index:2}
+.node{
+  position:absolute;transform:translate(-50%,-50%);
+  display:grid;place-items:center;
+  width:38px;height:38px;
+  border:1px dashed var(--line);background:var(--paper);color:var(--muted);
+  transition:color .25s ease,border-color .25s ease,background .25s ease,
+             opacity .25s ease,transform .25s ease;
+  opacity:.55;
+}
+.node svg{fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
+.node.is-on{
+  border-style:solid;border-color:var(--ink);
+  color:var(--ink);background:var(--sheet);opacity:1;
+}
+
+/* Плоская раскладка — значки строкой под ядром. Нужна на узком экране
+   и на странице без скрипта; правила общие намеренно, два набора для
+   одного вида однажды разъедутся. */
+html:not([data-js]) .scheme,.scheme.is-flat{height:auto;padding:18px}
+html:not([data-js]) .scheme__wires,.scheme.is-flat .scheme__wires{display:none}
+html:not([data-js]) .scheme__core,.scheme.is-flat .scheme__core{
+  position:static;transform:none;width:auto;height:auto;margin-bottom:14px;
+}
+html:not([data-js]) .scheme__ring,.scheme.is-flat .scheme__ring{
+  position:static;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+}
+html:not([data-js]) .node,.scheme.is-flat .node{position:static;transform:none}
+
+.scheme__note{
+  margin:12px 0 16px;font-size:var(--t-small);color:var(--muted);line-height:1.5;
+}
+.scheme__note-wires{display:none}
+.build__left:has(.scheme:not(.is-flat)) .scheme__note-wires{display:inline}
+.build__left:has(.scheme:not(.is-flat)) .scheme__note-flat{display:none}
+html:not([data-js]) .scheme__note-wires{display:none}
+html:not([data-js]) .scheme__note-flat{display:inline}
+
+/* Набор значков не показывается — из него только ссылаются. */
+.ico-set{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ---------- Блоки ---------- */
+
+.block{
+  /* Точка отсчёта для спрятанного флажка. Без неё он позиционируется
+     относительно страницы и формально оказывается за пределами блока —
+     невидимо, но неверно: так же ведут себя подсказки и обводка фокуса. */
+  position:relative;
+  display:flex;gap:12px;align-items:flex-start;
+  padding:13px 15px;
+  border:1px solid var(--line);background:var(--sheet);cursor:pointer;
+  transition:border-color .16s ease,background .16s ease;
+}
+.block:hover{border-color:var(--graphite)}
+.block:has(input:checked){border-color:var(--ink);border-left-width:3px}
+.block--core{cursor:default;background:var(--graphite-wash)}
+.block--core:hover{border-color:var(--ink)}
+.block input{
+  position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+  overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;
+}
+.block__box{
+  flex:none;display:grid;place-items:center;width:20px;height:20px;
+  border:1px solid var(--line);background:var(--paper);color:transparent;
+  transition:background .16s ease,border-color .16s ease,color .16s ease;
+}
+.block:has(input:checked) .block__box{
+  background:var(--ink);border-color:var(--ink);color:#fff;
+}
+.block:has(input:focus-visible) .block__box{outline:2px solid var(--ink);outline-offset:2px}
+
+/* min-width:0 обязателен: без него длинное слово в описании распирает
+   колонку сетки, и текст вылезал за рамку блока — «Сотрудники
+   и выработка» уезжали за край. */
+.block__body{flex:1;min-width:0;display:grid;gap:5px}
+.block__head{
+  display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;
+  justify-content:space-between;min-width:0;
+}
+.block__name{display:flex;gap:8px;align-items:center;min-width:0}
+.block__name b{font-size:.9375rem}
+.block__ico{flex:none;fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round;color:var(--muted)}
+.block:has(input:checked) .block__ico{color:var(--ink)}
+.block__price{font:500 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  letter-spacing:.06em;white-space:nowrap}
+.block:has(input:checked) .block__price{color:var(--ink)}
+/* overflow-wrap ловит то, что не поймал min-width: длинное слово
+   переносится внутри блока, а не выталкивает его край наружу. */
+.block__gain{font-size:var(--t-small);color:var(--muted);line-height:1.45;
+  overflow-wrap:anywhere}
+
+/* ---------- Масштаб ---------- */
+
+.scales{display:grid;gap:8px;margin-bottom:16px}
+.scale{
+  display:flex;gap:12px;align-items:flex-start;padding:14px 16px;
+  border:1px solid var(--line);background:var(--sheet);cursor:pointer;
+}
+.scale:hover{border-color:var(--graphite)}
+.scale:has(input:checked){border-color:var(--ink);border-left-width:3px}
+.scale input{margin-top:3px;accent-color:var(--ink)}
+.scale__body{display:grid;gap:4px}
+.scale__body b{font-size:1rem}
+.scale__body span{font-size:var(--t-small);color:var(--muted);line-height:1.5}
+
+/* ---------- Счёт ---------- */
+
+.total{
+  border:1px solid var(--graphite);background:var(--sheet);
+  padding:clamp(18px,2.4vw,26px);margin-bottom:12px;
+}
+.total__label{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.12em;color:var(--muted);margin-bottom:10px}
+.total__fig{
+  font:500 clamp(1.9rem,1.3rem + 2.2vw,2.9rem)/1 var(--f-sans);
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums;
+  /* Число меняется на месте, и прыжок раскладки при этом читается как
+     сбой. Переход по цвету показывает, что оно обновилось, не двигая
+     ничего вокруг. */
+  transition:color .25s ease;
+}
+.total__fig span{font-size:.55em;color:var(--muted)}
+.total.is-new .total__fig{color:var(--ink)}
+
+.total__rows{display:grid;gap:8px;margin:18px 0 0}
+.total__rows > div{display:flex;justify-content:space-between;gap:12px;
+  align-items:baseline;padding-bottom:7px;border-bottom:1px solid var(--line)}
+.total__rows dt{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted)}
+.total__rows dd{margin:0;font-size:var(--t-small);font-variant-numeric:tabular-nums}
+.total__save dd{color:var(--ink);font-weight:500}
+.total .small{margin-top:14px}
+
+.build__total .btn{margin-bottom:10px}
+/* Со скриптом число пересчитывается само, и кнопка «посчитать» рядом
+   с уже посчитанным числом читается как «а это ещё не итог». */
+html[data-js] .build__recount{display:none}
+
+.build__total .small{font-size:var(--t-tag);color:var(--muted);line-height:1.6}
+
+/* ---------- С чем сравнивать ----------
+   Человек, увидевший «199 000», сравнивает это с последней услышанной
+   ценой — а слышал он обычно про подписку за тысячу в месяц. Не сказать,
+   что это разные вещи, значит оставить его наедине с выводом «дорого». */
+
+.versus{
+  display:grid;gap:var(--gut);
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));
+}
+.vs{
+  border:1px solid var(--line);background:var(--sheet);
+  padding:clamp(20px,2.6vw,28px);display:grid;gap:14px;align-content:start;
+}
+.vs h3{font-size:var(--t-h3)}
+.vs p{font-size:var(--t-small);color:var(--muted);line-height:1.6}
+.vs__fig{
+  font:500 clamp(1.4rem,1.1rem + 1.1vw,1.9rem)/1.1 var(--f-sans);
+  letter-spacing:-.02em;color:var(--graphite)!important;
+  display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;
+}
+.vs__fig span{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em}
+.vs__note{
+  margin-top:auto;padding-top:12px;border-top:1px solid var(--line);
+  font-size:var(--t-tag)!important;line-height:1.6;
+}
+/* Своя колонка выделена, но не кричит: это сравнение, а не витрина.
+   Разница в одной линии слева и цвете числа. */
+.vs--mine{border-color:var(--ink);border-left-width:3px}
+.vs--mine .vs__fig{color:var(--ink)!important}
+.versus__src{margin-top:var(--gut);color:var(--muted)}

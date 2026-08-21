@@ -1,0 +1,64 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+
+{% block cab_title %}Деньги{% endblock %}
+
+{% block cab_content %}
+<div class="cab__head">
+  <div>
+    <span class="tag">Деньги</span>
+    <h1>Сколько заработали</h1>
+    <p class="lede">Три числа, которые считаются сами.</p>
+  </div>
+</div>
+
+<section class="panel panel--wide">
+  <dl class="money money--big">
+    <div><dt>Договорились</dt><dd>{{ agreed|floatformat:"0g" }} ₽</dd></div>
+    <div><dt>Оплачено</dt><dd class="is-ok">{{ paid|floatformat:"0g" }} ₽</dd></div>
+    <div><dt>Осталось</dt><dd><b>{{ left|floatformat:"0g" }} ₽</b></dd></div>
+  </dl>
+  <p class="muted">
+    Оплаты вносятся руками на странице проекта: переводы на карту и по
+    счёту — половина всех денег, и система, которая их не видит,
+    показывает неправду.
+  </p>
+</section>
+
+<section class="panel panel--wide">
+  <h2>По проектам</h2>
+  <div class="lead-list">
+    {% for project in projects %}
+      <a class="lead-row" href="{% url 'cabinet_project' project.pk %}">
+        <span class="lead-row__who">
+          <b>{{ project.title }}</b>
+          <span class="lead-row__phone">{{ project.client.name }}</span>
+        </span>
+        <span class="lead-row__area">{{ project.price|floatformat:"0g" }} ₽</span>
+        <span class="lead-row__area is-ok">{{ project.paid_total|floatformat:"0g" }} ₽</span>
+        <span class="lead-row__when">
+          {% if project.debt > 0 %}должны {{ project.debt|floatformat:"0g" }} ₽
+          {% else %}закрыто{% endif %}
+        </span>
+      </a>
+    {% empty %}
+      <p class="muted">Проектов нет.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel panel--wide">
+  <h2>Последние оплаты</h2>
+  <ul class="leads">
+    {% for payment in recent %}
+      <li>
+        <b>{{ payment.amount|floatformat:"0g" }} ₽</b>
+        <span>{{ payment.get_purpose_display }}</span>
+        {% if payment.project %}<span>{{ payment.project.title }}</span>{% endif %}
+        <span class="muted">{{ payment.paid_at|date:"d.m.Y"|default:"—" }}</span>
+      </li>
+    {% empty %}
+      <li class="muted">Оплат пока нет.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

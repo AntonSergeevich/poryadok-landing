@@ -1,0 +1,183 @@
+{% comment %}
+  Сам документ. Отдельным файлом, потому что перерисовывается: правка
+  условий черновика меняет и суммы прописью, и календарный план,
+  и текст приложений. Собирать это в браузере значило бы завести вторую
+  копию договора — а второй копии у договора быть не может.
+{% endcomment %}
+<article class="doc">
+  <div class="doc__head">
+    <h1>Договор возмездного оказания услуг № {{ data.number }}</h1>
+    <div class="doc__place">
+      <span>г. {{ data.city }}</span>
+      <span>{{ data.date }}</span>
+    </div>
+  </div>
+
+  <p class="doc__lead">{{ preamble }}</p>
+
+  {% for section in body %}
+    <section class="doc__sec">
+      <h2>{{ section.number }}. {{ section.title }}</h2>
+      {% for clause in section.clauses %}
+        <p class="doc__cl"><b>{{ clause.number }}.</b><span>{{ clause.text }}</span></p>
+      {% endfor %}
+    </section>
+  {% endfor %}
+
+  {% comment %}
+    Раздел 11 — реквизиты. Он не в SECTIONS намеренно: это не текст,
+    а таблица, и собирается она версткой. Номер 11 при этом жёсткий,
+    потому что на него ссылаются пункты 3.4 и 10.1 — если разделов
+    станет больше, ссылки в тексте надо править вместе с этим числом.
+  {% endcomment %}
+  <section class="doc__sec">
+    <h2>11. Реквизиты и подписи Сторон</h2>
+    <div class="doc__req">
+      <div>
+        <h3>Исполнитель</h3>
+        <p>{{ data.ex_name }}</p>
+        <p>{{ data.ex_status }}</p>
+        <p>ИНН {{ data.ex_inn }}</p>
+        <p>Адрес: {{ data.ex_address }}</p>
+        {% if data.ex_account %}
+          <p>Счёт {{ data.ex_account }}</p>
+          <p>{{ data.ex_bank }}</p>
+          <p>БИК {{ data.ex_bik }}{% if data.ex_corr %}, к/с {{ data.ex_corr }}{% endif %}</p>
+        {% elif data.ex_card %}
+          <p>Карта {{ data.ex_card }}</p>
+        {% endif %}
+        <p>Телефон {{ data.ex_phone }}</p>
+        <p>Почта {{ data.ex_email }}</p>
+        <p class="doc__sign">Подпись ______________ / {{ data.ex_name }}</p>
+      </div>
+      <div>
+        <h3>Заказчик</h3>
+        <p>{{ data.cl_title }}</p>
+        <p>ИНН {{ data.cl_inn }}</p>
+        <p>Адрес: {{ data.cl_address }}</p>
+        <p>Телефон {{ data.cl_phone }}</p>
+        <p>Почта {{ data.cl_email }}</p>
+        <p class="doc__sign">Подпись ______________ / {{ data.cl_signer }}</p>
+      </div>
+    </div>
+  </section>
+
+  {# ── Приложение № 1 ─────────────────────────────────────────── #}
+  <section class="doc__app">
+    <h2>Приложение № 1. Состав системы</h2>
+    <p class="doc__app-sub">
+      к Договору № {{ data.number }} от {{ data.date }}
+    </p>
+    {% if data.scope %}
+      <ol class="doc__list">
+        {% for line in data.scope %}<li>{{ line }}</li>{% endfor %}
+      </ol>
+    {% else %}
+      <p>Состав системы согласуется Сторонами дополнительно.</p>
+    {% endif %}
+    <div class="doc__req">
+      <div><p class="doc__sign">Исполнитель ______________</p></div>
+      <div><p class="doc__sign">Заказчик ______________</p></div>
+    </div>
+  </section>
+
+  {# ── Приложение № 2 ─────────────────────────────────────────── #}
+  <section class="doc__app">
+    <h2>Приложение № 2. Календарный план</h2>
+    <p class="doc__app-sub">
+      к Договору № {{ data.number }} от {{ data.date }}.
+      Сроки указаны в рабочих днях и текут последовательно.
+      Отсчёт начинается с даты, определённой п. 2.1 Договора.
+    </p>
+    {% if data.plan %}
+      <div class="doc__wrap">
+        <table class="doc__table">
+          <thead>
+            <tr><th>№</th><th>Этап</th><th>Что входит</th><th>Дней</th></tr>
+          </thead>
+          <tbody>
+            {% for row in data.plan %}
+              <tr>
+                <td>{{ row.number }}</td>
+                <td>{{ row.title }}</td>
+                <td>{{ row.summary }}</td>
+                <td>{{ row.days }}</td>
+              </tr>
+            {% endfor %}
+            <tr>
+              <td></td><td><b>Итого</b></td><td></td>
+              <td><b>{{ data.term_days }}</b></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>Календарный план согласуется Сторонами дополнительно.</p>
+    {% endif %}
+    <div class="doc__req">
+      <div><p class="doc__sign">Исполнитель ______________</p></div>
+      <div><p class="doc__sign">Заказчик ______________</p></div>
+    </div>
+  </section>
+
+  {# ── Приложение № 3 ─────────────────────────────────────────── #}
+  <section class="doc__app">
+    <h2>Приложение № 3. Форма акта об оказании услуг</h2>
+    <p class="doc__app-sub">
+      к Договору № {{ data.number }} от {{ data.date }}.
+      Форма подписывается при сдаче услуг; даты и суммы вносятся
+      на момент подписания.
+    </p>
+
+    <p class="doc__lead" style="text-align:center">
+      <b>АКТ об оказании услуг к Договору № {{ data.number }}
+      от {{ data.date }}</b>
+    </p>
+    <div class="doc__place">
+      <span>г. {{ data.city }}</span>
+      <span>«____» __________ 20___ г.</span>
+    </div>
+
+    <p class="doc__cl" style="margin-top:16px">
+      <span>
+        {{ data.ex_name }}, именуемый в дальнейшем «Исполнитель»,
+        с одной стороны, и {{ data.cl_title }}, именуемый в дальнейшем
+        «Заказчик», с другой стороны, составили настоящий Акт
+        о нижеследующем.
+      </span>
+    </p>
+    <p class="doc__cl"><b>1.</b><span>
+      Исполнитель оказал, а Заказчик принял услуги по разработке,
+      настройке и внедрению информационной системы «{{ data.system_name }}»
+      в объёме, предусмотренном Приложением № 1 к Договору.
+    </span></p>
+    <p class="doc__cl"><b>2.</b><span>
+      Стоимость оказанных услуг составляет {{ data.amount_words }}.
+      НДС не облагается.
+    </span></p>
+    <p class="doc__cl"><b>3.</b><span>
+      Услуги оказаны в срок и в полном объёме. Претензий по объёму,
+      качеству и срокам оказания услуг Заказчик не имеет.
+    </span></p>
+    <p class="doc__cl"><b>4.</b><span>
+      Исключительное право на результат переходит к Заказчику
+      в соответствии с п. 6.1 Договора. Исходный код и инструкция
+      по развёртыванию переданы Заказчику.
+    </span></p>
+    <p class="doc__cl"><b>5.</b><span>
+      Оплачено на дату подписания: ________________ рублей.
+      Подлежит оплате: ________________ рублей.
+    </span></p>
+
+    <div class="doc__req">
+      <div>
+        <h3>Исполнитель</h3>
+        <p class="doc__sign">______________ / {{ data.ex_name }}</p>
+      </div>
+      <div>
+        <h3>Заказчик</h3>
+        <p class="doc__sign">______________ / {{ data.cl_signer }}</p>
+      </div>
+    </div>
+  </section>
+</article>

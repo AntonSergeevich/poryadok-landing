@@ -236,6 +236,73 @@
     if (portraitImg.complete && portraitImg.naturalWidth === 0) markEmpty();
   }
 
+  /* ---------- Окно «было и стало» ----------
+     Содержимое уже в разметке — тянуть два коротких списка запросом
+     дороже, чем привезти их вместе со страницей.
+
+     Кнопка остаётся ссылкой на страницу работы: если <dialog>
+     не поддерживается или скрипт не загрузился, нажатие просто уводит
+     туда, где то же самое написано текстом. */
+  document.querySelectorAll('[data-ba]').forEach(function (link) {
+    var box = document.getElementById(link.dataset.ba);
+    if (!box || typeof box.showModal !== 'function') return;
+
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      box.showModal();
+    });
+
+    var close = box.querySelector('[data-ba-close]');
+    if (close) close.addEventListener('click', function () { box.close(); });
+
+    // Нажатие мимо карточки закрывает: окно занимает весь экран,
+    // и целью события оно оказывается только при попадании в подложку.
+    box.addEventListener('click', function (e) {
+      if (e.target === box) box.close();
+    });
+  });
+
+  /* ---------- Снимок экрана во весь экран ----------
+     Родное окно браузера <dialog>: Esc, возврат фокуса на ту же плитку
+     и закрытие остального от экранного диктора достаются бесплатно.
+
+     Если <dialog> не поддерживается (старая мобильная прошивка), не делаем
+     ничего: ссылка остаётся ссылкой и снимок откроется отдельной вкладкой.
+     Это хуже, но работает — а самодельное окно на таком браузере обычно
+     ломается совсем. */
+  var lightbox = document.getElementById('lightbox');
+  if (lightbox && typeof lightbox.showModal === 'function') {
+    var boxImg = document.getElementById('lightbox-img');
+    var boxCap = document.getElementById('lightbox-cap');
+
+    document.querySelectorAll('[data-shot]').forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+        boxImg.src = link.getAttribute('href');
+        boxImg.alt = link.dataset.cap || '';
+        boxCap.textContent = link.dataset.cap || '';
+        lightbox.showModal();
+      });
+    });
+
+    var closeBox = function () { lightbox.close(); };
+    var closeBtn = lightbox.querySelector('[data-shot-close]');
+    if (closeBtn) closeBtn.addEventListener('click', closeBox);
+
+    // Нажатие мимо снимка тоже закрывает: окно занимает весь экран,
+    // и цель события — само окно, только когда попали в подложку.
+    lightbox.addEventListener('click', function (e) {
+      if (e.target === lightbox) closeBox();
+    });
+
+    // Снимок весит под сотню килобайт. Держать его в памяти после закрытия
+    // незачем, а на слабом телефоне десяток открытых подряд заметен.
+    lightbox.addEventListener('close', function () {
+      boxImg.removeAttribute('src');
+      boxCap.textContent = '';
+    });
+  }
+
   /* ---------- Появление блоков ---------- */
   var root = document.documentElement;
   if (reduced || !('IntersectionObserver' in window)) {

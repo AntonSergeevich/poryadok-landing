@@ -1,0 +1,668 @@
+/* =========================================================================
+   КАБИНЕТ
+   Та же дизайн-система, что и на сайте: бумага, сетка, штамп, выносные
+   линии. Отдельная шкура сделала бы кабинет чужим приложением, куда «надо
+   ещё зайти», — а это ровно то ощущение, из-за которого в кабинеты
+   и перестают заходить.
+
+   Токены берутся из site.css: отдельного набора цветов здесь нет и
+   быть не должно.
+   ========================================================================= */
+
+.cab{padding-block:calc(var(--sec)*.55) var(--sec)}
+.wrap--narrow{max-width:640px;margin-inline:auto}
+
+.cab__head{
+  display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;
+  justify-content:space-between;margin-bottom:clamp(28px,4vw,48px);
+}
+.cab__head h1{font-size:var(--t-h2);letter-spacing:-.02em;margin-block:8px}
+.cab__head .tag{display:inline-flex}
+
+.head__out{margin:0}
+
+/* Где мы сейчас. Без отметки меню из пяти пунктов читается как список
+   ссылок, а не как место, в котором находишься. */
+.nav a.is-here{color:var(--ink);font-weight:600}
+.nav a.is-here::after{
+  content:"";display:block;height:2px;margin-top:3px;background:var(--ink);
+}
+
+/* Сообщения системы. Не всплывашка: их читают, а не смахивают. */
+.notes{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:8px}
+.note{
+  padding:12px 16px;border:1px solid var(--line);background:var(--sheet);
+  font-size:var(--t-small);
+}
+.note--success{border-color:var(--ink);border-left-width:3px}
+.note--error{border-color:#B3261E;border-left-width:3px;color:#7A1C15}
+
+/* ---------- Линейка времени ----------
+   Главный экран кабинета, а не подпись к нему: этап открывается нажатием
+   именно по ней, и промахиваться пальцем нельзя. Отсюда точка в 44 px.
+
+   На узком экране линейка прокручивается вбок. Восемь этапов в 360 px
+   не помещаются, а сжать их до нечитаемых точек — потерять смысл. */
+
+.rail{
+  position:relative;margin-bottom:clamp(28px,4vw,44px);
+  padding:8px 0 4px;overflow-x:auto;scrollbar-width:thin;
+}
+.rail__scale{position:relative;padding-top:8px}
+/* 22px — половина точки: линия проходит ровно через её центр. */
+.rail__track{
+  position:absolute;left:0;right:0;top:calc(8px + 22px);
+  height:2px;background:var(--line);min-width:720px;
+}
+.rail__fill{
+  display:block;height:100%;width:0;background:var(--ink);
+  transition:width .8s cubic-bezier(.22,.61,.36,1);
+}
+/* Наконечник: шкала должна читаться как направление, а не как полоса
+   загрузки. Полоса загрузки обещает срок, а мы его не обещаем. */
+.rail__fill::after{
+  content:"";position:absolute;top:50%;right:-1px;
+  width:8px;height:8px;transform:translate(50%,-50%) rotate(45deg);
+  border-top:2px solid var(--ink);border-right:2px solid var(--ink);
+}
+
+.rail__items{
+  position:relative;display:grid;grid-auto-flow:column;
+  grid-auto-columns:minmax(92px,1fr);gap:8px;
+  list-style:none;margin:0;padding:0;min-width:720px;
+}
+.rail__link{
+  display:grid;justify-items:center;gap:8px;
+  text-decoration:none;color:var(--muted);text-align:center;padding:0 4px;
+}
+.rail__dot{
+  display:grid;place-items:center;width:44px;height:44px;
+  border-radius:50%;background:var(--paper);border:2px solid var(--line);
+  color:var(--muted);font:500 1rem/1 var(--f-mono);
+  transition:transform .22s ease,border-color .22s ease,
+             background .22s ease,color .22s ease;
+}
+.rail__title{font-size:var(--t-small);font-weight:500;color:var(--graphite);line-height:1.25}
+.rail__meta{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);letter-spacing:.06em}
+
+.rail__item.is-done .rail__dot{background:var(--ink);border-color:var(--ink);color:#fff}
+.rail__item.is-current .rail__dot{
+  border-color:var(--ink);color:var(--ink);
+  transform:scale(1.12);box-shadow:0 0 0 6px var(--ink-wash);
+}
+.rail__item.is-waiting .rail__dot{border-color:#B3261E;color:#B3261E}
+.rail__item.is-waiting .rail__meta{color:#B3261E}
+.rail__link:hover .rail__dot{border-color:var(--ink)}
+.rail__link:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+
+/* Какой этап сейчас раскрыт. Это не то же, что «текущий»: смотреть можно
+   любой, а идёт всегда один, и путать эти два состояния нельзя.
+
+   Раскрытый обведён и связан ножкой с карточкой ниже. Без связи человек
+   нажимает на шкале, карточка меняется где-то под ней, и приходится
+   догадываться, что это одно и то же. */
+.rail__link.is-open .rail__dot{
+  box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--graphite);
+  border-color:var(--graphite);color:var(--graphite);
+}
+.rail__link.is-open .rail__title{font-weight:600}
+.rail__link.is-open .rail__dot::after{
+  content:"";position:absolute;top:calc(100% + 4px);left:50%;
+  width:2px;height:22px;margin-left:-1px;
+  background:linear-gradient(var(--graphite),transparent);
+}
+.rail__link.is-open .rail__dot{position:relative}
+
+.rail__hint{
+  margin-top:14px;font:400 var(--t-tag)/1.4 var(--f-mono);
+  color:var(--muted);letter-spacing:.06em;
+}
+/* Подсказку про нажатие показываем только там, где нажатие что-то даёт.
+   Без JavaScript карточки открыты все, и звать нажимать — врать. */
+.rail__hint-js{display:none}
+html[data-js] .rail__hint-js{display:inline}
+
+/* ---------- Раскладка ---------- */
+
+.cab__grid{display:grid;gap:var(--gut);align-items:start}
+@media (min-width:1000px){
+  .cab__grid{grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr)}
+  /* Правая колонка липкая: деньги и доступ нужны в момент, когда
+     смотришь на этап, а не после прокрутки в конец. */
+  .cab__side{position:sticky;top:96px}
+}
+.cab__main,.cab__side{display:grid;gap:var(--gut);min-width:0}
+
+.panel{background:var(--sheet);border:1px solid var(--line);padding:clamp(18px,2.4vw,26px)}
+.panel h2{font-size:var(--t-h3);margin-bottom:14px}
+.panel__line{font-size:var(--t-small);margin-bottom:8px}
+.panel form{margin-top:14px}
+.panel--wide{margin-bottom:var(--gut)}
+.muted{font-size:var(--t-small);color:var(--muted);line-height:1.55}
+.count{font:500 var(--t-tag)/1 var(--f-mono);color:var(--ink);vertical-align:middle}
+
+.money{display:grid;gap:10px;margin:0}
+.money > div{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.money dt{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted)}
+.money dd{margin:0;font-size:var(--t-body);font-variant-numeric:tabular-nums}
+.money .is-ok{color:#1B6B3A}
+
+/* ---------- Карточка этапа ---------- */
+
+/* Без скрипта переключать нечем, поэтому открыты все карточки. Правило
+   перебивает общее [hidden] из site.css — оба с !important, решает
+   специфичность, и здесь она выше. */
+html:not([data-js]) .stages .stage[hidden]{display:block!important}
+.stages{display:grid;gap:var(--gut)}
+.stage{background:var(--sheet);border:1px solid var(--line);padding:clamp(18px,2.4vw,26px)}
+.stage.is-current{border-color:var(--ink);border-left-width:3px}
+
+/* Отбивка после действия: работа, доведённая до конца, должна быть
+   замечена. Ни конфетти, ни звука — кабинет рабочий инструмент. */
+@media (prefers-reduced-motion:no-preference){
+  .stage.is-fresh{animation:stage-in .3s ease both}
+  @keyframes stage-in{from{opacity:.3;transform:translateY(4px)}to{opacity:1;transform:none}}
+}
+
+.stage__head{display:flex;gap:16px;align-items:flex-start;margin-bottom:14px}
+.stage__n{
+  flex:none;display:grid;place-items:center;width:34px;height:34px;
+  border:1px solid var(--graphite);font:500 1rem/1 var(--f-mono);
+}
+.stage__who h3{font-size:var(--t-h3)}
+.stage__flags{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.stage__date{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);letter-spacing:.06em}
+.stage__sum{font-size:var(--t-small);color:var(--muted);line-height:1.6;margin-bottom:16px}
+
+.flag{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;
+  padding:6px 9px;border:1px solid var(--line);color:var(--muted);
+}
+.flag--running{border-color:var(--ink);color:var(--ink)}
+.flag--review{border-color:#8A6A00;color:#8A6A00}
+.flag--done{background:var(--ink);border-color:var(--ink);color:#fff}
+.flag--wait{border-color:#B3261E;color:#B3261E}
+
+.stage__status{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.stage__status.is-busy{opacity:.5}
+.chip{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;
+  padding:9px 12px;background:transparent;border:1px solid var(--line);
+  color:var(--muted);cursor:pointer;
+  transition:border-color .16s ease,color .16s ease,background .16s ease;
+}
+.chip:hover{border-color:var(--graphite);color:var(--graphite)}
+.chip.is-on{background:var(--graphite);border-color:var(--graphite);color:var(--paper)}
+.chip--wait.is-on{background:#B3261E;border-color:#B3261E}
+.chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* ---------- Задачи ---------- */
+
+.tasks{list-style:none;padding:0;margin:0;display:grid;gap:2px}
+.task{
+  display:flex;gap:12px;align-items:flex-start;
+  padding:12px 14px;border:1px solid var(--line);background:var(--paper);
+  transition:opacity .2s ease,background .2s ease;
+}
+.task form{margin:0;display:flex}
+/* Задачи заказчика подчёркнуты слева: «ждут ли чего-то от меня» — вопрос,
+   на который экран обязан отвечать до чтения. */
+.task--client,.task--both{border-left:3px solid #B3261E}
+.task.is-done{opacity:.5}
+.task.is-done .task__title{text-decoration:line-through}
+
+.task__box{
+  flex:none;display:grid;place-items:center;width:22px;height:22px;
+  border:1px solid var(--line);background:var(--sheet);color:transparent;
+  cursor:pointer;transition:border-color .16s ease,background .16s ease;
+}
+.task__box:hover:not(:disabled){border-color:var(--ink)}
+.task__box:disabled{cursor:not-allowed;opacity:.45}
+.task__box:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.task.is-done .task__box{background:var(--ink);border-color:var(--ink);color:#fff}
+
+.task__body{flex:1;min-width:0}
+.task__title{font-size:var(--t-small);line-height:1.5}
+.task__meta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:6px}
+.task__meta span{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);letter-spacing:.06em}
+.task__note{margin-top:6px;font-size:var(--t-tag);color:var(--muted)}
+.who{padding:4px 7px;border:1px solid var(--line)}
+.who--client,.who--both{border-color:#B3261E;color:#B3261E!important}
+.task__del{
+  flex:none;background:transparent;border:0;color:var(--muted);
+  font-size:1.1rem;line-height:1;cursor:pointer;padding:2px 6px;
+}
+.task__del:hover{color:#B3261E}
+.tasks__none{padding:14px;font-size:var(--t-small);color:var(--muted)}
+
+.task-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.task-add .input{flex:1 1 200px;min-width:0}
+.task-add select.input{flex:0 0 auto}
+.input--sm{padding:10px 12px;font-size:var(--t-small)}
+.new-project{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.new-project .input{flex:1 1 180px;min-width:0}
+
+/* ---------- Плашки-ответы ---------- */
+
+.callout{padding:clamp(18px,2.4vw,26px);border:1px solid var(--line);
+  background:var(--sheet);margin-bottom:clamp(24px,3vw,36px)}
+.callout h2{font-size:var(--t-h3);margin-bottom:12px}
+.callout--wait{border-color:#B3261E;border-left-width:3px}
+.callout--calm{border-left:3px solid var(--ink)}
+.callout__list{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:10px}
+.callout__list li{display:flex;gap:12px;align-items:center}
+.callout__list form{margin:0;display:flex}
+.callout__list span{font-size:var(--t-small)}
+
+/* ---------- Рабочий стол ---------- */
+
+.deck{background:var(--sheet);border:1px solid var(--line);margin-bottom:var(--gut)}
+.deck__head{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;
+  justify-content:space-between;padding:clamp(16px,2.2vw,22px);
+  border-bottom:1px solid var(--graphite)}
+.deck__head h2{font-size:var(--t-h3)}
+.deck__head a{color:inherit}
+.deck__cols{display:grid;gap:0}
+@media (min-width:720px){
+  .deck__cols{grid-template-columns:1fr 1fr}
+  .deck__cols > div + div{border-left:1px solid var(--line);border-top:0}
+}
+.deck__cols > div{padding:clamp(16px,2.2vw,22px)}
+.deck__cols > div + div{border-top:1px solid var(--line)}
+.deck__cols h3{font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.14em;color:var(--muted);margin-bottom:12px}
+.deck__list{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.deck__list li{font-size:var(--t-small);padding-left:16px;position:relative}
+.deck__list li::before{content:"";position:absolute;left:0;top:.6em;
+  width:8px;height:1px;background:var(--line)}
+.deck__list--wait li::before{background:#B3261E;height:2px}
+
+.leads{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:8px}
+.leads li{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;
+  font-size:var(--t-small);padding-bottom:8px;border-bottom:1px solid var(--line)}
+
+/* ---------- Выданный доступ ---------- */
+
+.creds{border:0;padding:0;background:transparent;max-width:min(560px,94vw)}
+.creds::backdrop{background:rgba(13,15,14,.85)}
+.creds__box{background:var(--sheet);border:1px solid var(--graphite);
+  padding:clamp(20px,3vw,32px);color:var(--graphite)}
+.creds__box h2{font-size:var(--t-h3);margin-bottom:10px}
+.creds__rows{display:grid;gap:10px;margin:18px 0}
+.creds__rows > div{display:flex;justify-content:space-between;gap:12px;
+  align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.creds__rows dt{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted)}
+.creds__rows dd{margin:0;font-family:var(--f-mono);font-size:var(--t-small);
+  word-break:break-all;text-align:right}
+.creds__label{display:block;font:400 var(--t-tag)/1 var(--f-mono);
+  text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px}
+.creds__text{
+  width:100%;font-family:var(--f-mono);font-size:var(--t-small);line-height:1.5;
+  padding:12px;border:1px solid var(--line);background:var(--paper);
+  color:var(--graphite);resize:vertical;
+}
+.creds__actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+
+.linkish{background:none;border:0;padding:8px 0;color:var(--muted);
+  font-size:var(--t-small);text-decoration:underline;cursor:pointer}
+.linkish:hover{color:#B3261E}
+
+/* ---------- Вход и смена пароля ---------- */
+
+.login{display:grid;gap:16px;margin:28px 0}
+.field{display:grid;gap:8px}
+.field > span{font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted)}
+.field .helptext{font-size:var(--t-tag);color:var(--muted)}
+.login input{width:100%}
+
+/* ---------- Сообщение о неудаче ----------
+   Внизу экрана, не поверх содержимого: оно сообщает, а не требует. */
+.cab-note{
+  position:fixed;left:50%;bottom:20px;transform:translate(-50%,12px);
+  z-index:60;max-width:min(440px,92vw);
+  padding:12px 18px;background:var(--graphite);color:var(--paper);
+  font-size:var(--t-small);line-height:1.4;
+  opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;
+}
+.cab-note.is-on{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- Переписка ----------
+   Она здесь не для удобства — для доказательной базы. В мессенджере
+   «я вам присылал» не значит ничего: сообщение удаляется, чат чистится,
+   файл теряется вместе с ним.
+
+   Выглядит как мессенджер намеренно: в непохожее на мессенджер окно
+   не пишут, а пересказывают его содержимое в настоящий мессенджер —
+   и доказательная база снова оказывается там, откуда её уводили. */
+
+.chat{
+  margin-top:var(--gut);
+  background:var(--sheet);border:1px solid var(--line);
+  display:grid;
+}
+.chat__head{padding:clamp(18px,2.4vw,26px);border-bottom:1px solid var(--line)}
+.chat__head h2{font-size:var(--t-h3);margin-bottom:8px}
+.chat__hint{font-size:var(--t-small);color:var(--muted);line-height:1.55}
+
+.chat__more{
+  margin:14px auto 0;display:block;
+  font:400 var(--t-tag)/1 var(--f-mono);letter-spacing:.08em;
+  background:none;border:1px solid var(--line);color:var(--muted);
+  padding:9px 14px;cursor:pointer;
+}
+.chat__more:hover{border-color:var(--graphite);color:var(--graphite)}
+
+/* Лента прокручивается внутри себя, а не тянет страницу. Иначе форма
+   отправки уезжает вниз, и чтобы ответить, надо сначала долистать. */
+.chat__list{
+  list-style:none;margin:0;padding:clamp(16px,2.2vw,22px);
+  display:grid;gap:12px;align-content:start;
+  max-height:clamp(340px,52vh,560px);overflow-y:auto;scrollbar-width:thin;
+  overscroll-behavior:contain;
+}
+.chat__empty{font-size:var(--t-small);color:var(--muted);line-height:1.6}
+
+.msg{display:flex}
+.msg--mine{justify-content:flex-end}
+.msg__body{
+  max-width:min(78%,58ch);
+  padding:11px 14px;border:1px solid var(--line);background:var(--paper);
+}
+.msg--mine .msg__body{background:var(--ink-wash);border-color:transparent}
+/* Черновик: сообщение уже на экране, но ещё не у меня на сервере.
+   Врать, что отправилось, нельзя — человек закроет вкладку. */
+.msg.is-draft .msg__body{opacity:.55}
+.msg.is-failed .msg__body{opacity:1;border-color:#B3261E}
+.msg.is-failed .msg__meta{color:#B3261E}
+
+.msg__who{font:500 var(--t-tag)/1 var(--f-mono);color:var(--ink);
+  letter-spacing:.06em;margin-bottom:7px}
+.msg__text{font-size:var(--t-small);line-height:1.55;overflow-wrap:anywhere}
+.msg__meta{
+  margin-top:7px;display:flex;gap:10px;align-items:baseline;
+  font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);letter-spacing:.05em;
+}
+.msg__read{color:var(--ink)}
+
+.msg__files{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:8px}
+/* Картинку показываем сразу: «IMG_4382.jpg» ссылкой требует нажатия,
+   чтобы понять, что вообще прислали. */
+.msg__pic{display:block;line-height:0;border:1px solid var(--line)}
+.msg__pic img{max-width:100%;height:auto;display:block;max-height:280px;object-fit:cover}
+.msg__file{
+  display:flex;gap:10px;align-items:baseline;justify-content:space-between;
+  padding:9px 11px;border:1px solid var(--line);background:var(--sheet);
+  text-decoration:none;color:var(--graphite);
+}
+.msg__file:hover{border-color:var(--ink)}
+.msg__file-name{font-size:var(--t-small);overflow-wrap:anywhere}
+.msg__file-size{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);white-space:nowrap}
+
+.chat__form{padding:clamp(16px,2.2vw,22px);border-top:1px solid var(--line);display:grid;gap:10px}
+.chat__text{
+  width:100%;min-height:44px;max-height:220px;resize:none;
+  padding:12px 14px;border:1px solid var(--line);background:var(--paper);
+  font:400 var(--t-small)/1.5 var(--f-sans);color:var(--graphite);
+}
+.chat__text:focus-visible{outline:2px solid var(--ink);outline-offset:-1px;border-color:var(--ink)}
+.chat__tools{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.chat__clip{cursor:pointer}
+.chat__clip input{
+  position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+  overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;
+}
+.chat__clip span{
+  display:inline-block;padding:10px 14px;border:1px solid var(--line);
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted);
+}
+.chat__clip:hover span{border-color:var(--graphite);color:var(--graphite)}
+.chat__clip input:focus-visible + span{outline:2px solid var(--ink);outline-offset:2px}
+.chat__picked{font-size:var(--t-tag);color:var(--ink);flex:1;overflow-wrap:anywhere}
+.chat__tools .btn{margin-left:auto}
+.chat__note{font:400 var(--t-tag)/1.5 var(--f-mono);color:var(--muted)}
+/* Подсказка про сочетание клавиш — только там, где есть чем его нажать. */
+@media (hover:none){.chat__keys{display:none}}
+
+/* ---------- Списки: заявки, заказчики, оплаты ----------
+   Строка целиком — ссылка. Заходить в карточку через маленькую надпись
+   «открыть» справа значит промахиваться пальцем каждый второй раз. */
+
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:var(--gut)}
+.filters .chip{text-decoration:none}
+
+.lead-list{display:grid;gap:2px}
+.lead-row{
+  display:grid;gap:6px 16px;align-items:center;
+  grid-template-columns:1fr;
+  padding:14px 16px;border:1px solid var(--line);background:var(--sheet);
+  text-decoration:none;color:var(--graphite);
+  transition:border-color .16s ease,background .16s ease;
+}
+@media (min-width:760px){
+  .lead-row{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto minmax(0,.9fr)}
+}
+.lead-row:hover{border-color:var(--ink);background:var(--paper)}
+.lead-row__who{display:grid;gap:2px;min-width:0}
+.lead-row__who b{font-size:1rem}
+.lead-row__phone{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted)}
+.lead-row__area{font-size:var(--t-small);color:var(--muted);min-width:0}
+.lead-row__when{font:400 var(--t-tag)/1.3 var(--f-mono);color:var(--muted)}
+/* Просроченная заявка — единственное здесь, что требует действия
+   прямо сейчас, и это должно быть видно до чтения. */
+.lead-row.is-overdue{border-left:3px solid #B3261E}
+.lead-row.is-overdue .lead-row__when{color:#B3261E}
+
+.client-row{
+  display:grid;gap:10px 16px;grid-template-columns:1fr;
+  padding:16px;border:1px solid var(--line);background:var(--sheet);
+}
+@media (min-width:760px){
+  .client-row{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;align-items:center}
+}
+.client-row__who{display:grid;gap:3px;min-width:0}
+.client-row__who b{font-size:1rem}
+.client-row__who span{font-size:var(--t-small);color:var(--muted)}
+.client-row__projects{display:grid;gap:4px;font-size:var(--t-small);min-width:0}
+.client-row__access{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.client-row__access form{margin:0}
+
+/* ---------- Карточка заявки ---------- */
+
+.facts{display:grid;gap:9px;margin:0 0 16px}
+.facts > div{display:flex;justify-content:space-between;gap:12px;
+  align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.facts dt{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted)}
+.facts dd{margin:0;font-size:var(--t-small);text-align:right}
+.facts .is-overdue dd{color:#B3261E;font-weight:500}
+
+/* То, что человек написал сам. Отделено рамкой: это его слова,
+   а не мои выводы, и путать их нельзя. */
+.lead-said{
+  font-size:var(--t-small);line-height:1.6;color:var(--muted);
+  padding:12px 14px;background:var(--paper);border-left:2px solid var(--line);
+  margin-bottom:16px;
+}
+
+.lost{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.lost summary{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted);cursor:pointer;
+}
+.lost summary:hover{color:#B3261E}
+.lost form{margin-top:14px;display:grid;gap:10px}
+
+.flag--new{border-color:var(--ink);color:var(--ink)}
+.flag--thinking{border-color:#8A6A00;color:#8A6A00}
+.flag--won{background:var(--ink);border-color:var(--ink);color:#fff}
+.flag--lost{border-color:#B3261E;color:#B3261E}
+
+.panel--danger{border-color:#B3261E}
+.panel--danger h2{color:#B3261E}
+
+/* ---------- Деньги ---------- */
+
+.money--big{gap:14px}
+.money--big dd{font-size:1.35rem;font-weight:500}
+.money__set,.money__add{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;
+  margin-top:14px}
+.money__set .field,.money__add .input{flex:1 1 130px;min-width:0}
+.money__h{font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.14em;color:var(--muted);margin:20px 0 0}
+.pay-list{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:6px}
+.pay-list li{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;
+  font-size:var(--t-small);padding-bottom:6px;border-bottom:1px solid var(--line)}
+.pay-list form{margin:0 0 0 auto}
+.pay-list span{color:var(--muted);font-size:var(--t-tag)}
+
+/* ---------- Правка сообщения ----------
+   Кнопка живёт минуту и исчезает сама. Оставить её до перезагрузки
+   значит предложить действие, на которое сервер ответит отказом. */
+
+.msg__edit{
+  background:none;border:0;padding:2px 0;cursor:pointer;
+  font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  text-decoration:underline;
+}
+.msg__edit:hover{color:var(--ink)}
+.msg__edited{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);font-style:italic}
+.msg__form{display:grid;gap:8px;margin-top:8px}
+.msg__form textarea{width:100%;min-height:4.5rem}
+.msg__form-go{display:flex;gap:8px}
+
+/* ---------- Сводка ----------
+   Раздел, который открывают раз в месяц. Оформление здесь спокойнее,
+   чем на рабочем столе: смотрят его без спешки и по порядку. */
+
+.cab__cols{
+  display:grid;gap:var(--gut);margin-bottom:var(--gut);
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));
+}
+.cab__cols .panel{margin-bottom:0}
+
+/* Столбики выручки. Вёрсткой, без библиотек и без картинок: двенадцать
+   чисел не стоят ста килобайт кода, а на телефоне такой график ещё
+   и открывается мгновенно. */
+.bars{
+  display:grid;gap:4px;align-items:end;
+  grid-auto-flow:column;grid-auto-columns:1fr;
+  min-height:180px;margin:6px 0 0;
+  overflow-x:auto;
+}
+.bars__col{
+  display:grid;gap:6px;align-content:end;justify-items:center;
+  min-width:38px;height:100%;
+  grid-template-rows:auto 1fr auto;
+}
+.bars__fig{
+  font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  /* Числа вертикально: подписи в 6–7 знаков рядом не помещаются,
+     а прятать их за наведением значит спрятать от телефона совсем. */
+  writing-mode:vertical-rl;transform:rotate(180deg);
+  max-height:70px;overflow:hidden;
+}
+.bars__bar{
+  width:100%;max-width:34px;align-self:end;
+  background:var(--graphite);border:1px solid var(--graphite);
+  /* Пустой месяц — это не «нет столбика», это столбик нулевой высоты.
+     Полоска в один пиксель говорит, что месяц был и в нём было пусто. */
+  min-height:1px;
+}
+.bars__col.is-now .bars__bar{background:var(--ink);border-color:var(--ink)}
+.bars__label{
+  font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.bars__col.is-now .bars__label{color:var(--ink)}
+
+/* Таблицы сводки. Прокрутка своей полосой: на телефоне таблица из шести
+   колонок иначе растягивает страницу, и горизонтально едет весь экран. */
+.cab-table{overflow-x:auto;margin-top:8px}
+.cab-table table{width:100%;border-collapse:collapse;font-size:var(--t-small)}
+.cab-table th,.cab-table td{
+  border-bottom:1px solid var(--line);padding:9px 12px 9px 0;
+  text-align:left;vertical-align:top;
+}
+.cab-table th{
+  font:400 var(--t-tag)/1.3 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);white-space:nowrap;
+}
+.cab-table td.is-ok{color:#1c6b3f}
+
+.reasons{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:10px}
+.reasons li{
+  display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;
+  border-left:3px solid var(--line);padding-left:12px;
+  font-size:var(--t-small);
+}
+.reasons__times{
+  font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.08em;border:1px solid var(--line);padding:3px 7px;
+}
+/* Повторяющаяся причина — не три случая, а один повод пересмотреть
+   предложение. Поэтому она выделена. */
+.reasons li:has(.reasons__times){border-left-color:var(--ink)}
+
+.plain{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px;
+  font-size:var(--t-small)}
+
+/* ---------- Портфолио в кабинете ---------- */
+
+.work-new,.work-add{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:10px;
+}
+.work-new .field,.work-add .input{flex:1 1 180px;min-width:0}
+.work-new button,.work-add button{flex:none}
+
+.work-state{
+  display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;
+  justify-content:space-between;margin-bottom:12px;
+}
+
+/* Снятая с сайта работа в списке приглушена, но читается. Прятать её
+   нельзя: чаще всего именно её и ищут — чтобы дописать и показать. */
+.lead-row.is-quiet{opacity:.62}
+.lead-row.is-quiet:hover{opacity:1}
+
+.work-shots{
+  display:grid;gap:12px;margin-top:10px;
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr));
+}
+.work-shot{margin:0;display:grid;gap:6px}
+.work-shot img{
+  width:100%;height:auto;display:block;
+  border:1px solid var(--line);background:var(--sheet);
+}
+.work-shot figcaption{
+  display:flex;gap:8px;align-items:baseline;justify-content:space-between;
+  font-size:var(--t-tag);color:var(--muted);line-height:1.4;
+}
+.work-shot figcaption form{display:contents}
+.work-state__who{display:grid;gap:2px;min-width:0}
+.work-state__who b{font-size:1.05rem}
+
+/* ---------- Файлы ---------- */
+
+.files{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:10px}
+.file{
+  display:flex;gap:12px;align-items:flex-start;
+  padding-bottom:10px;border-bottom:1px solid var(--line);
+}
+.file:last-child{border-bottom:0;padding-bottom:0}
+/* Присланное заказчиком отмечено линией слева: «прислали» и «положил
+   сам» — разные вещи, и разбираться в этом по именам файлов нельзя. */
+.file--theirs{border-left:3px solid var(--ink);padding-left:10px}
+.file__thumb{flex:none;width:64px;height:64px;display:block;
+  border:1px solid var(--line);background:var(--sheet);overflow:hidden}
+.file__thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.file__body{flex:1;min-width:0;display:grid;gap:3px}
+.file__name{font-size:var(--t-small);overflow-wrap:anywhere}
+.file__note{font-size:var(--t-small);color:var(--muted);overflow-wrap:anywhere}
+.file__meta{font:400 var(--t-tag)/1.4 var(--f-mono);color:var(--muted)}
+.file-add{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.file-add .input{flex:1 1 160px;min-width:0}
+.file-add button{flex:none}

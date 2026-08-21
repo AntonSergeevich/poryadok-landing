@@ -1,0 +1,50 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+
+{% block cab_title %}Заказчики{% endblock %}
+
+{% block cab_content %}
+<div class="cab__head">
+  <div>
+    <span class="tag">Заказчики</span>
+    <h1>С кем работаем</h1>
+    <p class="lede">Проекты и доступ в кабинет — в одном месте.</p>
+  </div>
+</div>
+
+<div class="lead-list">
+  {% for client in rows %}
+    <div class="client-row">
+      <div class="client-row__who">
+        <b>{{ client.name }}</b>
+        {% if client.company %}<span>{{ client.company }}</span>{% endif %}
+        <span class="muted">{{ client.phone }}</span>
+      </div>
+
+      <div class="client-row__projects">
+        {% for project in client.projects.all %}
+          <a href="{% url 'cabinet_project' project.pk %}">{{ project.title }}</a>
+        {% empty %}
+          <span class="muted">проектов нет</span>
+        {% endfor %}
+      </div>
+
+      <div class="client-row__access">
+        {% if client.user and client.user.is_active %}
+          <span class="flag flag--done">кабинет открыт</span>
+          <span class="muted">{{ client.user.username }}</span>
+        {% else %}
+          <form method="post" action="{% url 'cabinet_grant' client.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="back" value="{{ request.path }}">
+            <button class="btn btn--sm" type="submit">Завести кабинет</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  {% empty %}
+    <p class="muted">Заказчиков пока нет. Они появляются из заявок.</p>
+  {% endfor %}
+</div>
+
+{% if issued %}{% include 'landing/cabinet/_issued.html' %}{% endif %}
+{% endblock %}

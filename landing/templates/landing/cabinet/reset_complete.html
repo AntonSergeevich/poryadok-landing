@@ -1,0 +1,16 @@
+{% extends 'landing/base.html' %}
+
+{% block title %}Пароль изменён — Системы Порядок{% endblock %}
+{% block nav %}<a href="{% url 'login' %}">Вход</a><a href="{% url 'index' %}">На сайт</a>{% endblock %}
+{% block head_action %}{% endblock %}
+
+{% block content %}
+<section class="sheet cab">
+  <div class="wrap wrap--narrow">
+    <span class="tag">Кабинет</span>
+    <h1>Готово</h1>
+    <p class="lede">Пароль изменён. Заходите новым.</p>
+    <p><a class="btn" href="{% url 'login' %}">Войти <span class="arrow" aria-hidden="true">→</span></a></p>
+  </div>
+</section>
+{% endblock %}

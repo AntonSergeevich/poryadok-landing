@@ -11,7 +11,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 import os
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -48,6 +50,20 @@ SITE_INN = os.getenv('SITE_INN', '382800965145')     # ИНН — подстав
 SITE_STATUS = os.getenv(
     'SITE_STATUS',
     'самозанятый, налог на профессиональный доход')
+
+# --- Реквизиты для договора ---
+# Здесь то, чего нет и не должно быть на сайте: адрес для писем и счёт.
+# Договор без них собрать можно, выставить — нельзя: заказчик получит
+# документ, распечатает, подпишет и только тогда спросит, куда платить.
+CONTRACT_ADDRESS = os.getenv('CONTRACT_ADDRESS', '')   # адрес для писем
+CONTRACT_ACCOUNT = os.getenv('CONTRACT_ACCOUNT', '')   # расчётный счёт
+CONTRACT_BANK = os.getenv('CONTRACT_BANK', '')         # название банка
+CONTRACT_BIK = os.getenv('CONTRACT_BIK', '')           # БИК
+CONTRACT_CORR = os.getenv('CONTRACT_CORR', '')         # корреспондентский счёт
+# Карта — для тех, кто работает без расчётного счёта. В договор попадает,
+# только если счёта нет: два способа оплаты в одном документе означают
+# два разных места, куда могут прийти деньги.
+CONTRACT_CARD = os.getenv('CONTRACT_CARD', '')
 
 # --- Telegram ---
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -136,6 +152,12 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'core.urls'
 
+# Куда уводить незалогиненного и куда возвращать после входа. Обе точки —
+# одна и та же дверь кабинета: развилка по роли живёт внутри неё.
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'cabinet'
+LOGOUT_REDIRECT_URL = 'index'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -158,8 +180,65 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# ── База ─────────────────────────────────────────────────────────────
+#
+# По умолчанию SQLite: локально он не требует ничего ставить, а для
+# разработки и тестов быстрее любого сервера.
+#
+# На боевом сервере — PostgreSQL, и включается он одной строкой в .env:
+#
+#     DATABASE_URL=postgres://poryadok:пароль@localhost:5432/poryadok
+#
+# Почему не SQLite на бою. Он пишет с блокировкой всей базы: пока идёт
+# одна запись, остальные ждут. Пока клиентов двое, это незаметно; когда
+# в кабинете сидят несколько человек и кто-то отправляет файл, остальные
+# упираются в паузу. Проявляется это не отказом, а «сайт задумался», —
+# и причину ищут где угодно, только не в базе.
+#
+# Второе, важнее: SQLite — один файл, и восстановление всегда «откатить
+# всё целиком на момент копии». У PostgreSQL есть журнал, и вернуться
+# можно на конкретную минуту.
+
+def _database_from(url):
+    """Разобрать DATABASE_URL. Возвращает None, если адреса нет.
+
+    Свой разбор вместо библиотеки: строка одна, формат известен, а
+    лишняя зависимость на сервере — это ещё одна вещь, которая однажды
+    не поставится в самый неподходящий момент.
+    """
+    if not url:
+        return None
+
+    parts = urlsplit(url)
+    if parts.scheme not in ('postgres', 'postgresql'):
+        raise ImproperlyConfigured(
+            f'DATABASE_URL: не понимаю «{parts.scheme}». '
+            'Ожидается postgres:// или postgresql://')
+
+    name = unquote(parts.path.lstrip('/'))
+    if not name:
+        raise ImproperlyConfigured('DATABASE_URL: не указано имя базы.')
+
+    return {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': name,
+        # Пароль в адресе бывает с символами, которые сами по себе
+        # что-то значат: @ и / разрежут строку не там. В адресе они
+        # закодированы, здесь — раскодируются обратно.
+        'USER': unquote(parts.username or ''),
+        'PASSWORD': unquote(parts.password or ''),
+        'HOST': parts.hostname or 'localhost',
+        'PORT': str(parts.port or 5432),
+        # Соединение переиспользуется десять минут. Открывать его заново
+        # на каждый запрос — это лишние миллисекунды на ровном месте,
+        # а при всплеске обращений ещё и упор в лимит соединений.
+        'CONN_MAX_AGE': 600,
+        'CONN_HEALTH_CHECKS': True,
+    }
+
+
 DATABASES = {
-    'default': {
+    'default': _database_from(os.getenv('DATABASE_URL')) or {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
@@ -222,6 +301,42 @@ STORAGES = {
     },
 }
 STATIC_URL = '/static/'
+
+# Файлы, которые присылают люди: вложения в переписке по проекту.
+# Отдельно от статики и намеренно вне staticfiles: collectstatic
+# эту папку не трогает, и чужие файлы не могут попасть в сборку.
+#
+# На проде их отдаёт nginx, а не Django, — см. DEPLOY.md. Сам Django
+# отдаёт их только в разработке.
+# Почта. Нужна ровно для одного — восстановления пароля по ссылке.
+# Пока не настроена, страница восстановления честно об этом говорит
+# и отправляет звонить, а не молчит и не делает вид, что письмо ушло.
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'True').lower() in ('1', 'true', 'yes')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False').lower() in ('1', 'true', 'yes')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or SITE_EMAIL)
+# В разработке письма печатаются в консоль: настоящий SMTP локально
+# не нужен, а увидеть письмо целиком — нужно.
+EMAIL_BACKEND = ('django.core.mail.backends.console.EmailBackend' if DEBUG
+                 else 'django.core.mail.backends.smtp.EmailBackend')
+
+# Настроена ли почта на самом деле. По этому флагу страница входа решает,
+# показывать ли «Забыли пароль?»: ссылка, ведущая в тупик, хуже её
+# отсутствия — человек нажмёт, ничего не получит и решит, что сломалось
+# всё, а не одна кнопка.
+EMAIL_READY = bool(EMAIL_HOST and EMAIL_HOST_USER) or DEBUG
+
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/media/'
+
+# Больше этого через форму не пройдёт. Двадцать мегабайт — это макет
+# в PDF и десяток фотографий; видео здесь не место, для него есть
+# ссылка. Такой же предел стоит в nginx: без него запрос отвергается
+# уже на входе, и Django об этом не узнаёт.
+MAX_UPLOAD_SIZE = 20 * 1024 * 1024
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

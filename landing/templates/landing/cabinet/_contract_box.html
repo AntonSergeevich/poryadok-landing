@@ -1,0 +1,46 @@
+{% comment %}
+  Договор на странице проекта и в кабинете заказчика. Короткая карточка:
+  сумма, состояние, ссылка. Читают договор на его собственной странице —
+  здесь только ответ на вопрос «он вообще есть и что с ним».
+{% endcomment %}
+<section class="panel">
+  <h2>Договор</h2>
+
+  {% if contract %}
+    <dl class="money">
+      <div><dt>Номер</dt><dd>№ {{ contract.number }} от {{ contract.date|date:"d.m.Y" }}</dd></div>
+      <div><dt>Сумма</dt><dd>{{ contract.amount|floatformat:"0g" }} ₽</dd></div>
+      <div><dt>Состояние</dt><dd>{{ contract.get_status_display }}</dd></div>
+    </dl>
+    <p><a class="btn btn--sm" href="{% url 'cabinet_contract' contract.pk %}">
+      Открыть договор <span class="arrow" aria-hidden="true">→</span>
+    </a></p>
+    {% if contract.waiting_signature and not owner_view %}
+      <p class="muted">Ждёт вашей подписи.</p>
+    {% endif %}
+
+  {% elif owner_view %}
+    <p class="muted">
+      Договора нет. Он соберётся сам: сумма — из проекта, состав
+      и сроки — из этапов. Останется перечитать и выставить.
+    </p>
+    <form class="money__set" method="post"
+          action="{% url 'cabinet_contract_create' project.pk %}">
+      {% csrf_token %}
+      <label class="field">
+        <span>Сумма договора</span>
+        <input class="input input--sm" type="text" name="amount" inputmode="decimal"
+               value="{{ project.price|floatformat:0 }}">
+      </label>
+      <label class="field">
+        <span>Аванс, %</span>
+        <input class="input input--sm" type="number" name="prepay_percent"
+               min="0" max="100" value="50">
+      </label>
+      <button class="btn btn--sm" type="submit">Собрать договор</button>
+    </form>
+
+  {% else %}
+    <p class="muted">Договор пока не выставлен.</p>
+  {% endif %}
+</section>

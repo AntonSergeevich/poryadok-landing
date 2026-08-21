@@ -1,0 +1,52 @@
+{% extends 'landing/base.html' %}
+
+{% block title %}Забыли пароль — Системы Порядок{% endblock %}
+{% block nav %}<a href="{% url 'login' %}">Вход</a><a href="{% url 'index' %}">На сайт</a>{% endblock %}
+{% block head_action %}{% endblock %}
+
+{% block content %}
+<section class="sheet cab">
+  <div class="wrap wrap--narrow">
+    <span class="tag">Кабинет</span>
+    <h1>Забыли пароль</h1>
+
+    {% if EMAIL_READY %}
+      <p class="lede">
+        Напишите почту, на которую заведён кабинет. Пришлю ссылку —
+        по ней зададите новый пароль. Ссылка живёт трое суток
+        и срабатывает один раз.
+      </p>
+
+      <form class="login" method="post">
+        {% csrf_token %}
+        <label class="field">
+          <span>Почта</span>
+          <input class="input" type="email" name="email" required autofocus
+                 autocomplete="email" autocapitalize="none" spellcheck="false">
+        </label>
+        <button class="btn btn--block" type="submit">Прислать ссылку</button>
+      </form>
+
+      <p class="muted">
+        Если почты у вас нет или вы её не помните — позвоните,
+        выдам новый пароль сам. Это одна кнопка.
+      </p>
+    {% else %}
+      {% comment %}
+        Честная страница вместо формы, которая молча ничего не делает.
+        Форма, отправляющая письмо в никуда, хуже её отсутствия: человек
+        ждёт письмо, не получает его и решает, что сломался весь кабинет.
+      {% endcomment %}
+      <p class="lede">
+        Отправка писем пока не подключена, поэтому ссылку прислать
+        не смогу. Позвоните — выдам новый пароль сразу, это одна кнопка
+        с моей стороны.
+      </p>
+      <p><a class="btn" href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a></p>
+      <p class="muted">
+        Старый пароль при этом перестанет работать — так и должно быть.
+      </p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+{% load static %}
+
+{% block cab_title %}Договор № {{ contract.number }}{% endblock %}
+
+{% block extra_head %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'landing/css/contract.css' %}">
+{% endblock %}
+
+{% block cab_content %}
+
+{% comment %}
+  Страница договора устроена в два слоя: сверху панель управления,
+  ниже — сам документ. На печати панель исчезает целиком, и на лист
+  выходит только документ.
+
+  Это намеренно один экран, а не два. Договор, который нельзя прочитать
+  до того, как выставишь, выставляют не глядя.
+{% endcomment %}
+
+{% comment %}
+  Возврат ведёт туда, откуда человек пришёл, а это разные страницы:
+  у меня — карточка проекта, у заказчика — его кабинет. Одна ссылка
+  на двоих отправляла бы заказчика на страницу, которую ему открывать
+  нельзя, — и он получал бы переброс вместо возврата.
+{% endcomment %}
+<p class="cab__back">
+  {% if owner_view %}
+    <a href="{% url 'cabinet_project' project.pk %}">← {{ project.title }}</a>
+  {% else %}
+    <a href="{% url 'cabinet_mine' %}">← {{ project.title }}</a>
+  {% endif %}
+</p>
+
+<div class="doc-bar">
+  <div data-contract-slot>
+    {% include 'landing/cabinet/_contract_state.html' %}
+  </div>
+
+  <div data-draft-slot>
+    {% include 'landing/cabinet/_contract_draft.html' %}
+  </div>
+
+</div>
+
+<div data-doc-slot>
+  {% include 'landing/cabinet/_contract_doc.html' %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script src="{% static 'landing/js/contract.js' %}" defer></script>
+{% endblock %}

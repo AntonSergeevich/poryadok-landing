@@ -1,0 +1,19 @@
+{% extends 'landing/base.html' %}
+
+{% block title %}Кабинет — Системы Порядок{% endblock %}
+{% block nav %}<a href="{% url 'index' %}">На сайт</a>{% endblock %}
+{% block head_action %}{% endblock %}
+
+{% block content %}
+<section class="sheet cab">
+  <div class="wrap wrap--narrow">
+    <span class="tag">Кабинет</span>
+    <h1>Этот вход ни к чему не привязан</h1>
+    <p class="lede">
+      Учётная запись есть, а карточки клиента за ней нет — так бывает,
+      если доступ выдавали давно. Напишите мне, открою заново: это одна кнопка.
+    </p>
+    <p><a class="btn" href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a></p>
+  </div>
+</section>
+{% endblock %}

@@ -126,7 +126,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 
 .sec-head{max-width:70ch;margin-bottom:clamp(32px,4.5vw,64px)}
 .sec-head .tag{margin-bottom:calc(var(--u)*3)}
-.sec-head h2{margin-bottom:calc(var(--u)*2)}
+.sec-head h1,.sec-head h2{margin-bottom:calc(var(--u)*2)}
 
 /* ---------- Фирменная деталь: штамп листа (основная надпись) ---------- */
 .stamp{
@@ -376,19 +376,193 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .card li::before{content:"—";position:absolute;left:0;color:var(--graphite)}
 .card--stat h3{font-size:clamp(1.75rem,1.2rem + 1.8vw,2.5rem);line-height:1;letter-spacing:-.03em}
 
-/* ---------- 04. Кейсы ---------- */
-.cases{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:var(--gut)}
-.case{background:var(--sheet);border:1px solid var(--line);display:flex;flex-direction:column}
-.case__head{padding:16px 20px;border-bottom:1px solid var(--graphite);display:flex;justify-content:space-between;align-items:center;gap:12px}
-.case__head h3{font-size:1.0625rem}
-.case__head .t{font:500 var(--t-tag)/1 var(--f-mono);color:var(--ink);letter-spacing:.1em;white-space:nowrap}
-.case__body{padding:20px;display:grid;gap:18px}
-.case dt{font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:7px}
-.case dd{margin:0;font-size:var(--t-small);line-height:1.55}
-.case .was{color:var(--muted)}
-.case .now{position:relative;padding-left:16px}
-.case .now::before{content:"";position:absolute;left:0;top:.45em;bottom:.35em;width:2px;background:var(--ink)}
-.case__foot{margin-top:auto;padding:12px 20px;border-top:1px solid var(--line);font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);letter-spacing:.08em;display:flex;justify-content:space-between}
+/* ---------- 04. Работы ----------
+   На главной — вывеска: снимок, кто, срок, две кнопки. Подробное живёт
+   на своей странице. Раньше всё стояло на главной и растягивало её
+   на пять экранов: человек, который хотел понять «а что он вообще
+   делал», был вынужден пролистывать чужие боли целиком. */
+
+.works{display:grid;gap:var(--gut)}
+@media (min-width:820px){.works{grid-template-columns:1fr 1fr}}
+
+.work{
+  background:var(--sheet);border:1px solid var(--line);
+  display:flex;flex-direction:column;
+}
+.work__shot{
+  display:block;line-height:0;border-bottom:1px solid var(--line);
+  overflow:hidden;background:var(--paper);
+}
+.work__shot img{
+  width:100%;height:auto;display:block;
+  transition:transform .35s cubic-bezier(.22,.61,.36,1);
+}
+@media (prefers-reduced-motion:no-preference){
+  .work__shot:hover img{transform:scale(1.02)}
+}
+.work__shot:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+
+.work__body{padding:clamp(18px,2.6vw,26px);display:grid;gap:14px;
+  align-content:start;flex:1}
+.work__body h3{font-size:var(--t-h3);letter-spacing:-.01em}
+.work__lede{font-size:var(--t-small);color:var(--muted);line-height:1.6}
+
+.work__facts{
+  list-style:none;padding:0;margin:0;
+  display:flex;flex-wrap:wrap;gap:14px clamp(18px,3vw,32px);
+  padding-top:14px;border-top:1px solid var(--line);
+}
+.work__facts li{display:grid;gap:3px}
+.work__facts span{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.12em;color:var(--muted)}
+.work__facts b{font:500 .9375rem/1.3 var(--f-sans)}
+.work__facts a{color:var(--ink);text-decoration:none}
+.work__facts a:hover{text-decoration:underline}
+.work__facts .arrow{font-family:var(--f-mono);margin-left:4px}
+
+/* На странице работы те же факты стоят крупнее и с пояснением: «две
+   недели» звучит долго, пока не сказано, что сайт открылся на третий
+   день, а остальное время его доводили под человека. */
+.work__facts--wide{margin-top:clamp(24px,3vw,36px);gap:18px clamp(24px,4vw,48px)}
+.work__facts--wide b{font-size:1.25rem}
+.work__facts--wide em{
+  font:400 var(--t-tag)/1.4 var(--f-mono);color:var(--muted);
+  font-style:normal;max-width:32ch;
+}
+
+.work__go{display:flex;flex-wrap:wrap;gap:10px;margin-top:auto;padding-top:4px}
+
+/* ---------- Окно «было и стало» ---------- */
+
+.ba-box{
+  border:0;padding:0;background:transparent;
+  max-width:min(900px,94vw);max-height:92vh;
+}
+.ba-box::backdrop{background:rgba(13,15,14,.86)}
+.ba-box__in{
+  background:var(--sheet);border:1px solid var(--graphite);
+  color:var(--graphite);max-height:92vh;overflow-y:auto;
+}
+.ba-box__head{
+  display:flex;gap:16px;align-items:center;justify-content:space-between;
+  padding:clamp(16px,2.4vw,22px) clamp(18px,2.6vw,28px);
+  border-bottom:1px solid var(--graphite);
+  position:sticky;top:0;background:var(--sheet);z-index:1;
+}
+.ba-box__head h2{font-size:var(--t-h3)}
+.ba-box__close{
+  flex:none;width:36px;height:36px;line-height:1;font-size:1.4rem;
+  background:transparent;border:1px solid var(--line);color:var(--graphite);
+  cursor:pointer;
+}
+.ba-box__close:hover{background:var(--graphite);color:var(--paper)}
+.ba-box__foot{padding:0 clamp(18px,2.6vw,28px) clamp(18px,2.6vw,28px)}
+@media (prefers-reduced-motion:no-preference){
+  .ba-box[open]{animation:lightbox-in .2s ease both}
+}
+
+/* ---------- Было / стало ----------
+   Две колонки, а не «до» над «после»: сравнение работает, только когда
+   оба столбца видны одновременно. На узком экране они всё равно встают
+   друг под друга — там сравнивать приходится памятью, деваться некуда. */
+
+.work__ba{display:grid;gap:0;border-top:1px solid var(--line)}
+@media (min-width:860px){
+  .work__ba{grid-template-columns:1fr 1fr}
+  .work__ba .ba--now{border-left:1px solid var(--line);border-top:0}
+}
+.ba{padding:clamp(18px,2.6vw,28px)}
+.ba--now{border-top:1px solid var(--line)}
+.ba h4{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.14em;
+  color:var(--muted);margin-bottom:16px;
+}
+.ba ul{list-style:none;padding:0;display:grid;gap:14px}
+.ba li{font-size:var(--t-small);line-height:1.6;position:relative;padding-left:18px}
+.ba li::before{
+  content:"";position:absolute;left:0;top:.55em;
+  width:8px;height:1px;background:var(--line);
+}
+.ba--was{background:var(--graphite-wash)}
+.ba--was li{color:var(--muted)}
+.ba--now li::before{background:var(--ink);height:2px;top:.5em}
+
+/* ---------- Снимки экрана ---------- */
+
+.shots{display:grid;gap:var(--gut)}
+@media (min-width:700px){.shots{grid-template-columns:1fr 1fr}}
+.shot{margin:0;display:grid;gap:10px}
+.shot__open{
+  display:block;position:relative;line-height:0;
+  border:1px solid var(--line);background:var(--paper);
+  overflow:hidden;
+  transition:border-color .2s ease,transform .2s ease;
+}
+.shot__open img{width:100%;height:auto;display:block}
+.shot__open:hover,.shot__open:focus-visible{border-color:var(--ink)}
+@media (prefers-reduced-motion:no-preference){
+  .shot__open:hover{transform:translateY(-3px)}
+}
+/* Подсказка «крупно» появляется по наведению. На тач-экранах наведения
+   нет, поэтому там она показана всегда: иначе про увеличение
+   просто не узнают. */
+.shot__zoom{
+  position:absolute;right:8px;bottom:8px;
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;
+  color:var(--paper);background:var(--graphite);padding:6px 9px;
+  opacity:0;transition:opacity .2s ease;
+}
+.shot__open:hover .shot__zoom,.shot__open:focus-visible .shot__zoom{opacity:1}
+@media (hover:none){.shot__zoom{opacity:.85}}
+.shot figcaption{font-size:var(--t-small);color:var(--muted);line-height:1.5}
+.shots__note{
+  margin-top:clamp(18px,2.6vw,26px);
+  font:400 var(--t-tag)/1.6 var(--f-mono);color:var(--muted);
+}
+
+/* ---------- Низ страницы работы ---------- */
+
+.work__next{display:grid;gap:var(--gut);align-items:start}
+@media (min-width:860px){
+  .work__next{grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr)}
+}
+.work__next h2{font-size:var(--t-h2);margin-bottom:14px}
+.work__others h3{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.14em;color:var(--muted);margin-bottom:14px;
+}
+.work__others ul{list-style:none;padding:0;display:grid;gap:10px}
+.work__others a{color:var(--graphite);font-size:var(--t-small)}
+
+/* ---------- Снимок во весь экран ---------- */
+
+.lightbox{
+  border:0;padding:0;background:transparent;
+  max-width:min(1400px,94vw);max-height:94vh;
+  color:var(--paper);
+}
+.lightbox::backdrop{background:rgba(13,15,14,.88)}
+.lightbox__img{
+  display:block;width:100%;height:auto;max-height:82vh;object-fit:contain;
+  border:1px solid rgba(242,242,238,.25);background:var(--sheet);
+}
+.lightbox__cap{margin-top:12px;font-size:var(--t-small);line-height:1.5;text-align:center}
+.lightbox__close{
+  position:absolute;top:-6px;right:0;transform:translateY(-100%);
+  width:40px;height:40px;line-height:1;
+  font-size:1.5rem;color:var(--paper);
+  background:transparent;border:1px solid rgba(242,242,238,.4);
+  cursor:pointer;
+}
+.lightbox__close:hover{background:rgba(242,242,238,.15)}
+/* На узком экране крестику некуда уехать вверх — он садится в угол снимка. */
+@media (max-width:640px){
+  .lightbox__close{top:8px;right:8px;transform:none;background:var(--graphite)}
+}
+@media (prefers-reduced-motion:no-preference){
+  .lightbox[open]{animation:lightbox-in .22s ease both}
+  @keyframes lightbox-in{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+}
 
 /* ---------- 05. Как проходит работа ---------- */
 .steps{counter-reset:s;display:grid;gap:0}
@@ -412,6 +586,18 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   font-size:clamp(2.1rem,1.2rem + 3.4vw,3.75rem);
   letter-spacing:-.03em;margin:calc(var(--u)*2) 0 calc(var(--u)*1.5);
 }
+/* Кнопка в конструктор — единственное яркое место на листе цены.
+   Вопрос «сколько стоит» человек хочет закрыть здесь и сейчас, а не
+   назначить ради него встречу.
+
+   Лист графитовый, а обычная кнопка тоже графитовая — на нём её просто
+   не видно. Здесь она выворачивается: бумага на графите. */
+.price__go{margin-top:clamp(20px,3vw,28px)}
+.price__go .btn{
+  background:var(--paper);border-color:var(--paper);color:var(--graphite);
+}
+.price__go .btn:hover{background:var(--ink);border-color:var(--ink);color:#fff}
+.price__box .small{margin-top:10px;color:var(--muted)}
 .price__box p{color:rgba(242,242,238,.72);font-size:var(--t-small);line-height:1.65}
 .price__side{grid-column:7 / span 6;display:grid;gap:calc(var(--u)*3)}
 @media (max-width:960px){.price{grid-template-columns:1fr}.price__box,.price__side{grid-column:1 / -1}}

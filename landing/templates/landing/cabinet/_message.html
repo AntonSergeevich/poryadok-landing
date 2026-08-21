@@ -1,0 +1,77 @@
+{% comment %}
+  Одно сообщение. Тем же шаблоном рисуется и при загрузке ленты,
+  и в ответ на отправку, и при дозагрузке новых. Второй копии
+  на JavaScript нет — иначе своё сообщение выглядело бы иначе, чем
+  оно же после перезагрузки страницы.
+
+  «Своё справа» решает сервер, а не браузер: это зависит от того, кто
+  смотрит, и решать это в двух местах — верный способ однажды показать
+  заказчику его же сообщения слева.
+{% endcomment %}
+<li class="msg{% if mine %} msg--mine{% endif %}" data-msg="{{ message.pk }}">
+  <div class="msg__body">
+    {% if not mine %}<p class="msg__who">{{ message.author_name }}</p>{% endif %}
+
+    {% if message.text %}<p class="msg__text">{{ message.text|linebreaksbr }}</p>{% endif %}
+
+    {% if message.files.all %}
+      <ul class="msg__files">
+        {% for file in message.files.all %}
+          <li>
+            {% if file.is_image %}
+              {% comment %}
+                Картинку показываем сразу: «IMG_4382.jpg» ссылкой требует
+                нажатия, чтобы понять, что вообще прислали.
+              {% endcomment %}
+              <a class="msg__pic" href="{{ file.file.url }}" target="_blank" rel="noopener">
+                <img src="{{ file.file.url }}" alt="{{ file.name }}"
+                     loading="lazy" decoding="async">
+              </a>
+            {% else %}
+              <a class="msg__file" href="{{ file.file.url }}" target="_blank" rel="noopener">
+                <span class="msg__file-name">{{ file.name }}</span>
+                <span class="msg__file-size">{{ file.human_size }}</span>
+              </a>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <p class="msg__meta">
+      <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"d.m H:i" }}</time>
+      {% if message.edited_at %}<span class="msg__edited">поправлено</span>{% endif %}
+      {% if mine and message.is_read %}<span class="msg__read">прочитано</span>{% endif %}
+
+      {% comment %}
+        Правка — минуту после отправки, и только своего. Кнопка
+        появляется, лишь пока время не вышло, а сколько его осталось,
+        считает сервер: вкладка может стоять открытой час, и «минута»
+        по часам браузера к делу отношения не имеет.
+
+        Само окно правки — в разметке, а не собирается скриптом: без
+        JavaScript это обычная форма, которая работает как работала.
+      {% endcomment %}
+      {% if own and message.edit_left %}
+        <button class="msg__edit" type="button"
+                data-msg-edit="{{ message.pk }}"
+                data-left="{{ message.edit_left }}">поправить</button>
+      {% endif %}
+    </p>
+
+    {% if own and message.edit_left %}
+      <form class="msg__form" method="post"
+            action="{% url 'cabinet_chat_edit' message.pk %}"
+            id="msg-edit-{{ message.pk }}" data-act hidden>
+        {% csrf_token %}
+        <textarea class="input" name="text" rows="3"
+                  aria-label="Поправить сообщение">{{ message.text }}</textarea>
+        <span class="msg__form-go">
+          <button class="btn btn--sm" type="submit">Сохранить</button>
+          <button class="btn btn--sm btn--ghost" type="button"
+                  data-msg-cancel="{{ message.pk }}">Отмена</button>
+        </span>
+      </form>
+    {% endif %}
+  </div>
+</li>

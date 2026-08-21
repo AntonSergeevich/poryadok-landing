@@ -15,4 +15,6 @@ def site(request):
         'SITE_STATUS': settings.SITE_STATUS,
         'YANDEX_METRIKA_ID': settings.YANDEX_METRIKA_ID,
         'TELEGRAM_BOT_USERNAME': settings.TELEGRAM_BOT_USERNAME,
+        # По нему страница входа решает, показывать ли «Забыли пароль?».
+        'EMAIL_READY': settings.EMAIL_READY,
     }

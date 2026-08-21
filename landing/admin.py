@@ -8,8 +8,9 @@ from django.contrib import admin, messages
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import (Client, ClubSubscription, Lead, Payment, Project, Survey,
-                     format_phone)
+from .models import (Attachment, Client, ClubSubscription, Contract, Lead,
+                     Message, MessageFile, Payment, Project, Stage, StageTask,
+                     Survey, Work, WorkFact, WorkShot, format_phone)
 from .services import telegram as tg
 
 admin.site.site_header = 'Порядок — рабочий стол'
@@ -162,6 +163,15 @@ class ProjectAdmin(admin.ModelAdmin):
     search_fields = ('title', 'client__name', 'client__phone')
     autocomplete_fields = ('client',)
     inlines = (PaymentInline,)
+    actions = ('lay_out_stages',)
+
+    @admin.action(description='Разложить этапы по плану')
+    def lay_out_stages(self, request, queryset):
+        """Для проектов, заведённых до появления этапов. Повторный запуск
+        ничего не портит: там, где этапы уже есть, их могли поправить
+        руками."""
+        added = sum(project.build_stages() for project in queryset)
+        self.message_user(request, f'Этапов добавлено: {added}')
 
     @admin.display(description='оплачено')
     def paid_column(self, obj):
@@ -171,6 +181,144 @@ class ProjectAdmin(admin.ModelAdmin):
     def debt_column(self, obj):
         return f'{obj.debt:.0f} ₽'
 
+
+@admin.register(Contract)
+class ContractAdmin(admin.ModelAdmin):
+    """Договоры собираются в кабинете, а не здесь.
+
+    Здесь они только видны: список, поиск и возможность скачать
+    подписанный скан. Текст выставленного договора — снимок, и править
+    его руками нельзя ни отсюда, ни откуда-либо ещё: стороны подписали
+    именно то, что в снимке.
+    """
+    list_display = ('number', 'date', 'client_column', 'amount', 'status',
+                    'signed_at')
+    list_filter = ('status', 'date')
+    search_fields = ('number', 'project__title', 'project__client__name')
+    autocomplete_fields = ('project',)
+    readonly_fields = ('body', 'data', 'issued_at', 'signed_at')
+
+    @admin.display(description='заказчик')
+    def client_column(self, obj):
+        return obj.project.client.name
+
+
+@admin.register(Attachment)
+class AttachmentAdmin(admin.ModelAdmin):
+    """Файлы к заявкам и проектам. Прикладываются в кабинете, здесь —
+    только список: посмотреть, что вообще лежит, и убрать лишнее."""
+    list_display = ('name', 'human_size', 'where', 'from_client', 'created_at')
+    list_filter = ('from_client', 'created_at')
+    search_fields = ('name', 'note', 'project__title', 'lead__name')
+
+    @admin.display(description='к чему')
+    def where(self, obj):
+        if obj.project_id:
+            return str(obj.project)
+        if obj.lead_id:
+            return f'заявка: {obj.lead}'
+        return '—'
+
+
+class WorkFactInline(admin.TabularInline):
+    model = WorkFact
+    extra = 1
+
+
+class WorkShotInline(admin.TabularInline):
+    model = WorkShot
+    extra = 1
+
+
+@admin.register(Work)
+class WorkAdmin(admin.ModelAdmin):
+    """Портфолио правится в кабинете, а не здесь.
+
+    Здесь оно на случай, когда надо поменять что-то быстро и точечно —
+    порядок, адрес страницы — или посмотреть, что вообще заведено.
+    """
+    list_display = ('title', 'role', 'slug', 'is_published', 'order')
+    list_filter = ('is_published',)
+    list_editable = ('is_published', 'order')
+    search_fields = ('title', 'role', 'slug', 'lede')
+    prepopulated_fields = {'slug': ('title',)}
+    autocomplete_fields = ('project',)
+    inlines = (WorkFactInline, WorkShotInline)
+
+
+class StageTaskInline(admin.TabularInline):
+    """Задачи прямо в этапе: заводить их отдельным разделом никто не станет."""
+    model = StageTask
+    extra = 1
+    fields = ('title', 'who', 'is_done', 'order')
+
+
+@admin.register(Stage)
+class StageAdmin(admin.ModelAdmin):
+    """Этапы правятся в кабинете, а не здесь.
+
+    Админка нужна на случай, когда что-то пошло не так: поменять
+    формулировку, переставить план по дням, снести лишний этап. Работать
+    в ней каждый день — значит не иметь кабинета.
+    """
+    list_display = ('project', 'number', 'title', 'status', 'waiting_on',
+                    'planned_days', 'started_at', 'finished_at')
+    list_filter = ('status', 'waiting_on')
+    search_fields = ('title', 'project__title', 'project__client__name')
+    autocomplete_fields = ('project',)
+    inlines = (StageTaskInline,)
+
+class MessageFileInline(admin.TabularInline):
+    model = MessageFile
+    extra = 0
+    fields = ('name', 'size')
+    readonly_fields = ('name', 'size')
+    can_delete = False
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    """Переписка — только чтение.
+
+    Сообщения не правятся и не удаляются ни одной из сторон, включая
+    меня. Переписка нужна как доказательная база, а переписанная задним
+    числом не доказывает ничего — в том числе и в мою пользу.
+
+    Раздел нужен, чтобы найти нужное место в истории и выгрузить его,
+    а не чтобы редактировать.
+    """
+    list_display = ('created_short', 'project', 'author_name', 'side', 'short')
+    list_filter = ('author_is_owner', 'created_at')
+    search_fields = ('text', 'author_name', 'project__title',
+                     'project__client__name')
+    autocomplete_fields = ('project',)
+    inlines = (MessageFileInline,)
+    readonly_fields = ('project', 'author', 'author_name', 'author_is_owner',
+                       'text', 'read_at', 'created_at', 'updated_at')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description='когда', ordering='created_at')
+    def created_short(self, obj):
+        return obj.created_at.strftime('%d.%m %H:%M')
+
+    @admin.display(description='сторона')
+    def side(self, obj):
+        return 'исполнитель' if obj.author_is_owner else 'заказчик'
+
+    @admin.display(description='текст')
+    def short(self, obj):
+        text = obj.text or ''
+        if len(text) > 70:
+            return text[:70] + '…'
+        return text or f'[файлов: {obj.files.count()}]'
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):

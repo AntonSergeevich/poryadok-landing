@@ -179,83 +179,114 @@
 </section>
 
 
-{# ═══ ЛИСТ 04 — КЕЙСЫ ═══════════════════════════════════════════════════ #}
+{# ═══ ЛИСТ 04 — РАБОТЫ ══════════════════════════════════════════════════ #}
 {% comment %}
-  ВНИМАНИЕ: формулировки кейсов и сроки — черновые.
-  Замените на свои фактические перед публикацией.
+  Здесь только вывеска: кто, чем занимается, сколько заняло и один снимок.
+  Список работ должен читаться за десять секунд.
+
+  Раньше вся подробность стояла прямо тут и растягивала главную на пять
+  экранов. Человек, который просто хотел понять «а что он вообще делал»,
+  вынужден был пролистывать чужие боли целиком. Теперь подробное живёт
+  на отдельной странице работы, а «было/стало» открывается окном —
+  не уходя со страницы.
+
+  Обе кнопки — настоящие ссылки. Без JavaScript «Было и стало» просто
+  уводит на страницу работы, где то же самое написано текстом.
 {% endcomment %}
 <section class="sheet" id="cases">
   <div class="wrap">
     <div class="sec-head rv">
       <span class="tag">Лист 04 · Сделано</span>
-      <h2>Три системы, которые уже работают</h2>
-      <p class="lede">Что было до, что стало после и сколько это заняло.</p>
+      <h2>Системы, которые уже работают</h2>
+      <p class="lede">
+        Два живых бизнеса. Оба сайта открыты — можно зайти и потрогать.
+      </p>
     </div>
 
-    <div class="cases">
-      <article class="case rv">
-        <div class="case__head">
-          <h3>Барбершоп</h3>
-          <span class="t">Две точки</span>
-        </div>
-        <dl class="case__body">
-          <div>
-            <dt>Было</dt>
-            <dd class="was">Запись в блокноте и в директе. База клиентов — в голове администратора. При смене администратора часть постоянных клиентов терялась.</dd>
-          </div>
-          <div>
-            <dt>Стало</dt>
-            <dd class="now">Онлайн-запись с выбором мастера и времени. Карточка клиента с историей визитов. Напоминание уходит за два часа, окно освобождается автоматически.</dd>
-          </div>
-        </dl>
-        <div class="case__foot"><span>Срок</span><span>5 недель</span></div>
-      </article>
+    <div class="works">
+      {% for work in works %}
+        <article class="work rv">
+          <a class="work__shot" href="{% url 'work' work.slug %}"
+             aria-label="Подробно о работе: {{ work.title }}">
+            {% comment %}
+              Адрес снимка спрашиваем у самого снимка. Их два вида:
+              снятые руками до появления раздела лежат в статике,
+              загруженные из кабинета — в media. Собирать путь здесь
+              значило бы знать про оба вида в разметке.
+            {% endcomment %}
+            <img src="{{ work.cover.thumb }}"
+                 width="700" height="438" loading="lazy" decoding="async" alt="">
+          </a>
 
-      <article class="case rv rv-d1">
-        <div class="case__head">
-          <h3>Языковая школа</h3>
-          <span class="t">Группы и оплаты</span>
-        </div>
-        <dl class="case__body">
-          <div>
-            <dt>Было</dt>
-            <dd class="was">Расписание в Excel, посещаемость на листках, оплаты сверялись вручную раз в месяц. Долги вспоминались случайно.</dd>
-          </div>
-          <div>
-            <dt>Стало</dt>
-            <dd class="now">Расписание групп, отметка посещаемости в два клика, абонементы и оплаты в одном месте. Родитель видит свой баланс и не спрашивает об этом администратора.</dd>
-          </div>
-        </dl>
-        <div class="case__foot"><span>Срок</span><span>7 недель</span></div>
-      </article>
+          <div class="work__body">
+            <h3>{{ work.title }} · {{ work.role }}</h3>
+            <p class="work__lede">{{ work.lede }}</p>
 
-      <article class="case rv rv-d2">
-        <div class="case__head">
-          <h3>Частный эксперт</h3>
-          <span class="t">Практика</span>
-        </div>
-        <dl class="case__body">
-          <div>
-            <dt>Было</dt>
-            <dd class="was">Консультации согласовывались перепиской по несколько сообщений. Доступ в закрытый клуб выдавался и продлевался руками.</dd>
+            <ul class="work__facts">
+              <li><span>Город</span><b>{{ work.city }}</b></li>
+              {% if work.term %}<li><span>Срок</span><b>{{ work.term }}</b></li>{% endif %}
+              <li><span>Сайт</span><b>
+                <a href="https://{{ work.site }}" target="_blank" rel="noopener">
+                  {{ work.site }}<span class="arrow" aria-hidden="true">↗</span>
+                </a></b></li>
+            </ul>
+
+            <p class="work__go">
+              <a class="btn btn--sm" href="{% url 'work' work.slug %}#ba"
+                 data-ba="ba-{{ work.slug }}">Было и стало</a>
+              <a class="btn btn--sm btn--ghost" href="{% url 'work' work.slug %}">
+                Подробно <span class="arrow" aria-hidden="true">→</span>
+              </a>
+            </p>
           </div>
-          <div>
-            <dt>Стало</dt>
-            <dd class="now">Запись на консультацию сразу с оплатой. Подписка продлевается сама, доступ в закрытый клуб открывается и закрывается без участия человека.</dd>
-          </div>
-        </dl>
-        <div class="case__foot"><span>Срок</span><span>4 недели</span></div>
-      </article>
+        </article>
+      {% endfor %}
     </div>
 
     <div class="stamp" aria-hidden="true">
       <span class="s-num">Лист 04</span>
       <span class="s-name">Выполненные работы</span>
-      <span class="s-scale">Объектов 3</span>
+      <span class="s-scale">Объектов {{ works|length }}</span>
       <span class="s-org">С-Порядок</span>
     </div>
   </div>
 </section>
+
+{% comment %}
+  Окна «было/стало» — по одному на работу, содержимое уже в разметке.
+  Тянуть его запросом незачем: это два коротких списка, и они всё равно
+  приедут вместе со страницей дешевле, чем обойдётся отдельный запрос.
+
+  Без JavaScript окна не показываются вовсе (у dialog нет open), а кнопки
+  работают как обычные ссылки на страницу работы.
+{% endcomment %}
+{% for work in works %}
+  <dialog class="ba-box" id="ba-{{ work.slug }}" aria-label="Было и стало: {{ work.title }}">
+    <div class="ba-box__in">
+      <header class="ba-box__head">
+        <h2>{{ work.title }} · было и стало</h2>
+        <button class="ba-box__close" type="button" data-ba-close aria-label="Закрыть">×</button>
+      </header>
+
+      <div class="work__ba">
+        <div class="ba ba--was">
+          <h4>Было</h4>
+          <ul>{% for line in work.was %}<li>{{ line }}</li>{% endfor %}</ul>
+        </div>
+        <div class="ba ba--now">
+          <h4>Стало</h4>
+          <ul>{% for line in work.now %}<li>{{ line }}</li>{% endfor %}</ul>
+        </div>
+      </div>
+
+      <p class="ba-box__foot">
+        <a class="btn btn--sm" href="{% url 'work' work.slug %}">
+          Снимки экранов и подробности <span class="arrow" aria-hidden="true">→</span>
+        </a>
+      </p>
+    </div>
+  </dialog>
+{% endfor %}
 
 
 {# ═══ ЛИСТ 05 — ПОРЯДОК РАБОТ ═══════════════════════════════════════════ #}
@@ -323,8 +354,19 @@
     <div class="price">
       <div class="price__box rv">
         <span class="tag">Стоимость системы</span>
-        <p class="price__fig">от 150 000 ₽</p>
-        <p>Зависит от того, сколько процессов заводим в систему. После бесплатного разбора вы получаете фиксированную сумму и срок — по ходу работы они не меняются.</p>
+        <p class="price__fig">от 50 000 ₽</p>
+        <p>Пятьдесят — это ядро: клиенты, услуги, цены и доступы. Дальше цена зависит от того, сколько процессов заводим внутрь; система целиком обычно выходит в 150–300 тысяч. После бесплатного разбора вы получаете фиксированную сумму и срок — по ходу работы они не меняются.</p>
+        {% comment %}
+          Кнопка ведёт в конструктор, а не к форме. «Сколько стоит» —
+          вопрос, на который человек здесь и сейчас хочет получить ответ,
+          а не назначить встречу ради него.
+        {% endcomment %}
+        <p class="price__go">
+          <a class="btn btn--lg" href="{% url 'constructor' %}">
+            Собрать свою систему <span class="arrow" aria-hidden="true">→</span>
+          </a>
+        </p>
+        <p class="small">Отметите блоки — увидите состав и цену. Две минуты, без заявки.</p>
       </div>
 
       <div class="price__side">
@@ -346,7 +388,7 @@
     <div class="stamp" aria-hidden="true">
       <span class="s-num">Лист 06</span>
       <span class="s-name">Стоимость</span>
-      <span class="s-scale">от 150 000 ₽</span>
+      <span class="s-scale">от 50 000 ₽</span>
       <span class="s-org">С-Порядок</span>
     </div>
   </div>

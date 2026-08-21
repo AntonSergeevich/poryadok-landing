@@ -1,0 +1,65 @@
+{% comment %}
+  Переписка по проекту.
+
+  Она здесь не для удобства — для доказательной базы. В мессенджере
+  «я вам присылал» не значит ничего: сообщение удаляется, чат чистится,
+  файл теряется вместе с ним. Здесь сообщения не правятся и не удаляются
+  ни одной из сторон, имя автора копируется в момент отправки, а файлы
+  лежат вместе с сообщением и его временем.
+
+  Без JavaScript это обычная форма с перезагрузкой: писать можно,
+  и написанное сохраняется. Со скриптом — отправка без ожидания
+  и дозагрузка новых.
+{% endcomment %}
+<section class="chat" id="chat" data-chat
+         data-since="{% url 'cabinet_chat_since' project.pk %}"
+         data-older="{% url 'cabinet_chat_older' project.pk %}"
+         data-last="{{ chat_last|default:0 }}"
+         data-first="{{ chat_first|default:0 }}">
+  <header class="chat__head">
+    <h2>Переписка</h2>
+    <p class="chat__hint">
+      Всё, о чём договорились, живёт здесь. Сообщения не удаляются
+      и не правятся — в том числе мои.
+    </p>
+  </header>
+
+  {% if chat_more %}
+    <button class="chat__more" type="button" data-chat-more>Показать раньше</button>
+  {% endif %}
+
+  <ol class="chat__list" data-chat-list>
+    {% for message in chat_messages %}
+      {% include 'landing/cabinet/_message.html' with message=message mine=message.mine own=message.own %}
+    {% empty %}
+      <li class="chat__empty" data-chat-empty>
+        Пока пусто. Напишите — я отвечу в тот же день, максимум
+        на следующий.
+      </li>
+    {% endfor %}
+  </ol>
+
+  <form class="chat__form" method="post" enctype="multipart/form-data"
+        action="{% url 'cabinet_chat_send' project.pk %}" data-chat-form>
+    {% csrf_token %}
+    <textarea class="chat__text" name="text" rows="1" data-chat-text
+              placeholder="Написать…" aria-label="Сообщение"></textarea>
+
+    <div class="chat__tools">
+      <label class="chat__clip">
+        <input type="file" name="files" multiple data-chat-files>
+        <span>Файл</span>
+      </label>
+      <span class="chat__picked" data-chat-picked></span>
+      <button class="btn btn--sm" type="submit">Отправить</button>
+    </div>
+    {% comment %}
+      Про Ctrl+Enter говорим только там, где есть клавиатура. На телефоне
+      эта подсказка — просто строчка, которую нечем выполнить.
+    {% endcomment %}
+    <p class="chat__note">
+      <span class="chat__keys">Ctrl+Enter отправляет. </span>До 20 МБ
+      на файл — макет в PDF и фотографии влезают, видео лучше ссылкой.
+    </p>
+  </form>
+</section>

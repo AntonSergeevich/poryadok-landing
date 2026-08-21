@@ -1,0 +1,130 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+
+{% block cab_title %}{{ project.title }}{% endblock %}
+
+{% block cab_content %}
+<div class="cab__head">
+  <div>
+    <span class="tag">Проект · {{ project.get_status_display }}</span>
+    <h1>{{ project.title }}</h1>
+    <p class="lede">
+      {{ project.client.name }}{% if project.client.company %} · {{ project.client.company }}{% endif %}
+      {% if project.client.phone %} · {{ project.client.phone }}{% endif %}
+    </p>
+  </div>
+  <a class="btn btn--ghost btn--sm" href="{% url 'cabinet' %}">← Рабочий стол</a>
+</div>
+
+{% include 'landing/cabinet/_rail.html' %}
+
+<div class="cab__grid">
+  <div class="cab__main">
+    {% comment %}
+      Проект без этапов бывает: заведённый в админке или появившийся
+      до того, как этапы вообще завелись. Пустая шкала не отвечает ни
+      на один вопрос, ради которых кабинет и делался, — поэтому вместо
+      неё стоит кнопка, а не пустота.
+    {% endcomment %}
+    {% if not stages %}
+      <section class="panel">
+        <h2>Этапов пока нет</h2>
+        <p class="muted">
+          Проект заведён без них. Разложу восемь по плану — их всегда
+          можно поправить и дополнить задачами.
+        </p>
+        <form method="post" action="{% url 'cabinet_stages_build' project.pk %}">
+          {% csrf_token %}
+          <button class="btn btn--block" type="submit">Разложить этапы</button>
+        </form>
+      </section>
+    {% else %}
+      {% include 'landing/cabinet/_stages.html' %}
+    {% endif %}
+  </div>
+
+  <aside class="cab__side">
+    {% comment %}
+      Доступ заказчика — здесь, а не в отдельном разделе: кнопку ищут,
+      глядя на проект, о котором собираются написать человеку.
+    {% endcomment %}
+    <section class="panel">
+      <h2>Кабинет заказчика</h2>
+      {% if project.client.user and project.client.user.is_active %}
+        <p class="panel__line">Открыт. Логин: <b>{{ project.client.user.username }}</b></p>
+        <p class="muted">
+          Пароль показывался один раз — в базе он лежит только зашифрованным.
+          Потерялся — выдайте новый, это та же кнопка.
+        </p>
+      {% else %}
+        <p class="muted">
+          Доступа пока нет. Заказчик увидит шкалу этапов, свои задачи
+          и сможет отмечать сделанное.
+        </p>
+      {% endif %}
+
+      <form method="post" action="{% url 'cabinet_grant' project.client.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="back" value="{{ request.path }}">
+        <button class="btn btn--block" type="submit">
+          {% if project.client.user and project.client.user.is_active %}
+            Выдать новый пароль
+          {% else %}
+            Завести кабинет заказчику
+          {% endif %}
+        </button>
+      </form>
+
+      {% if project.client.user and project.client.user.is_active %}
+        <form method="post" action="{% url 'cabinet_revoke' project.client.pk %}"
+              onsubmit="return confirm('Закрыть заказчику вход в кабинет?')">
+          {% csrf_token %}
+          <input type="hidden" name="back" value="{{ request.path }}">
+          <button class="linkish" type="submit">Закрыть доступ</button>
+        </form>
+      {% endif %}
+    </section>
+
+    <div data-money-slot>
+      {% include 'landing/cabinet/_money.html' %}
+    </div>
+
+    {% comment %}
+      Состав системы стоит перед договором намеренно: договор берёт
+      из него Приложение № 1 и сумму, и собирать состав после того,
+      как договор выставлен, — значит собирать его зря.
+    {% endcomment %}
+    <section class="panel">
+      <h2>Состав системы</h2>
+      {% if project.build_blocks %}
+        <p class="panel__line">Блоков: <b>{{ project.build_blocks|length }}</b></p>
+        <p class="muted">
+          Отсюда договор берёт Приложение № 1. Уже выставленный договор
+          при пересборке не меняется.
+        </p>
+      {% else %}
+        <p class="muted">
+          Тот же конструктор, что на сайте. Состав отсюда попадает
+          в цену проекта и в Приложение № 1 к договору.
+        </p>
+      {% endif %}
+      <a class="btn btn--sm btn--block"
+         href="{% url 'cabinet_project_build_page' project.pk %}">
+        {% if project.build_blocks %}Пересобрать{% else %}Собрать состав{% endif %}
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+    </section>
+
+    {% include 'landing/cabinet/_contract_box.html' %}
+
+    <div data-files-slot>
+      {% include 'landing/cabinet/_files.html' %}
+    </div>
+  </aside>
+</div>
+
+{% include 'landing/cabinet/_chat.html' %}
+
+{% if issued %}
+  {% include 'landing/cabinet/_issued.html' %}
+{% endif %}
+{% endblock %}
