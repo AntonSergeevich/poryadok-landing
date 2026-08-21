@@ -1,0 +1,59 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+
+{% block cab_title %}Заявки{% endblock %}
+
+{% block cab_content %}
+<div class="cab__head">
+  <div>
+    <span class="tag">Заявки</span>
+    <h1>Кто написал</h1>
+    <p class="lede">
+      {% if counts.overdue %}
+        Просрочено: {{ counts.overdue }}. В работе: {{ counts.open }}.
+      {% else %}
+        В работе: {{ counts.open }}. Просроченных нет.
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+{% comment %}
+  Отбор ссылками, а не выпадающим списком: состояний немного, а ссылка
+  оставляет след в адресе — на неё можно вернуться и ею поделиться.
+{% endcomment %}
+<nav class="filters" aria-label="Отбор заявок">
+  <a class="chip{% if which == 'open' %} is-on{% endif %}"
+     href="{% url 'cabinet_leads' %}?show=open">В работе</a>
+  {% for value, label in statuses %}
+    <a class="chip{% if which == value %} is-on{% endif %}"
+       href="{% url 'cabinet_leads' %}?show={{ value }}">{{ label }}</a>
+  {% endfor %}
+  <a class="chip{% if which == 'all' %} is-on{% endif %}"
+     href="{% url 'cabinet_leads' %}?show=all">Все</a>
+</nav>
+
+<div class="lead-list">
+  {% for lead in rows %}
+    <a class="lead-row{% if lead.is_overdue %} is-overdue{% endif %}"
+       href="{% url 'cabinet_lead' lead.pk %}">
+      <span class="lead-row__who">
+        <b>{{ lead.name|default:"Без имени" }}</b>
+        <span class="lead-row__phone">{{ lead.phone_pretty }}</span>
+      </span>
+      <span class="lead-row__area">{{ lead.area|default:"—" }}</span>
+      <span class="flag flag--{{ lead.status }}">{{ lead.get_status_display }}</span>
+      <span class="lead-row__when">
+        {% if lead.is_overdue %}
+          просрочено с {{ lead.remind_at|date:"d.m" }}
+        {% elif lead.remind_at %}
+          напомнить {{ lead.remind_at|date:"d.m H:i" }}
+        {% else %}
+          {{ lead.created_at|date:"d.m H:i" }}
+        {% endif %}
+      </span>
+    </a>
+  {% empty %}
+    <p class="muted">Здесь пусто.</p>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -30,7 +30,7 @@
 
   <ol class="chat__list" data-chat-list>
     {% for message in chat_messages %}
-      {% include 'landing/cabinet/_message.html' with message=message mine=message.mine %}
+      {% include 'landing/cabinet/_message.html' with message=message mine=message.mine own=message.own %}
     {% empty %}
       <li class="chat__empty" data-chat-empty>
         Пока пусто. Напишите — я отвечу в тот же день, максимум

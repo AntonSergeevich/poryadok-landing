@@ -140,3 +140,27 @@ def new_message(message):
         '',
         _cabinet_url(reverse('cabinet_project', args=[project.pk])) + '#chat',
     ]))
+
+
+def lead_reminder(lead):
+    """Напомнить о заявке, по которой взяли паузу.
+
+    Единственное уведомление, которое приходит не в ответ на чьё-то
+    действие, а по времени. Заявка в состоянии «думает» сама из него
+    не выйдет: если о ней не напомнить, она тихо умрёт через месяц,
+    и никто этого не заметит.
+    """
+    url = _cabinet_url(reverse('cabinet_lead', args=[lead.pk]))
+    lines = [
+        'Пора вернуться к заявке.',
+        '',
+        f'{lead.name or "Без имени"} · {lead.phone_pretty}',
+    ]
+    if lead.area:
+        lines.append(lead.area)
+    if lead.note:
+        # Заметка после разговора — это то, ради чего напоминание вообще
+        # имеет смысл: без неё придётся вспоминать, о чём был разговор.
+        lines += ['', lead.note[:400]]
+    lines += ['', url]
+    return _to_owner('\n'.join(lines))

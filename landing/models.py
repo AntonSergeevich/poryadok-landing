@@ -4,6 +4,7 @@
 в переписке и в голове. Ровно то, что мы продаём клиентам.
 """
 import re
+from datetime import timedelta
 
 from django.db import models
 from django.utils import timezone
@@ -91,8 +92,16 @@ class Lead(TimeStamped):
         CONTACTED = 'contacted', 'Связались'
         MEETING = 'meeting', 'Разбор назначен'
         PROPOSAL = 'proposal', 'Отправлено предложение'
+        # «Думает» — не то же самое, что «связались». Это состояние,
+        # из которого заявка сама не выйдет: если о ней не напомнить,
+        # она тихо умрёт через месяц, и никто не заметит.
+        THINKING = 'thinking', 'Думает'
         WON = 'won', 'Взяли в работу'
         LOST = 'lost', 'Отказ'
+
+    # Сколько дней ждать, когда человек взял паузу. Три — потому что
+    # через неделю разговор уже надо начинать заново.
+    THINKING_DAYS = 3
 
     class Source(models.TextChoices):
         FORM = 'form', 'Форма на сайте'
@@ -109,6 +118,23 @@ class Lead(TimeStamped):
     status = models.CharField('статус', max_length=16,
                               choices=Status.choices, default=Status.NEW, db_index=True)
     comment = models.TextField('комментарий', blank=True)
+
+    # Заметки после разговора — отдельно от comment, где лежит то, что
+    # человек написал сам. Смешивать их нельзя: одно принадлежит ему,
+    # другое мне, и переписывать чужие слова своими выводами нечестно.
+    note = models.TextField('заметки после разговора', blank=True)
+
+    # Когда напомнить. Заполняется само при статусе «думает», но правится
+    # руками: договорились созвониться в понедельник — значит в понедельник.
+    remind_at = models.DateTimeField('напомнить', null=True, blank=True,
+                                     db_index=True)
+    reminded_at = models.DateTimeField('напоминание отправлено',
+                                       null=True, blank=True)
+
+    # Почему отказались. Одно поле, которое через год объяснит, что
+    # чинить в предложении, — если его заполнять.
+    lost_reason = models.CharField('причина отказа', max_length=250, blank=True)
+
     delivered_to_telegram = models.BooleanField('ушла в Telegram', default=False)
     client = models.ForeignKey(Client, verbose_name='клиент', null=True, blank=True,
                                on_delete=models.SET_NULL, related_name='leads')
@@ -129,6 +155,46 @@ class Lead(TimeStamped):
     @property
     def phone_pretty(self):
         return format_phone(self.phone)
+
+    @property
+    def is_open(self):
+        """Заявка ещё в работе. Закрытые — взятые и отказавшиеся."""
+        return self.status not in (self.Status.WON, self.Status.LOST)
+
+    @property
+    def is_overdue(self):
+        """Срок напоминания прошёл, а напоминания не было."""
+        return bool(self.remind_at and not self.reminded_at
+                    and self.remind_at <= timezone.now())
+
+    def set_status(self, status, reason='', remind_days=None):
+        """Сменить статус, проставив всё, что из него следует.
+
+        Отдельным методом, потому что у статуса есть последствия, и
+        забыть их — обычное дело. «Думает» без даты напоминания — это
+        просто заявка, о которой забудут; «отказ» без причины —
+        потерянный урок.
+        """
+        self.status = status
+        fields = ['status', 'updated_at']
+
+        if status == self.Status.THINKING:
+            days = self.THINKING_DAYS if remind_days is None else remind_days
+            self.remind_at = timezone.now() + timedelta(days=days)
+            # Новый срок — новое напоминание. Иначе отметка о прошлом
+            # заглушит следующее, и заявка снова потеряется.
+            self.reminded_at = None
+            fields += ['remind_at', 'reminded_at']
+        elif status in (self.Status.WON, self.Status.LOST):
+            # Закрытую заявку напоминать незачем.
+            self.remind_at = None
+            fields.append('remind_at')
+
+        if status == self.Status.LOST:
+            self.lost_reason = (reason or '')[:250]
+            fields.append('lost_reason')
+
+        self.save(update_fields=fields)
 
 
 class Project(TimeStamped):
@@ -417,6 +483,7 @@ class Message(TimeStamped):
     author_name = models.CharField('имя автора', max_length=120)
     author_is_owner = models.BooleanField('от исполнителя', default=False)
     text = models.TextField('текст', blank=True)
+    edited_at = models.DateTimeField('поправлено', null=True, blank=True)
     read_at = models.DateTimeField('прочитано другой стороной',
                                    null=True, blank=True)
 
@@ -428,9 +495,32 @@ class Message(TimeStamped):
     def __str__(self):
         return f'{self.author_name}: {self.text[:40]}'
 
+    # Минуту на исправление опечатки — и всё. Это закрывает единственный
+    # честный случай («отправил не ту цифру») и не даёт переписать
+    # историю: переписка нужна как доказательная база, а переписанная
+    # задним числом не доказывает ничего.
+    EDIT_WINDOW = timedelta(minutes=1)
+
     @property
     def is_read(self):
         return self.read_at is not None
+
+    @property
+    def edit_until(self):
+        return self.created_at + self.EDIT_WINDOW
+
+    @property
+    def can_edit(self):
+        return timezone.now() < self.edit_until
+
+    @property
+    def edit_left(self):
+        """Сколько секунд осталось на правку. Ноль — время вышло.
+
+        Считается на сервере: браузер может стоять с открытой вкладкой
+        час, и «минута» по его часам к делу отношения не имеет.
+        """
+        return max(int((self.edit_until - timezone.now()).total_seconds()), 0)
 
 
 def chat_upload_to(instance, filename):

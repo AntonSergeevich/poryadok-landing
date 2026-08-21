@@ -1,0 +1,71 @@
+{% comment %}
+  Деньги по проекту. Отдельным файлом: перерисовывается после каждой
+  записанной оплаты, и шаблон должен быть один — иначе на экране и
+  в базе однажды окажутся разные суммы.
+{% endcomment %}
+<section class="panel" data-money>
+  <h2>Деньги</h2>
+  <dl class="money">
+    <div><dt>Договорились</dt><dd>{{ project.price|floatformat:"0g" }} ₽</dd></div>
+    <div><dt>Оплачено</dt><dd class="is-ok">{{ project.paid_total|floatformat:"0g" }} ₽</dd></div>
+    <div><dt>Осталось</dt><dd><b>{{ project.debt|floatformat:"0g" }} ₽</b></dd></div>
+  </dl>
+
+  {% if owner_view %}
+    <form class="money__set" method="post"
+          action="{% url 'cabinet_project_price' project.pk %}"
+          data-act data-target="[data-money-slot]">
+      {% csrf_token %}
+      <label class="field">
+        <span>Сумма договорённости</span>
+        <input class="input input--sm" type="text" name="price" inputmode="decimal"
+               value="{{ project.price|floatformat:0 }}">
+      </label>
+      <button class="btn btn--sm" type="submit">Сохранить</button>
+    </form>
+
+    <h3 class="money__h">Записать оплату</h3>
+    <form class="money__add" method="post"
+          action="{% url 'cabinet_payment_add' project.pk %}"
+          data-act data-reset data-target="[data-money-slot]">
+      {% csrf_token %}
+      <input class="input input--sm" type="text" name="amount" inputmode="decimal"
+             placeholder="Сколько" aria-label="Сумма" required>
+      <select class="input input--sm" name="purpose" aria-label="За что">
+        {% for value, label in purposes %}
+          <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+      <input class="input input--sm" type="text" name="note" maxlength="200"
+             placeholder="Комментарий" aria-label="Комментарий">
+      <button class="btn btn--sm" type="submit">Записать</button>
+    </form>
+  {% endif %}
+
+  {% if project.payments.all %}
+    <ul class="pay-list">
+      {% for payment in project.payments.all %}
+        {% if payment.status == 'succeeded' %}
+          <li>
+            <b>{{ payment.amount|floatformat:"0g" }} ₽</b>
+            <span>{{ payment.get_purpose_display }}</span>
+            <span class="muted">{{ payment.paid_at|date:"d.m.Y"|default:"—" }}</span>
+            {% if owner_view %}
+              <form method="post"
+                    action="{% url 'cabinet_payment_delete' payment.pk %}"
+                    data-act data-target="[data-money-slot]">
+                {% csrf_token %}
+                <button class="task__del" type="submit" aria-label="Убрать запись">×</button>
+              </form>
+            {% endif %}
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <p class="muted">
+    {% if owner_view %}Оплаты вносите вы, заказчик их видит.
+    {% else %}Те же три числа вижу и я. Разных цифр у нас быть не может.{% endif %}
+  </p>
+</section>

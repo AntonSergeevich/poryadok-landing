@@ -11,7 +11,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 import os
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -164,8 +166,65 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# ── База ─────────────────────────────────────────────────────────────
+#
+# По умолчанию SQLite: локально он не требует ничего ставить, а для
+# разработки и тестов быстрее любого сервера.
+#
+# На боевом сервере — PostgreSQL, и включается он одной строкой в .env:
+#
+#     DATABASE_URL=postgres://poryadok:пароль@localhost:5432/poryadok
+#
+# Почему не SQLite на бою. Он пишет с блокировкой всей базы: пока идёт
+# одна запись, остальные ждут. Пока клиентов двое, это незаметно; когда
+# в кабинете сидят несколько человек и кто-то отправляет файл, остальные
+# упираются в паузу. Проявляется это не отказом, а «сайт задумался», —
+# и причину ищут где угодно, только не в базе.
+#
+# Второе, важнее: SQLite — один файл, и восстановление всегда «откатить
+# всё целиком на момент копии». У PostgreSQL есть журнал, и вернуться
+# можно на конкретную минуту.
+
+def _database_from(url):
+    """Разобрать DATABASE_URL. Возвращает None, если адреса нет.
+
+    Свой разбор вместо библиотеки: строка одна, формат известен, а
+    лишняя зависимость на сервере — это ещё одна вещь, которая однажды
+    не поставится в самый неподходящий момент.
+    """
+    if not url:
+        return None
+
+    parts = urlsplit(url)
+    if parts.scheme not in ('postgres', 'postgresql'):
+        raise ImproperlyConfigured(
+            f'DATABASE_URL: не понимаю «{parts.scheme}». '
+            'Ожидается postgres:// или postgresql://')
+
+    name = unquote(parts.path.lstrip('/'))
+    if not name:
+        raise ImproperlyConfigured('DATABASE_URL: не указано имя базы.')
+
+    return {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': name,
+        # Пароль в адресе бывает с символами, которые сами по себе
+        # что-то значат: @ и / разрежут строку не там. В адресе они
+        # закодированы, здесь — раскодируются обратно.
+        'USER': unquote(parts.username or ''),
+        'PASSWORD': unquote(parts.password or ''),
+        'HOST': parts.hostname or 'localhost',
+        'PORT': str(parts.port or 5432),
+        # Соединение переиспользуется десять минут. Открывать его заново
+        # на каждый запрос — это лишние миллисекунды на ровном месте,
+        # а при всплеске обращений ещё и упор в лимит соединений.
+        'CONN_MAX_AGE': 600,
+        'CONN_HEALTH_CHECKS': True,
+    }
+
+
 DATABASES = {
-    'default': {
+    'default': _database_from(os.getenv('DATABASE_URL')) or {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }

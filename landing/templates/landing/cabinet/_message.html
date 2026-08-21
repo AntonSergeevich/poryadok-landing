@@ -40,7 +40,38 @@
 
     <p class="msg__meta">
       <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"d.m H:i" }}</time>
+      {% if message.edited_at %}<span class="msg__edited">поправлено</span>{% endif %}
       {% if mine and message.is_read %}<span class="msg__read">прочитано</span>{% endif %}
+
+      {% comment %}
+        Правка — минуту после отправки, и только своего. Кнопка
+        появляется, лишь пока время не вышло, а сколько его осталось,
+        считает сервер: вкладка может стоять открытой час, и «минута»
+        по часам браузера к делу отношения не имеет.
+
+        Само окно правки — в разметке, а не собирается скриптом: без
+        JavaScript это обычная форма, которая работает как работала.
+      {% endcomment %}
+      {% if own and message.edit_left %}
+        <button class="msg__edit" type="button"
+                data-msg-edit="{{ message.pk }}"
+                data-left="{{ message.edit_left }}">поправить</button>
+      {% endif %}
     </p>
+
+    {% if own and message.edit_left %}
+      <form class="msg__form" method="post"
+            action="{% url 'cabinet_chat_edit' message.pk %}"
+            id="msg-edit-{{ message.pk }}" data-act hidden>
+        {% csrf_token %}
+        <textarea class="input" name="text" rows="3"
+                  aria-label="Поправить сообщение">{{ message.text }}</textarea>
+        <span class="msg__form-go">
+          <button class="btn btn--sm" type="submit">Сохранить</button>
+          <button class="btn btn--sm btn--ghost" type="button"
+                  data-msg-cancel="{{ message.pk }}">Отмена</button>
+        </span>
+      </form>
+    {% endif %}
   </div>
 </li>

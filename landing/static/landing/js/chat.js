@@ -241,6 +241,105 @@
       .catch(function () { moreBtn.disabled = false; });
   }
 
+  /* ---------- Правка своего сообщения ----------
+     Минуту после отправки. Обе проверки — чьё сообщение и не вышло ли
+     время — живут на сервере; здесь только показываем и прячем форму,
+     а кнопку убираем, когда минута истекла.
+
+     Кнопку надо убирать самой: оставленная до перезагрузки, она
+     предлагает действие, на которое сервер ответит отказом. */
+
+  function fail(form, text) {
+    /* Ошибку показываем под самим полем, а не всплывашкой внизу экрана:
+       человек в этот момент смотрит на текст, который правит. */
+    var line = form.querySelector('.err');
+    if (!line) {
+      line = document.createElement('p');
+      line.className = 'err err--shown';
+      form.appendChild(line);
+    }
+    line.textContent = text;
+  }
+
+  function armEdit(node) {
+    var button = node.querySelector ? node.querySelector('[data-msg-edit]') : null;
+    if (!button) return;
+
+    var left = parseInt(button.dataset.left || '0', 10);
+    if (left <= 0) {
+      button.remove();
+      return;
+    }
+    // Считаем от времени, которое прислал сервер: вкладка может стоять
+    // открытой час, и «минута» по часам браузера тут ни при чём.
+    setTimeout(function () {
+      var form = document.getElementById('msg-edit-' + button.dataset.msgEdit);
+      if (form) form.remove();
+      button.remove();
+    }, left * 1000);
+  }
+
+  function armAllEdits() {
+    list.querySelectorAll('[data-msg]').forEach(armEdit);
+  }
+
+  list.addEventListener('click', function (e) {
+    var open = e.target.closest ? e.target.closest('[data-msg-edit]') : null;
+    if (open) {
+      var form = document.getElementById('msg-edit-' + open.dataset.msgEdit);
+      if (form) {
+        form.hidden = false;
+        var area = form.querySelector('textarea');
+        if (area) { area.focus(); area.selectionStart = area.value.length; }
+      }
+      open.hidden = true;
+      return;
+    }
+
+    var cancel = e.target.closest ? e.target.closest('[data-msg-cancel]') : null;
+    if (cancel) {
+      var box = document.getElementById('msg-edit-' + cancel.dataset.msgCancel);
+      if (box) box.hidden = true;
+      var back = list.querySelector('[data-msg-edit="' + cancel.dataset.msgCancel + '"]');
+      if (back) back.hidden = false;
+    }
+  });
+
+  list.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form.matches || !form.matches('.msg__form')) return;
+    e.preventDefault();
+
+    var body = new FormData(form);
+    fetch(form.action, {
+      method: 'POST',
+      body: body,
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': token() }
+    })
+      .then(function (r) { return r.json().then(function (d) { return [r.ok, d]; }); })
+      .then(function (pair) {
+        var ok = pair[0], data = pair[1];
+        if (!ok || !data.ok) {
+          fail(form, data.error || 'Не сохранилось. Попробуйте ещё раз.');
+          return;
+        }
+        // Заменяем сообщение целиком разметкой с сервера: собирать его
+        // здесь вторым способом значит однажды получить два разных вида
+        // одного сообщения.
+        var old = list.querySelector('[data-msg="' + data.id + '"]');
+        if (old) {
+          var holder = document.createElement('div');
+          holder.innerHTML = data.html;
+          var fresh = holder.firstElementChild;
+          if (fresh) { old.replaceWith(fresh); armEdit(fresh); }
+        }
+      })
+      .catch(function () {
+        fail(form, 'Связь пропала. Правка не сохранилась.');
+      });
+  });
+
   /* ---------- Пуск ---------- */
 
   form.addEventListener('submit', function (e) {
@@ -272,5 +371,6 @@
 
   grow();
   toBottom();
+  armAllEdits();
   timer = setTimeout(tick, FAST);
 })();

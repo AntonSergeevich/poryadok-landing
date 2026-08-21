@@ -57,15 +57,7 @@
   </div>
 
   <aside class="cab__side">
-    <section class="panel">
-      <h2>Деньги</h2>
-      <dl class="money">
-        <div><dt>Договорились</dt><dd>{{ project.price|floatformat:"0g" }} ₽</dd></div>
-        <div><dt>Оплачено</dt><dd class="is-ok">{{ project.paid_total|floatformat:"0g" }} ₽</dd></div>
-        <div><dt>Осталось</dt><dd><b>{{ project.debt|floatformat:"0g" }} ₽</b></dd></div>
-      </dl>
-      <p class="muted">Те же три числа вижу и я. Разных цифр у нас быть не может.</p>
-    </section>
+    {% include 'landing/cabinet/_money.html' %}
 
     <section class="panel">
       <h2>Если что-то непонятно</h2>

@@ -14,12 +14,21 @@
 {% block description %}Личный кабинет по проекту.{% endblock %}
 
 {% block nav %}
+  {% comment %}
+    Меню кабинета, а не сайта. Разделы лендинга внутри кабинета ведут
+    в никуда, а переходить между заявками, клиентами и деньгами
+    приходится постоянно — и до сих пор было нечем.
+  {% endcomment %}
   {% if user.is_staff %}
-    <a href="{% url 'cabinet' %}">Рабочий стол</a>
+    <a href="{% url 'cabinet' %}"{% if section == 'desk' %} class="is-here"{% endif %}>Сегодня</a>
+    <a href="{% url 'cabinet_leads' %}"{% if section == 'leads' %} class="is-here"{% endif %}>Заявки</a>
+    <a href="{% url 'cabinet_clients' %}"{% if section == 'clients' %} class="is-here"{% endif %}>Заказчики</a>
+    <a href="{% url 'cabinet_money' %}"{% if section == 'money' %} class="is-here"{% endif %}>Деньги</a>
+    <a href="{% url 'admin:index' %}">Админка</a>
   {% else %}
     <a href="{% url 'cabinet' %}">Мой проект</a>
+    <a href="{% url 'cabinet_password' %}">Пароль</a>
   {% endif %}
-  <a href="{% url 'cabinet_password' %}">Пароль</a>
   <a href="{% url 'index' %}">Сайт</a>
 {% endblock %}
 

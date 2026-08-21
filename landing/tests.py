@@ -1638,3 +1638,298 @@ class CabinetEntranceTests(TestCase):
         response = self.client.get(reverse('cabinet'))
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('login'), response.url)
+
+
+class LeadWorkflowTests(TestCase):
+    """Заявка от «написал» до «взяли в работу» или «отказ»."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton2', password='x' * 12,
+                                              is_staff=True)
+        self.client.force_login(self.owner)
+        self.lead = Lead.objects.create(
+            name='Пётр', phone='+79130000021', area='Барбершоп')
+
+    def test_thinking_sets_a_reminder(self):
+        """«Думает» без даты напоминания — это заявка, о которой забудут."""
+        self.lead.set_status(Lead.Status.THINKING)
+        self.lead.refresh_from_db()
+        self.assertIsNotNone(self.lead.remind_at)
+        self.assertIsNone(self.lead.reminded_at)
+        self.assertGreater(self.lead.remind_at, timezone.now())
+
+    def test_new_deadline_clears_the_old_reminder_mark(self):
+        """Иначе отметка о прошлом напоминании заглушит следующее."""
+        self.lead.set_status(Lead.Status.THINKING)
+        self.lead.reminded_at = timezone.now()
+        self.lead.save()
+        self.lead.set_status(Lead.Status.THINKING)
+        self.lead.refresh_from_db()
+        self.assertIsNone(self.lead.reminded_at)
+
+    def test_closing_a_lead_drops_the_reminder(self):
+        self.lead.set_status(Lead.Status.THINKING)
+        self.lead.set_status(Lead.Status.WON)
+        self.lead.refresh_from_db()
+        self.assertIsNone(self.lead.remind_at)
+
+    def test_refusal_without_a_reason_is_declined(self):
+        """Через год причина — единственное, что объяснит, что чинить."""
+        response = self.client.post(
+            reverse('cabinet_lead_status', args=[self.lead.pk]),
+            {'status': Lead.Status.LOST},
+            headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertEqual(response.status_code, 400)
+        self.lead.refresh_from_db()
+        self.assertNotEqual(self.lead.status, Lead.Status.LOST)
+
+    def test_refusal_with_a_reason_is_recorded(self):
+        self.client.post(
+            reverse('cabinet_lead_status', args=[self.lead.pk]),
+            {'status': Lead.Status.LOST, 'lost_reason': 'Дорого'},
+            headers={'x-requested-with': 'XMLHttpRequest'})
+        self.lead.refresh_from_db()
+        self.assertEqual(self.lead.status, Lead.Status.LOST)
+        self.assertEqual(self.lead.lost_reason, 'Дорого')
+
+    def test_status_change_returns_a_redrawn_card(self):
+        response = self.client.post(
+            reverse('cabinet_lead_status', args=[self.lead.pk]),
+            {'status': Lead.Status.THINKING},
+            headers={'x-requested-with': 'XMLHttpRequest'})
+        data = json.loads(response.content)
+        self.assertTrue(data['ok'])
+        # Дата напоминания должна приехать в разметке: без неё человек
+        # не увидит, что у заявки вообще появился срок.
+        self.assertIn('Напомнить', data['html'])
+
+    def test_project_is_created_from_the_lead_in_one_action(self):
+        """Раньше это было три захода в разные разделы."""
+        self.client.post(reverse('cabinet_lead_project', args=[self.lead.pk]),
+                         {'title': 'Система для барбершопа'})
+        self.lead.refresh_from_db()
+
+        self.assertEqual(self.lead.status, Lead.Status.WON)
+        self.assertIsNotNone(self.lead.client)
+        project = Project.objects.get(client=self.lead.client)
+        self.assertEqual(project.stages.count(), len(STAGE_PLAN))
+
+    def test_existing_client_is_reused_by_phone(self):
+        """Тот же человек мог оставить заявку дважды."""
+        card = Client.objects.create(name='Пётр', phone='+79130000021')
+        self.client.post(reverse('cabinet_lead_project', args=[self.lead.pk]),
+                         {'title': 'Вторая система'})
+        self.lead.refresh_from_db()
+        self.assertEqual(self.lead.client_id, card.pk)
+        self.assertEqual(Client.objects.filter(phone='+79130000021').count(), 1)
+
+    def test_lead_can_be_deleted(self):
+        self.client.post(reverse('cabinet_lead_delete', args=[self.lead.pk]))
+        self.assertFalse(Lead.objects.filter(pk=self.lead.pk).exists())
+
+    def test_notes_are_kept_apart_from_what_the_person_wrote(self):
+        """Одно принадлежит ему, другое мне."""
+        self.lead.comment = 'Нужна запись онлайн'
+        self.lead.save()
+        self.client.post(reverse('cabinet_lead_update', args=[self.lead.pk]),
+                         {'note': 'Решает не он, а жена'},
+                         headers={'x-requested-with': 'XMLHttpRequest'})
+        self.lead.refresh_from_db()
+        self.assertEqual(self.lead.comment, 'Нужна запись онлайн')
+        self.assertEqual(self.lead.note, 'Решает не он, а жена')
+
+    def test_reminder_command_writes_once(self):
+        self.lead.set_status(Lead.Status.THINKING)
+        Lead.objects.filter(pk=self.lead.pk).update(
+            remind_at=timezone.now() - timedelta(minutes=1))
+
+        out = StringIO()
+        call_command('lead_reminders', stdout=out)
+        self.lead.refresh_from_db()
+        self.assertIsNotNone(self.lead.reminded_at)
+
+        # Второй запуск не должен повторять то же самое: команда ходит
+        # раз в час, и без отметки сообщение шло бы вечно.
+        second = StringIO()
+        call_command('lead_reminders', stdout=second)
+        self.assertIn('Напоминать не о чем', second.getvalue())
+
+    def test_client_cannot_reach_the_leads(self):
+        card = Client.objects.create(name='Чужой', phone='+79130000022')
+        access.issue(card)
+        card.refresh_from_db()
+        card.user.set_password('y' * 12)
+        card.user.save()
+        self.client.force_login(card.user)
+
+        response = self.client.get(reverse('cabinet_leads'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('cabinet'))
+
+    def test_stranger_is_sent_to_login_not_to_a_dead_end(self):
+        """Раньше здесь был 404, и человек из закладки видел
+        «страница не найдена» вместо формы входа."""
+        self.client.logout()
+        response = self.client.get(reverse('cabinet_leads'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response.url)
+
+
+class MoneyTests(TestCase):
+    """Оплаты вносятся из кабинета, а не из админки."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton3', password='x' * 12,
+                                              is_staff=True)
+        self.client.force_login(self.owner)
+        self.card = Client.objects.create(name='Ирина', phone='+79130000023')
+        self.project = Project.objects.create(
+            client=self.card, title='Система', price=Decimal('180000'))
+
+    def test_payment_is_recorded_and_counted(self):
+        self.client.post(reverse('cabinet_payment_add', args=[self.project.pk]),
+                         {'amount': '90 000', 'purpose': 'project'},
+                         headers={'x-requested-with': 'XMLHttpRequest'})
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.paid_total, Decimal('90000'))
+        self.assertEqual(self.project.debt, Decimal('90000'))
+
+    def test_money_is_parsed_the_way_people_type_it(self):
+        """«180 000» и «180000,50» человек печатает так, как читает."""
+        from landing.cabinet import _parse_money
+        self.assertEqual(_parse_money('180 000'), Decimal('180000'))
+        self.assertEqual(_parse_money('180 000'), Decimal('180000'))
+        self.assertEqual(_parse_money('180000,50'), Decimal('180000.50'))
+        self.assertIsNone(_parse_money('ерунда'))
+        self.assertIsNone(_parse_money(''))
+
+    def test_zero_and_nonsense_are_refused(self):
+        for value in ('0', '-100', 'ерунда'):
+            with self.subTest(value=value):
+                response = self.client.post(
+                    reverse('cabinet_payment_add', args=[self.project.pk]),
+                    {'amount': value},
+                    headers={'x-requested-with': 'XMLHttpRequest'})
+                self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.project.paid_total, 0)
+
+    def test_price_can_be_set_from_the_cabinet(self):
+        self.client.post(reverse('cabinet_project_price', args=[self.project.pk]),
+                         {'price': '250 000'},
+                         headers={'x-requested-with': 'XMLHttpRequest'})
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.price, Decimal('250000'))
+
+    def test_stages_can_be_laid_out_afterwards(self):
+        """Проекты из админки заводятся без этапов, и пустая шкала
+        не отвечает ни на один вопрос."""
+        self.assertEqual(self.project.stages.count(), 0)
+        self.client.post(reverse('cabinet_stages_build', args=[self.project.pk]))
+        self.assertEqual(self.project.stages.count(), len(STAGE_PLAN))
+
+
+class MessageEditTests(TestCase):
+    """Минута на исправление опечатки — и всё."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton4', password='x' * 12,
+                                              is_staff=True)
+        self.card = Client.objects.create(name='Ирина', phone='+79130000024')
+        access.issue(self.card)
+        self.card.refresh_from_db()
+        self.project = Project.objects.create(client=self.card, title='Система')
+        self.message = Message.objects.create(
+            project=self.project, author=self.owner,
+            author_name='Антон', author_is_owner=True, text='Первый вариант')
+
+    def test_own_message_can_be_fixed_within_a_minute(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_chat_edit', args=[self.message.pk]),
+            {'text': 'Второй вариант'},
+            headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertEqual(response.status_code, 200)
+        self.message.refresh_from_db()
+        self.assertEqual(self.message.text, 'Второй вариант')
+        self.assertIsNotNone(self.message.edited_at)
+
+    def test_sending_time_does_not_move(self):
+        """Переписка нужна как доказательная база, а переписанная
+        задним числом не доказывает ничего."""
+        was = self.message.created_at
+        self.client.force_login(self.owner)
+        self.client.post(reverse('cabinet_chat_edit', args=[self.message.pk]),
+                         {'text': 'Поправлено'},
+                         headers={'x-requested-with': 'XMLHttpRequest'})
+        self.message.refresh_from_db()
+        self.assertEqual(self.message.created_at, was)
+
+    def test_after_a_minute_the_window_is_closed(self):
+        Message.objects.filter(pk=self.message.pk).update(
+            created_at=timezone.now() - timedelta(minutes=2))
+        self.message.refresh_from_db()
+        self.assertFalse(self.message.can_edit)
+        self.assertEqual(self.message.edit_left, 0)
+
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_chat_edit', args=[self.message.pk]),
+            {'text': 'Поздно'},
+            headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertEqual(response.status_code, 400)
+        self.message.refresh_from_db()
+        self.assertEqual(self.message.text, 'Первый вариант')
+
+    def test_someone_elses_message_is_never_editable(self):
+        """Проверка на сервере, а не в вёрстке: спрятанная кнопка —
+        это не запрет."""
+        self.client.force_login(self.card.user)
+        response = self.client.post(
+            reverse('cabinet_chat_edit', args=[self.message.pk]),
+            {'text': 'Подменю'},
+            headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertEqual(response.status_code, 400)
+        self.message.refresh_from_db()
+        self.assertEqual(self.message.text, 'Первый вариант')
+
+    def test_message_cannot_be_emptied(self):
+        """Удалять переписку нельзя — в том числе так."""
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('cabinet_chat_edit', args=[self.message.pk]),
+            {'text': '   '},
+            headers={'x-requested-with': 'XMLHttpRequest'})
+        self.assertEqual(response.status_code, 400)
+
+
+class DatabaseUrlTests(TestCase):
+    """Разбор DATABASE_URL. Пароль с @ и / — классическая ловушка."""
+
+    def test_plain_url(self):
+        from core.settings import _database_from
+        got = _database_from('postgres://u:p@localhost:5432/mydb')
+        self.assertEqual(got['ENGINE'], 'django.db.backends.postgresql')
+        self.assertEqual(got['NAME'], 'mydb')
+        self.assertEqual(got['USER'], 'u')
+        self.assertEqual(got['PORT'], '5432')
+
+    def test_password_with_special_characters(self):
+        """@ и / внутри пароля разрезали бы строку не там, если бы
+        их не закодировали."""
+        from core.settings import _database_from
+        got = _database_from('postgres://u:p%40ss%2Fword@db.local/mydb')
+        self.assertEqual(got['PASSWORD'], 'p@ss/word')
+        self.assertEqual(got['HOST'], 'db.local')
+
+    def test_empty_means_sqlite(self):
+        from core.settings import _database_from
+        self.assertIsNone(_database_from(''))
+        self.assertIsNone(_database_from(None))
+
+    def test_wrong_engine_is_refused_loudly(self):
+        from django.core.exceptions import ImproperlyConfigured
+        from core.settings import _database_from
+        with self.assertRaises(ImproperlyConfigured):
+            _database_from('mysql://u:p@h/db')
+        with self.assertRaises(ImproperlyConfigured):
+            _database_from('postgres://u:p@h/')

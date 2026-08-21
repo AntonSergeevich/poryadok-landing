@@ -22,6 +22,8 @@
 {% endblock %}
 
 {% block content %}
+{% include 'landing/_build_icons.html' %}
+
 <section class="sheet sheet--first">
   <div class="wrap">
     <span class="tag tag--ink">Лист 00 · Конструктор</span>
@@ -52,15 +54,22 @@
 
   <section class="sheet">
     <div class="wrap">
-      {# ── Схема ────────────────────────────────────────────────── #}
-      <div class="build__scheme">
+      <div class="build__grid">
+
+        {# ── Слева: схема и счёт ────────────────────────────────── #}
+        <div class="build__left">
           <div class="scheme" data-scheme aria-hidden="true">
             <svg class="scheme__wires" data-wires aria-hidden="true"></svg>
             {% comment %}
               Схема — картинка, а не орган управления: переключают блоки
-              списком справа, где у каждого есть название, польза и цена.
-              Дублировать управление в двух местах значит однажды получить
-              два разных состояния одного набора.
+              списком, где у каждого есть название, польза и цена.
+              Дублировать управление в двух местах значит однажды
+              получить два разных состояния одного набора.
+
+              Подписи заменены значками: одиннадцать слов по кругу
+              не помещались и лезли друг на друга, а на схеме важно
+              не прочитать название, а увидеть, что подключено.
+              Название всё равно рядом — в списке.
             {% endcomment %}
             <div class="scheme__core">
               <span class="scheme__core-name">Ядро</span>
@@ -70,62 +79,87 @@
               {% for block in blocks %}
                 {% if not block.core %}
                   <span class="node{% if block.id in picked %} is-on{% endif %}"
-                        data-node="{{ block.id }}">{{ block.title }}</span>
+                        data-node="{{ block.id }}" title="{{ block.title }}">
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                      <use href="#ico-{{ block.id }}"></use>
+                    </svg>
+                  </span>
                 {% endif %}
               {% endfor %}
             </div>
           </div>
 
-          {% comment %}
-            Про линии говорим только там, где линии есть. На узком экране
-            схема раскладывается плоским списком — обещать в подписи то,
-            чего на экране нет, значит заставить человека искать.
-          {% endcomment %}
           <p class="scheme__note">
             <span class="scheme__note-wires">Подключённое соединено с ядром
             сплошной линией, отключённое стоит пунктиром в стороне.</span>
             <span class="scheme__note-flat">Подключённое выделено, остальное
             стоит пунктиром.</span>
-            Ровно так это выглядит и внутри: блоки не живут сами по себе,
-            они смотрят в одни и те же данные.
+            Блоки не живут сами по себе: они смотрят в одни и те же данные.
           </p>
-      </div>
 
-      <div class="build__grid">
-        {# ── Блоки ──────────────────────────────────────────────── #}
+          {% comment %}
+            Счёт под схемой, а не сбоку от списка. Раньше он был липким
+            справа, и при прокрутке списка схема уезжала вверх — а именно
+            она показывает, что происходит с набором. Теперь уезжает
+            список, а картинка с ценой остаётся на месте.
+          {% endcomment %}
+          <div class="total" data-total>
+            {% include 'landing/_total.html' %}
+          </div>
+
+          <button class="btn btn--block build__recount" type="submit"
+                  formnovalidate>Пересчитать</button>
+
+          <a class="btn btn--block" href="#cta">
+            Оставить заявку <span class="arrow" aria-hidden="true">→</span>
+          </a>
+          <p class="small">
+            Цена ориентировочная и всегда «от». Точную называю после
+            разбора — когда видно, что у вас уже есть и чего на самом
+            деле не хватает.
+          </p>
+        </div>
+
+        {# ── Справа: лента блоков ───────────────────────────────── #}
         <div class="build__list">
           <h2 class="build__h">Из чего собираем</h2>
 
-          {% for block in blocks %}
-            <label class="block{% if block.core %} block--core{% endif %}">
-              <input type="checkbox" name="blocks" value="{{ block.id }}"
-                     {% if block.id in picked %}checked{% endif %}
-                     {% if block.core %}disabled{% endif %}
-                     data-block>
-              {% if block.core %}
-                {% comment %}
-                  Отключённое поле не отправляется. Ядро всё равно
-                  дописывается на сервере, но пусть уедет и отсюда.
-                {% endcomment %}
-                <input type="hidden" name="blocks" value="{{ block.id }}">
-              {% endif %}
-              <span class="block__box" aria-hidden="true">
-                <svg viewBox="0 0 16 16" width="11" height="11">
-                  <path d="M3 8.5 6.4 12 13 4.5" fill="none" stroke="currentColor"
-                        stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
-              <span class="block__body">
-                <span class="block__head">
-                  <b>{{ block.title }}</b>
-                  <span class="block__price">
-                    {% if block.core %}входит всегда{% else %}+{{ block.price|floatformat:"0g" }} ₽{% endif %}
-                  </span>
+          <div class="blocks">
+            {% for block in blocks %}
+              <label class="block{% if block.core %} block--core{% endif %}">
+                <input type="checkbox" name="blocks" value="{{ block.id }}"
+                       {% if block.id in picked %}checked{% endif %}
+                       {% if block.core %}disabled{% endif %}
+                       data-block>
+                {% if block.core %}
+                  {% comment %}
+                    Отключённое поле не отправляется. Ядро всё равно
+                    дописывается на сервере, но пусть уедет и отсюда.
+                  {% endcomment %}
+                  <input type="hidden" name="blocks" value="{{ block.id }}">
+                {% endif %}
+                <span class="block__box" aria-hidden="true">
+                  <svg viewBox="0 0 16 16" width="11" height="11">
+                    <path d="M3 8.5 6.4 12 13 4.5" fill="none" stroke="currentColor"
+                          stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
                 </span>
-                <span class="block__gain">{{ block.gain }}</span>
-              </span>
-            </label>
-          {% endfor %}
+                <span class="block__body">
+                  <span class="block__head">
+                    <span class="block__name">
+                      <svg class="block__ico" viewBox="0 0 24 24" width="16" height="16"
+                           aria-hidden="true"><use href="#ico-{{ block.id }}"></use></svg>
+                      <b>{{ block.title }}</b>
+                    </span>
+                    <span class="block__price">
+                      {% if block.core %}входит всегда{% else %}+{{ block.price|floatformat:"0g" }} ₽{% endif %}
+                    </span>
+                  </span>
+                  <span class="block__gain">{{ block.gain }}</span>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
 
           <h2 class="build__h">Какой у вас масштаб</h2>
           <div class="scales">
@@ -146,102 +180,7 @@
             это работа в каждом блоке, а не строчка в договоре.
           </p>
         </div>
-
-        {# ── Счёт ───────────────────────────────────────────────── #}
-        <aside class="build__total">
-          <div class="total" data-total>
-            {% include 'landing/_total.html' %}
-          </div>
-
-          {% comment %}
-            Кнопка пересчёта видна только там, где скрипта нет. Со
-            скриптом число меняется само, и кнопка «посчитать» рядом
-            с уже посчитанным числом читается как «а это ещё не итог».
-          {% endcomment %}
-          <button class="btn btn--block build__recount" type="submit"
-                  formnovalidate>Пересчитать</button>
-
-          <a class="btn btn--block" href="#cta">
-            Оставить заявку <span class="arrow" aria-hidden="true">→</span>
-          </a>
-          <p class="small">
-            Цена ориентировочная и всегда «от». Точную называю после
-            разбора — когда видно, что у вас уже есть и чего на самом
-            деле не хватает.
-          </p>
-        </aside>
       </div>
-    </div>
-  </section>
-
-  {% comment %}
-    С чем сравнивать. Человек, увидевший «199 000», сравнивает это
-    с последней услышанной ценой — а слышал он обычно про подписку
-    за тысячу в месяц. Не сказать, что это разные вещи, значит оставить
-    его наедине с выводом «дорого».
-
-    Числа не выдуманы: студийная заказная разработка начинается
-    от 300 000, готовые сервисы стоят 400–5 000 ₽ в месяц.
-  {% endcomment %}
-  <section class="sheet">
-    <div class="wrap">
-      <div class="sec-head rv">
-        <span class="tag">С чем сравнивать</span>
-        <h2>Между коробкой и студией</h2>
-        <p class="lede">
-          Три способа решить одну задачу. Они стоят по-разному, потому
-          что это разные вещи, — и это стоит знать до разговора о цене.
-        </p>
-      </div>
-
-      <div class="versus">
-        <article class="vs rv">
-          <h3>Готовый сервис</h3>
-          <p class="vs__fig">400–5 000 ₽<span>в месяц</span></p>
-          <p>
-            Дёшево и работает завтра. Но сценарий чужой: под него
-            подгоняют бизнес, а не наоборот. Всё, что не влезло в чужую
-            форму, остаётся в тетради рядом.
-          </p>
-          <p class="vs__note">
-            Если ваша задача решается так — скажу об этом на разборе
-            и денег не возьму. Это бывает чаще, чем кажется.
-          </p>
-        </article>
-
-        <article class="vs vs--mine rv rv-d1">
-          <h3>Система под вас</h3>
-          <p class="vs__fig">от 50 000 ₽<span>один раз</span></p>
-          <p>
-            Собирается под то, как вы работаете, а не наоборот. Дальше
-            подписки нет: система ваша, вместе с исходным кодом.
-          </p>
-          <p class="vs__note">
-            Дешевле студии по простой причине: работаю один. Нет
-            менеджера, аккаунта и офиса, и я не перепродаю чужое время.
-          </p>
-        </article>
-
-        <article class="vs rv rv-d2">
-          <h3>Студия</h3>
-          <p class="vs__fig">от 300 000 ₽<span>один раз</span></p>
-          <p>
-            То же по сути, но через менеджера. Часть денег уходит
-            на то, чтобы вас услышали и передали разработчику
-            без потерь.
-          </p>
-          <p class="vs__note">
-            Иногда это правильный выбор: когда проект большой и одному
-            человеку его не удержать.
-          </p>
-        </article>
-      </div>
-
-      <p class="small versus__src">
-        Цены рынка — по открытым прайсам студий заказной разработки
-        и тарифам сервисов записи на август 2026 года. Мои — здесь же,
-        в конструкторе, и всегда «от».
-      </p>
     </div>
   </section>
 

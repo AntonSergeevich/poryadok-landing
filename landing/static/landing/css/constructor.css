@@ -10,30 +10,46 @@
 
 .build{display:block}
 
-/* Схема занимает лист целиком и стоит над настройками. Одиннадцать
-   блоков по кругу радиусом в треть узкой колонки налезают друг на друга;
-   на всю ширину они расходятся свободно. Заодно порядок чтения выходит
-   правильный: сначала видно, из чего система состоит, потом — чем
-   её настраивают. */
-.build__scheme{margin-bottom:var(--gut)}
+/* Схема и цена слева, блоки лентой справа.
+
+   Раньше схема стояла во всю ширину сверху, а цена липла сбоку
+   от списка — и при прокрутке списка картинка уезжала вверх, хотя
+   именно она показывает, что происходит с набором. Теперь на месте
+   остаётся то, что смотрят: схема с ценой; листается то, что выбирают. */
 .build__grid{display:grid;gap:var(--gut);align-items:start}
-@media (min-width:900px){
-  .build__grid{grid-template-columns:minmax(0,1fr) minmax(280px,.5fr)}
-  /* Счёт липкий: цену смотрят в момент, когда трогают блок, а не после
-     прокрутки в конец списка. */
-  .build__total{position:sticky;top:96px}
+@media (min-width:960px){
+  .build__grid{grid-template-columns:minmax(300px,.85fr) minmax(0,1.15fr)}
+  .build__left{position:sticky;top:88px}
 }
 .build__h{font-size:var(--t-h3);margin:0 0 16px}
-.build__list .build__h + .build__h{margin-top:32px}
+.build__list .build__h{margin-top:32px}
+.build__list .build__h:first-child{margin-top:0}
+
+/* Лента блоков: прокручивается своей полосой, не утаскивая страницу.
+   Одиннадцать блоков подряд — это два экрана, после которых схема
+   с ценой оказывалась бы далеко позади. */
+.blocks{
+  display:grid;gap:8px;
+  max-height:min(56vh,560px);overflow-y:auto;
+  padding-right:6px;
+  scrollbar-width:thin;
+  /* Обрез сверху и снизу говорит, что список продолжается. Без него
+     непонятно, кончился он или просто упёрся в край. */
+  mask-image:linear-gradient(to bottom,transparent,#000 12px,
+             #000 calc(100% - 12px),transparent);
+}
+@media (max-width:959px){
+  /* На узком экране своя полоса прокрутки внутри страницы — это две
+     прокрутки друг в друге, и палец попадает не в ту. */
+  .blocks{max-height:none;overflow:visible;mask-image:none;padding-right:0}
+}
 
 /* ---------- Схема ---------- */
 
 .scheme{
   position:relative;
-  height:clamp(320px,44vw,460px);
+  height:clamp(260px,30vw,340px);
   border:1px solid var(--line);background:var(--sheet);
-  /* Своя миллиметровка внутри листа: схему кладут на бумагу, а не
-     на пустоту. */
   background-image:
     linear-gradient(var(--grid-minor) 1px,transparent 1px),
     linear-gradient(90deg,var(--grid-minor) 1px,transparent 1px);
@@ -41,83 +57,77 @@
   overflow:hidden;
 }
 
-/* Линии рисует SVG поверх листа, но под блоками. Считать их поворотами
-   и псевдоэлементами можно было бы только для круга; блоки стоят
-   по эллипсу, потому что лист шире, чем высок. */
 .scheme__wires{position:absolute;inset:0;width:100%;height:100%;z-index:1}
 .scheme__wires line{
   stroke:var(--line);stroke-width:1;stroke-dasharray:3 4;
-  transition:stroke .3s ease,stroke-dashoffset .5s ease;
+  transition:stroke .3s ease;
 }
 .scheme__wires line.is-on{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:none}
 
 .scheme__core{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:3;
-  display:grid;gap:5px;place-items:center;text-align:center;
-  width:150px;height:96px;
+  display:grid;gap:4px;place-items:center;text-align:center;
+  width:132px;height:80px;
   border:2px solid var(--graphite);background:var(--paper);
-  padding:10px;
+  padding:8px;
 }
-.scheme__core-name{font:500 1.0625rem/1 var(--f-sans)}
-.scheme__core-sub{font:400 var(--t-tag)/1.35 var(--f-mono);color:var(--muted)}
+.scheme__core-name{font:500 1rem/1 var(--f-sans)}
+.scheme__core-sub{font:400 .625rem/1.3 var(--f-mono);color:var(--muted)}
 
-/* Блоки расставляет скрипт: он считает эллипс по фактическому размеру
-   листа и ставит каждому left/top. Без скрипта углов нет — там они
-   лежат обычной строкой, см. ниже. */
+/* Блоки на схеме — значки без подписей. Одиннадцать слов по кругу
+   не помещались и лезли друг на друга; а на схеме важно не прочитать
+   название, а увидеть, что подключено. Название рядом, в списке. */
 .scheme__ring{position:absolute;inset:0;z-index:2}
 .node{
   position:absolute;transform:translate(-50%,-50%);
-  max-width:118px;padding:7px 10px;text-align:center;white-space:nowrap;
-  font:400 var(--t-tag)/1.25 var(--f-mono);letter-spacing:.04em;
+  display:grid;place-items:center;
+  width:38px;height:38px;
   border:1px dashed var(--line);background:var(--paper);color:var(--muted);
   transition:color .25s ease,border-color .25s ease,background .25s ease,
-             opacity .25s ease;
-  opacity:.6;
+             opacity .25s ease,transform .25s ease;
+  opacity:.55;
 }
+.node svg{fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
 .node.is-on{
   border-style:solid;border-color:var(--ink);
   color:var(--ink);background:var(--sheet);opacity:1;
 }
 
-/* Плоская раскладка — блоки обычной строкой под ядром.
-
-   Нужна в двух случаях, и правила у них общие намеренно: два набора
-   для одного вида однажды разъедутся.
-
-   Первый — страница без скрипта: эллипс некому собрать.
-   Второй — узкий экран: «Сотрудники и выработка» и «Запись и расписание»
-   в 360 px по эллипсу налезают друг на друга и на само ядро. Схема,
-   в которой не разобрать подписи, хуже честного списка. */
-html:not([data-js]) .scheme,.scheme.is-flat{height:auto;padding:20px}
+/* Плоская раскладка — значки строкой под ядром. Нужна на узком экране
+   и на странице без скрипта; правила общие намеренно, два набора для
+   одного вида однажды разъедутся. */
+html:not([data-js]) .scheme,.scheme.is-flat{height:auto;padding:18px}
 html:not([data-js]) .scheme__wires,.scheme.is-flat .scheme__wires{display:none}
 html:not([data-js]) .scheme__core,.scheme.is-flat .scheme__core{
-  position:static;transform:none;width:auto;height:auto;margin-bottom:16px;
+  position:static;transform:none;width:auto;height:auto;margin-bottom:14px;
 }
 html:not([data-js]) .scheme__ring,.scheme.is-flat .scheme__ring{
-  position:static;display:flex;flex-wrap:wrap;gap:8px;
+  position:static;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
 }
-html:not([data-js]) .node,.scheme.is-flat .node{
-  position:static;transform:none;max-width:none;
-}
+html:not([data-js]) .node,.scheme.is-flat .node{position:static;transform:none}
 
 .scheme__note{
-  margin-top:14px;font-size:var(--t-small);color:var(--muted);line-height:1.55;
-  max-width:70ch;
+  margin:12px 0 16px;font-size:var(--t-small);color:var(--muted);line-height:1.5;
 }
-/* По умолчанию — вариант без линий: он верен и на узком экране,
-   и на странице без скрипта. Про линии говорим, только когда схема
-   действительно собрана эллипсом. */
 .scheme__note-wires{display:none}
-.build__scheme:has(.scheme:not(.is-flat)) .scheme__note-wires{display:inline}
-.build__scheme:has(.scheme:not(.is-flat)) .scheme__note-flat{display:none}
+.build__left:has(.scheme:not(.is-flat)) .scheme__note-wires{display:inline}
+.build__left:has(.scheme:not(.is-flat)) .scheme__note-flat{display:none}
 html:not([data-js]) .scheme__note-wires{display:none}
 html:not([data-js]) .scheme__note-flat{display:inline}
+
+/* Набор значков не показывается — из него только ссылаются. */
+.ico-set{position:absolute;width:0;height:0;overflow:hidden}
 
 /* ---------- Блоки ---------- */
 
 .block{
+  /* Точка отсчёта для спрятанного флажка. Без неё он позиционируется
+     относительно страницы и формально оказывается за пределами блока —
+     невидимо, но неверно: так же ведут себя подсказки и обводка фокуса. */
+  position:relative;
   display:flex;gap:12px;align-items:flex-start;
-  padding:14px 16px;margin-bottom:8px;
+  padding:13px 15px;
   border:1px solid var(--line);background:var(--sheet);cursor:pointer;
   transition:border-color .16s ease,background .16s ease;
 }
@@ -125,17 +135,12 @@ html:not([data-js]) .scheme__note-flat{display:inline}
 .block:has(input:checked){border-color:var(--ink);border-left-width:3px}
 .block--core{cursor:default;background:var(--graphite-wash)}
 .block--core:hover{border-color:var(--ink)}
-/* Флажок настоящий, но убран с глаз: он держит состояние, отвечает
-   на пробел и объявляется диктором. Рисуем рядом свой.
-
-   Убираем обрезкой, а не нулевым размером: элемент размером 0×0
-   часть программ чтения с экрана пропускает как несуществующий. */
 .block input{
   position:absolute;width:1px;height:1px;margin:-1px;padding:0;
   overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;
 }
 .block__box{
-  flex:none;display:grid;place-items:center;width:22px;height:22px;
+  flex:none;display:grid;place-items:center;width:20px;height:20px;
   border:1px solid var(--line);background:var(--paper);color:transparent;
   transition:background .16s ease,border-color .16s ease,color .16s ease;
 }
@@ -143,14 +148,27 @@ html:not([data-js]) .scheme__note-flat{display:inline}
   background:var(--ink);border-color:var(--ink);color:#fff;
 }
 .block:has(input:focus-visible) .block__box{outline:2px solid var(--ink);outline-offset:2px}
-.block__body{flex:1;min-width:0;display:grid;gap:6px}
-.block__head{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;
-  justify-content:space-between}
-.block__head b{font-size:1rem}
+
+/* min-width:0 обязателен: без него длинное слово в описании распирает
+   колонку сетки, и текст вылезал за рамку блока — «Сотрудники
+   и выработка» уезжали за край. */
+.block__body{flex:1;min-width:0;display:grid;gap:5px}
+.block__head{
+  display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;
+  justify-content:space-between;min-width:0;
+}
+.block__name{display:flex;gap:8px;align-items:center;min-width:0}
+.block__name b{font-size:.9375rem}
+.block__ico{flex:none;fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round;color:var(--muted)}
+.block:has(input:checked) .block__ico{color:var(--ink)}
 .block__price{font:500 var(--t-tag)/1 var(--f-mono);color:var(--muted);
   letter-spacing:.06em;white-space:nowrap}
 .block:has(input:checked) .block__price{color:var(--ink)}
-.block__gain{font-size:var(--t-small);color:var(--muted);line-height:1.5}
+/* overflow-wrap ловит то, что не поймал min-width: длинное слово
+   переносится внутри блока, а не выталкивает его край наружу. */
+.block__gain{font-size:var(--t-small);color:var(--muted);line-height:1.45;
+  overflow-wrap:anywhere}
 
 /* ---------- Масштаб ---------- */
 

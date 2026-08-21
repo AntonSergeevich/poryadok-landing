@@ -28,7 +28,9 @@
 
   // Ниже этого порога подписи по эллипсу налезают друг на друга и на
   // само ядро. Схема, в которой не разобрать слов, хуже честного списка.
-  var FLAT_BELOW = 720;
+  // Порог опущен: значки вместо подписей помещаются там, где слова
+  // уже не помещались. Ниже — плоская строка.
+  var FLAT_BELOW = 340;
 
   function layout() {
     if (!scheme) return;
@@ -50,8 +52,9 @@
     var cy = box.height / 2;
     // Запас по краям — половина самого широкого блока плюс поля, иначе
     // крайние уезжают за рамку листа.
-    var rx = Math.max(cx - 78, 60);
-    var ry = Math.max(cy - 34, 48);
+    // Запас по краям — половина значка плюс поля.
+    var rx = Math.max(cx - 30, 50);
+    var ry = Math.max(cy - 26, 40);
 
     if (wires) {
       wires.setAttribute('viewBox', '0 0 ' + box.width + ' ' + box.height);
@@ -73,8 +76,9 @@
       var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       line.setAttribute('x1', x);
       line.setAttribute('y1', y);
-      line.setAttribute('x2', cx + Math.cos(angle) * 82);
-      line.setAttribute('y2', cy + Math.sin(angle) * 54);
+      // Линия идёт до края ядра, а не в его середину.
+      line.setAttribute('x2', cx + Math.cos(angle) * 72);
+      line.setAttribute('y2', cy + Math.sin(angle) * 46);
       line.dataset.wire = node.dataset.node;
       wires.appendChild(line);
     });

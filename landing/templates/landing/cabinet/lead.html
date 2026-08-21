@@ -1,0 +1,104 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+
+{% block cab_title %}{{ lead.name|default:"Заявка" }}{% endblock %}
+
+{% block cab_content %}
+<div class="cab__head">
+  <div>
+    <span class="tag">Заявка</span>
+    <h1>{{ lead.name|default:"Без имени" }}</h1>
+    <p class="lede">{{ lead.phone_pretty }}{% if lead.area %} · {{ lead.area }}{% endif %}</p>
+  </div>
+  <a class="btn btn--ghost btn--sm" href="{% url 'cabinet_leads' %}">← Все заявки</a>
+</div>
+
+<div class="cab__grid">
+  <div class="cab__main">
+    <div data-lead-slot>
+      {% include 'landing/cabinet/_lead_card.html' %}
+    </div>
+
+    {% comment %}
+      Заметки после разговора — отдельно от того, что человек написал
+      сам. Смешивать нельзя: одно принадлежит ему, другое мне, и
+      переписывать чужие слова своими выводами нечестно.
+    {% endcomment %}
+    <section class="panel">
+      <h2>Заметки после разговора</h2>
+      <form method="post" action="{% url 'cabinet_lead_update' lead.pk %}"
+            data-act data-target="[data-lead-slot]">
+        {% csrf_token %}
+        <textarea class="input" name="note" rows="7"
+                  placeholder="Что рассказал, чего боится, о чём договорились">{{ lead.note }}</textarea>
+        <label class="field">
+          <span>Напомнить</span>
+          <input class="input input--sm" type="datetime-local" name="remind_at"
+                 value="{{ lead.remind_at|date:'Y-m-d\TH:i' }}">
+        </label>
+        <p class="muted">
+          Пусто — не напоминать. Иначе в назначенное время придёт
+          сообщение в Telegram.
+        </p>
+        <button class="btn btn--sm" type="submit">Сохранить</button>
+      </form>
+    </section>
+  </div>
+
+  <aside class="cab__side">
+    <section class="panel">
+      <h2>Проект</h2>
+      {% if project %}
+        <p class="panel__line">
+          <a href="{% url 'cabinet_project' project.pk %}">{{ project.title }}</a>
+        </p>
+        <p class="muted">{{ project.get_status_display }} · готово {{ project.progress }}%</p>
+      {% else %}
+        <p class="muted">
+          Проекта пока нет. Заведётся вместе с карточкой заказчика
+          и восемью этапами — одним действием.
+        </p>
+        <form method="post" action="{% url 'cabinet_lead_project' lead.pk %}">
+          {% csrf_token %}
+          <label class="field">
+            <span>Название</span>
+            <input class="input input--sm" type="text" name="title" maxlength="160"
+                   value="{% if lead.area %}Система: {{ lead.area }}{% endif %}" required>
+          </label>
+          <button class="btn btn--block" type="submit">Завести проект</button>
+        </form>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Правка</h2>
+      <form method="post" action="{% url 'cabinet_lead_update' lead.pk %}"
+            data-act data-target="[data-lead-slot]">
+        {% csrf_token %}
+        <label class="field"><span>Имя</span>
+          <input class="input input--sm" type="text" name="name" value="{{ lead.name }}"></label>
+        <label class="field"><span>Телефон</span>
+          <input class="input input--sm" type="tel" name="phone" value="{{ lead.phone }}"></label>
+        <label class="field"><span>Сфера</span>
+          <input class="input input--sm" type="text" name="area" value="{{ lead.area }}"></label>
+        <label class="field"><span>Telegram</span>
+          <input class="input input--sm" type="text" name="telegram_username"
+                 value="{{ lead.telegram_username }}"></label>
+        <button class="btn btn--sm" type="submit">Сохранить</button>
+      </form>
+    </section>
+
+    <section class="panel panel--danger">
+      <h2>Удалить</h2>
+      <p class="muted">
+        Насовсем. Заявка — это ещё не отношения: спам и ошибочные
+        отправления должны исчезать, иначе список перестают читать.
+      </p>
+      <form method="post" action="{% url 'cabinet_lead_delete' lead.pk %}"
+            onsubmit="return confirm('Удалить заявку насовсем?')">
+        {% csrf_token %}
+        <button class="linkish" type="submit">Удалить заявку</button>
+      </form>
+    </section>
+  </aside>
+</div>
+{% endblock %}

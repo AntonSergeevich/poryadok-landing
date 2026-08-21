@@ -21,6 +21,13 @@
 
 .head__out{margin:0}
 
+/* Где мы сейчас. Без отметки меню из пяти пунктов читается как список
+   ссылок, а не как место, в котором находишься. */
+.nav a.is-here{color:var(--ink);font-weight:600}
+.nav a.is-here::after{
+  content:"";display:block;height:2px;margin-top:3px;background:var(--ink);
+}
+
 /* Сообщения системы. Не всплывашка: их читают, а не смахивают. */
 .notes{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:8px}
 .note{
@@ -419,3 +426,110 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .chat__note{font:400 var(--t-tag)/1.5 var(--f-mono);color:var(--muted)}
 /* Подсказка про сочетание клавиш — только там, где есть чем его нажать. */
 @media (hover:none){.chat__keys{display:none}}
+
+/* ---------- Списки: заявки, заказчики, оплаты ----------
+   Строка целиком — ссылка. Заходить в карточку через маленькую надпись
+   «открыть» справа значит промахиваться пальцем каждый второй раз. */
+
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:var(--gut)}
+.filters .chip{text-decoration:none}
+
+.lead-list{display:grid;gap:2px}
+.lead-row{
+  display:grid;gap:6px 16px;align-items:center;
+  grid-template-columns:1fr;
+  padding:14px 16px;border:1px solid var(--line);background:var(--sheet);
+  text-decoration:none;color:var(--graphite);
+  transition:border-color .16s ease,background .16s ease;
+}
+@media (min-width:760px){
+  .lead-row{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto minmax(0,.9fr)}
+}
+.lead-row:hover{border-color:var(--ink);background:var(--paper)}
+.lead-row__who{display:grid;gap:2px;min-width:0}
+.lead-row__who b{font-size:1rem}
+.lead-row__phone{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted)}
+.lead-row__area{font-size:var(--t-small);color:var(--muted);min-width:0}
+.lead-row__when{font:400 var(--t-tag)/1.3 var(--f-mono);color:var(--muted)}
+/* Просроченная заявка — единственное здесь, что требует действия
+   прямо сейчас, и это должно быть видно до чтения. */
+.lead-row.is-overdue{border-left:3px solid #B3261E}
+.lead-row.is-overdue .lead-row__when{color:#B3261E}
+
+.client-row{
+  display:grid;gap:10px 16px;grid-template-columns:1fr;
+  padding:16px;border:1px solid var(--line);background:var(--sheet);
+}
+@media (min-width:760px){
+  .client-row{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;align-items:center}
+}
+.client-row__who{display:grid;gap:3px;min-width:0}
+.client-row__who b{font-size:1rem}
+.client-row__who span{font-size:var(--t-small);color:var(--muted)}
+.client-row__projects{display:grid;gap:4px;font-size:var(--t-small);min-width:0}
+.client-row__access{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.client-row__access form{margin:0}
+
+/* ---------- Карточка заявки ---------- */
+
+.facts{display:grid;gap:9px;margin:0 0 16px}
+.facts > div{display:flex;justify-content:space-between;gap:12px;
+  align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.facts dt{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted)}
+.facts dd{margin:0;font-size:var(--t-small);text-align:right}
+.facts .is-overdue dd{color:#B3261E;font-weight:500}
+
+/* То, что человек написал сам. Отделено рамкой: это его слова,
+   а не мои выводы, и путать их нельзя. */
+.lead-said{
+  font-size:var(--t-small);line-height:1.6;color:var(--muted);
+  padding:12px 14px;background:var(--paper);border-left:2px solid var(--line);
+  margin-bottom:16px;
+}
+
+.lost{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.lost summary{
+  font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted);cursor:pointer;
+}
+.lost summary:hover{color:#B3261E}
+.lost form{margin-top:14px;display:grid;gap:10px}
+
+.flag--new{border-color:var(--ink);color:var(--ink)}
+.flag--thinking{border-color:#8A6A00;color:#8A6A00}
+.flag--won{background:var(--ink);border-color:var(--ink);color:#fff}
+.flag--lost{border-color:#B3261E;color:#B3261E}
+
+.panel--danger{border-color:#B3261E}
+.panel--danger h2{color:#B3261E}
+
+/* ---------- Деньги ---------- */
+
+.money--big{gap:14px}
+.money--big dd{font-size:1.35rem;font-weight:500}
+.money__set,.money__add{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;
+  margin-top:14px}
+.money__set .field,.money__add .input{flex:1 1 130px;min-width:0}
+.money__h{font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+  letter-spacing:.14em;color:var(--muted);margin:20px 0 0}
+.pay-list{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:6px}
+.pay-list li{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;
+  font-size:var(--t-small);padding-bottom:6px;border-bottom:1px solid var(--line)}
+.pay-list form{margin:0 0 0 auto}
+.pay-list span{color:var(--muted);font-size:var(--t-tag)}
+
+/* ---------- Правка сообщения ----------
+   Кнопка живёт минуту и исчезает сама. Оставить её до перезагрузки
+   значит предложить действие, на которое сервер ответит отказом. */
+
+.msg__edit{
+  background:none;border:0;padding:2px 0;cursor:pointer;
+  font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  text-decoration:underline;
+}
+.msg__edit:hover{color:var(--ink)}
+.msg__edited{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);font-style:italic}
+.msg__form{display:grid;gap:8px;margin-top:8px}
+.msg__form textarea{width:100%;min-height:4.5rem}
+.msg__form-go{display:flex;gap:8px}

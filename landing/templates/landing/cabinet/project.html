@@ -19,7 +19,27 @@
 
 <div class="cab__grid">
   <div class="cab__main">
-    {% include 'landing/cabinet/_stages.html' %}
+    {% comment %}
+      Проект без этапов бывает: заведённый в админке или появившийся
+      до того, как этапы вообще завелись. Пустая шкала не отвечает ни
+      на один вопрос, ради которых кабинет и делался, — поэтому вместо
+      неё стоит кнопка, а не пустота.
+    {% endcomment %}
+    {% if not stages %}
+      <section class="panel">
+        <h2>Этапов пока нет</h2>
+        <p class="muted">
+          Проект заведён без них. Разложу восемь по плану — их всегда
+          можно поправить и дополнить задачами.
+        </p>
+        <form method="post" action="{% url 'cabinet_stages_build' project.pk %}">
+          {% csrf_token %}
+          <button class="btn btn--block" type="submit">Разложить этапы</button>
+        </form>
+      </section>
+    {% else %}
+      {% include 'landing/cabinet/_stages.html' %}
+    {% endif %}
   </div>
 
   <aside class="cab__side">
@@ -64,15 +84,9 @@
       {% endif %}
     </section>
 
-    <section class="panel">
-      <h2>Деньги</h2>
-      <dl class="money">
-        <div><dt>Договорились</dt><dd>{{ project.price|floatformat:"0g" }} ₽</dd></div>
-        <div><dt>Оплачено</dt><dd class="is-ok">{{ project.paid_total|floatformat:"0g" }} ₽</dd></div>
-        <div><dt>Осталось</dt><dd><b>{{ project.debt|floatformat:"0g" }} ₽</b></dd></div>
-      </dl>
-      <p class="muted">Оплаты заводятся в админке — заказчик их видит.</p>
-    </section>
+    <div data-money-slot>
+      {% include 'landing/cabinet/_money.html' %}
+    </div>
   </aside>
 </div>
 

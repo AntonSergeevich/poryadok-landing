@@ -11,10 +11,14 @@
   'use strict';
 
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var stages = document.querySelector('[data-stages]');
-  if (!stages) return;
 
+  /* Этапы и шкала есть только на странице проекта. Раньше скрипт
+     на этом месте выходил целиком — и на заявках, заказчиках и деньгах
+     не работало ничего: каждое нажатие перезагружало страницу.
+     Теперь они необязательны, а всё остальное живёт своей жизнью. */
+  var stages = document.querySelector('[data-stages]');
   var rail = document.querySelector('[data-rail]');
+  if (!stages && !document.querySelector('[data-act]')) return;
 
   /* ---------- Токен формы берём из cookie, а не из разметки ----------
      Разметка стареет вместе со вкладкой. На телефоне вкладки живут
@@ -31,10 +35,12 @@
   /* ---------- Какой этап открыт ---------- */
 
   function panels() {
+    if (!stages) return [];
     return Array.prototype.slice.call(stages.querySelectorAll('[data-stage]'));
   }
 
   function show(id, push) {
+    if (!stages) return false;
     var found = false;
     panels().forEach(function (panel) {
       var mine = panel.dataset.stage === id;
@@ -58,6 +64,7 @@
   }
 
   function currentId() {
+    if (!stages) return '';
     var hash = (window.location.hash || '').replace('#', '');
     if (hash && document.querySelector('[data-stage="' + hash + '"]')) return hash;
     var open = stages.querySelector('.stage.is-current');
@@ -86,21 +93,54 @@
     form.querySelectorAll('button').forEach(function (b) { b.disabled = on; });
   }
 
-  function swap(data) {
-    if (data.rail && rail) {
-      rail.outerHTML = data.rail;
-      rail = document.querySelector('[data-rail]');
-      bindRail();
+  /* Ответ бывает двух видов.
+
+     Первый — перерисованный этап со шкалой: там меняются сразу два
+     куска, и обновить один, забыв другой, значит показать экран,
+     который сам себе противоречит.
+
+     Второй — просто разметка и место, куда её положить. Так отвечают
+     заявки, деньги и всё, у чего нет шкалы. Раньше такого вида не было
+     вовсе, и половина кабинета работала перезагрузками. */
+  function swap(data, form) {
+    if (data.stage_id) {
+      if (data.rail && rail) {
+        rail.outerHTML = data.rail;
+        rail = document.querySelector('[data-rail]');
+        bindRail();
+      }
+      var old = stages && stages.querySelector('[data-stage="' + data.stage_id + '"]');
+      if (old) {
+        var fresh = build(data.stage);
+        if (fresh) {
+          old.replaceWith(fresh);
+          if (!reduced) fresh.classList.add('is-fresh');
+        }
+      }
+      show(data.stage_id, false);
+      return;
     }
-    var old = stages.querySelector('[data-stage="' + data.stage_id + '"]');
-    if (old) {
-      var holder = document.createElement('div');
-      holder.innerHTML = data.stage;
-      var fresh = holder.firstElementChild;
-      old.replaceWith(fresh);
-      if (!reduced) fresh.classList.add('is-fresh');
+
+    if (!data.html) return;
+
+    // Куда класть: либо форма сказала явно, либо ищем ближайший блок
+    // того же рода выше по дереву.
+    var where = form && form.dataset.target
+      ? document.querySelector(form.dataset.target)
+      : (form && form.closest('[data-lead-slot], [data-money-slot]'));
+    if (!where) return;
+
+    where.innerHTML = data.html;
+    if (!reduced) {
+      var first = where.firstElementChild;
+      if (first) first.classList.add('is-fresh');
     }
-    show(data.stage_id, false);
+  }
+
+  function build(html) {
+    var holder = document.createElement('div');
+    holder.innerHTML = html;
+    return holder.firstElementChild;
   }
 
   /* Какую кнопку нажали — часть отправления, а не мелочь.
@@ -146,8 +186,9 @@
           note(data.error || 'Не сохранилось. Попробуйте ещё раз.');
           return;
         }
-        swap(data);
+        swap(data, form);
         if (form.hasAttribute('data-reset')) form.reset();
+        if (data.note) note(data.note);
       })
       .catch(function () {
         // Связь оборвалась. Врать, что сохранилось, нельзя: человек
@@ -210,6 +251,8 @@
 
   /* ---------- Пуск ---------- */
   bindRail();
-  show(currentId(), false);
-  window.addEventListener('hashchange', function () { show(currentId(), false); });
+  if (stages) {
+    show(currentId(), false);
+    window.addEventListener('hashchange', function () { show(currentId(), false); });
+  }
 })();

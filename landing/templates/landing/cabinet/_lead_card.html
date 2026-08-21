@@ -1,0 +1,71 @@
+{% comment %}
+  Карточка заявки. Отдельным файлом, потому что перерисовывается в ответ
+  на смену статуса: шаблон один и на загрузке, и на действии.
+{% endcomment %}
+<div class="panel" data-lead-card>
+  <div class="panel__head">
+    <h2>{{ lead.name|default:"Без имени" }}</h2>
+    <span class="flag flag--{{ lead.status }}">{{ lead.get_status_display }}</span>
+  </div>
+
+  <dl class="facts">
+    <div><dt>Телефон</dt><dd><a href="tel:{{ lead.phone }}">{{ lead.phone_pretty }}</a></dd></div>
+    {% if lead.telegram_username %}
+      <div><dt>Telegram</dt><dd>
+        <a href="https://t.me/{{ lead.telegram_username }}">@{{ lead.telegram_username }}</a>
+      </dd></div>
+    {% endif %}
+    <div><dt>Сфера</dt><dd>{{ lead.area|default:"—" }}</dd></div>
+    <div><dt>Откуда</dt><dd>{{ lead.get_source_display }}</dd></div>
+    <div><dt>Когда</dt><dd>{{ lead.created_at|date:"d.m.Y H:i" }}</dd></div>
+    {% if lead.remind_at %}
+      <div class="{% if lead.is_overdue %}is-overdue{% endif %}">
+        <dt>Напомнить</dt><dd>{{ lead.remind_at|date:"d.m.Y H:i" }}</dd>
+      </div>
+    {% endif %}
+    {% if lead.lost_reason %}
+      <div><dt>Причина отказа</dt><dd>{{ lead.lost_reason }}</dd></div>
+    {% endif %}
+  </dl>
+
+  {% if lead.comment %}
+    <p class="lead-said">{{ lead.comment|linebreaksbr }}</p>
+  {% endif %}
+
+  {% comment %}
+    Статус меняется здесь же. За время работы с заявкой его трогают
+    несколько раз, и переход на отдельную страницу ради одного поля
+    превращается в «поменяю потом», то есть никогда.
+  {% endcomment %}
+  <form class="stage__status" method="post"
+        action="{% url 'cabinet_lead_status' lead.pk %}"
+        data-act data-target="[data-lead-slot]">
+    {% csrf_token %}
+    {% for value, label in statuses %}
+      {% if value != 'lost' %}
+        <button class="chip{% if lead.status == value %} is-on{% endif %}"
+                type="submit" name="status" value="{{ value }}">{{ label }}</button>
+      {% endif %}
+    {% endfor %}
+  </form>
+
+  <details class="lost"{% if lead.status == 'lost' %} open{% endif %}>
+    <summary>Отказались</summary>
+    <form method="post" action="{% url 'cabinet_lead_status' lead.pk %}"
+          data-act data-target="[data-lead-slot]">
+      {% csrf_token %}
+      <input type="hidden" name="status" value="lost">
+      <label class="field">
+        <span>Почему</span>
+        <input class="input input--sm" type="text" name="lost_reason" maxlength="250"
+               value="{{ lead.lost_reason }}"
+               placeholder="Дорого / нашли другого / отложили до весны">
+      </label>
+      <p class="muted">
+        Через год это единственное, что объяснит, что чинить
+        в предложении. Без причины статус не поставлю.
+      </p>
+      <button class="btn btn--sm" type="submit">Записать отказ</button>
+    </form>
+  </details>
+</div>
