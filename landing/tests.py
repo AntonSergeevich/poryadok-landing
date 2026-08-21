@@ -2214,12 +2214,18 @@ class ContractViewTests(TestCase):
             reverse('cabinet_contract', args=[contract.pk]))
         self.assertEqual(response.status_code, 404)
 
-    def test_lawyer_notes_are_owner_only(self):
+    def test_lawyer_notes_are_not_on_the_page_at_all(self):
+        """Подсказки со страницы убраны: место документа не в подсказках.
+        В коде они остались — как записанные причины, по которым в каждом
+        спорном месте выбран именно этот вариант."""
         contract = self.issued()
-        self.client.force_login(self.card.user)
-        body = self.client.get(
-            reverse('cabinet_contract', args=[contract.pk])).content.decode()
-        self.assertNotIn('спросить у юриста', body)
+        for who in (self.owner, self.card.user):
+            with self.subTest(who=who.username):
+                self.client.force_login(who)
+                body = self.client.get(
+                    reverse('cabinet_contract', args=[contract.pk])
+                ).content.decode()
+                self.assertNotIn('спросить у юриста', body)
 
     def test_issue_without_requisites_is_refused(self):
         """Договор без счёта заказчик получит, распечатает, подпишет —

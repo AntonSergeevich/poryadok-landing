@@ -85,7 +85,6 @@ def contract_page(request, pk):
         # договор без счёта заказчик получит, распечатает, подпишет —
         # и только тогда спросит, куда платить.
         'gaps': text.missing_requisites() if is_owner(request.user) else [],
-        'notes': text.LAWYER_NOTES if is_owner(request.user) else (),
         'max_mb': MAX_SCAN // (1024 * 1024),
     })
 

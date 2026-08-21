@@ -1,5 +1,5 @@
 {% extends 'landing/cabinet/base_cabinet.html' %}
-{% load static ru %}
+{% load static %}
 
 {% block cab_title %}Договор № {{ contract.number }}{% endblock %}
 
@@ -42,23 +42,6 @@
     {% include 'landing/cabinet/_contract_draft.html' %}
   </div>
 
-  {% if owner_view and notes %}
-    <details class="doc-notes">
-      <summary>Что спросить у юриста — {{ notes|length }} {{ notes|length|ru_plural:"вопрос,вопроса,вопросов" }}</summary>
-      <ol>
-        {% for title, note in notes %}
-          <li><b>{{ title }}.</b> {{ note }}</li>
-        {% endfor %}
-      </ol>
-      <p class="muted">
-        Договор собран не юристом. Он закрывает места, где обычно
-        и возникают споры, но перед первым подписанием его должен
-        прочитать человек с дипломом. Список выше — то, на что стоит
-        обратить его внимание: это места, где я выбрал один из
-        нескольких возможных вариантов.
-      </p>
-    </details>
-  {% endif %}
 </div>
 
 <div data-doc-slot>

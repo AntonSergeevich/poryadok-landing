@@ -45,12 +45,11 @@
 .doc-scan{display:grid;gap:8px}
 .doc-scan__row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 
-/* Вопросы юристу. Свёрнуты: это мой список, а не часть документа. */
+/* Свёрнутые блоки правки. Свёрнуты потому, что открывают их редко:
+   реквизиты заполняют один раз, условия — перед выставлением. Развёрнутые
+   они заслоняли бы сам документ, а на страницу приходят читать его. */
 .doc-notes{border-top:1px solid var(--line);padding-top:12px}
 .doc-notes summary{cursor:pointer;font-size:var(--t-small)}
-.doc-notes ol{margin:12px 0 0;padding-left:20px;display:grid;gap:10px}
-.doc-notes li{font-size:var(--t-small);line-height:1.55;color:var(--muted)}
-.doc-notes b{color:var(--ink);font-weight:500}
 
 /* ---------- Сам документ ---------- */
 
