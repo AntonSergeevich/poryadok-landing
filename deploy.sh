@@ -156,7 +156,36 @@ fi
 step "Копия базы"
 
 mkdir -p "$BACKUPS"
-if [ -f "$ROOT/db.sqlite3" ]; then
+
+# Какая база работает — решает .env, а не то, какие файлы лежат рядом.
+# После переезда на PostgreSQL файл db.sqlite3 остаётся на месте
+# и выглядит как настоящая база. Копировать его вместо работающей —
+# это делать бесполезные копии и не делать нужных: миграции пойдут
+# по PostgreSQL, а откатывать будет нечего.
+PG_URL="$(grep -E '^DATABASE_URL=' "$ROOT/.env" 2>/dev/null | head -1 | cut -d= -f2- || true)"
+
+if [ -n "$PG_URL" ]; then
+  COPY="$BACKUPS/db-$(date +%F-%H%M).sql.gz"
+  if [ "$CHECK_ONLY" = 1 ]; then
+    warn "снял бы копию PostgreSQL в $COPY"
+  elif ! command -v pg_dump >/dev/null 2>&1; then
+    # Без копии миграции не запускаем вовсе. Выложить код можно ещё раз,
+    # потерянные данные — нельзя.
+    die "База — PostgreSQL, а pg_dump не установлен: копию снять нечем.
+Поставить:  sudo apt install -y postgresql-client"
+  else
+    # Пароль в адресе, поэтому сам адрес нигде не печатаем.
+    if pg_dump "$PG_URL" 2>/dev/null | gzip > "$COPY"; then
+      ok "база: $COPY ($(du -h "$COPY" | cut -f1))"
+      ls -1t "$BACKUPS"/db-*.sql.gz 2>/dev/null \
+        | tail -n +$((KEEP_BACKUPS + 1)) | xargs -r rm --
+    else
+      rm -f "$COPY"
+      die "pg_dump не сработал — копии нет, дальше не иду.
+Проверить вручную:  pg_dump \"\$DATABASE_URL\" > /dev/null"
+    fi
+  fi
+elif [ -f "$ROOT/db.sqlite3" ]; then
   COPY="$BACKUPS/db-$(date +%F-%H%M).sqlite3"
   if [ "$CHECK_ONLY" = 1 ]; then
     warn "скопировал бы базу в $COPY"
