@@ -13,8 +13,22 @@
 from django.db import migrations
 
 
+# Слуги перечислены здесь списком, а не берутся из WORKS целиком.
+#
+# Миграция читает landing/works.py, а файл живёт и растёт: в него добавили
+# третью работу — и эта миграция на чистой базе завела бы уже три, причём
+# опубликованными, тогда как на сервере, где она давно применена, третью
+# заводит миграция 0014 и заводит скрытой. Один и тот же код давал бы два
+# разных результата в зависимости от того, когда его запустили.
+#
+# Миграция — это запись о том, что произошло тогда. Тогда работ было две.
+SLUGS = ('dades', 'linguich')
+
+
 def bring_in(apps, schema_editor):
-    from landing.works import WORKS
+    from landing.works import by_slug
+
+    WORKS = [w for w in (by_slug(slug) for slug in SLUGS) if w]
 
     Work = apps.get_model('landing', 'Work')
     WorkFact = apps.get_model('landing', 'WorkFact')
@@ -55,10 +69,8 @@ def take_out(apps, schema_editor):
     структуру и заодно стереть чужую работу — это два разных действия,
     и второго здесь никто не просил.
     """
-    from landing.works import WORKS
-
     Work = apps.get_model('landing', 'Work')
-    Work.objects.filter(slug__in=[item['slug'] for item in WORKS]).delete()
+    Work.objects.filter(slug__in=SLUGS).delete()
 
 
 class Migration(migrations.Migration):

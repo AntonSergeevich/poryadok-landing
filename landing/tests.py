@@ -1114,10 +1114,15 @@ class CabinetViewTests(TestCase):
 class WorksTests(TestCase):
     """Портфолио: данные и снимки должны существовать.
 
-    Проверки идут по списку из landing/works.py, хотя работы давно живут
-    в базе. Это намеренно: список остался источником миграции 0010,
+    Часть проверок идёт по списку из landing/works.py, хотя работы давно
+    живут в базе. Это намеренно: список остался источником миграций,
     и пока эти проверки проходят, перенос из кода в базу ничего
     не потерял по дороге.
+
+    А вот «что видно на сайте» по этому списку проверять уже нельзя.
+    Публикация — отдельное решение, которое принимают в кабинете: работу
+    можно собрать раньше, чем её выложат под своим именем. Такие проверки
+    смотрят в базу и спрашивают только опубликованные.
     """
 
     def test_every_screenshot_file_is_in_place(self):
@@ -1131,9 +1136,22 @@ class WorksTests(TestCase):
 
     def test_works_appear_on_the_page(self):
         body = self.client.get(reverse('index')).content.decode()
-        for work in WORKS:
-            self.assertIn(work['site'], body)
-            self.assertIn(work['title'], body)
+        shown = Work.objects.filter(is_published=True)
+        self.assertTrue(shown.exists(), 'на сайте не осталось ни одной работы')
+        for work in shown:
+            with self.subTest(work=work.slug):
+                self.assertIn(work.title, body)
+                if work.site:
+                    self.assertIn(work.site, body)
+
+    def test_hidden_work_is_not_on_the_front_page(self):
+        """Работа без адреса сайта заведена скрытой. Показать её значит
+        пообещать ссылку, которой нет."""
+        hidden = Work.objects.filter(is_published=False).first()
+        if hidden is None:
+            self.skipTest('скрытых работ нет')
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertNotIn(f'id="ba-{hidden.slug}"', body)
 
     def test_every_work_says_what_was_and_what_became(self):
         for work in WORKS:
@@ -1594,16 +1612,27 @@ class PasswordResetTests(TestCase):
 
 
 class WorkPageTests(TestCase):
-    """Страницы отдельных работ и короткие карточки на главной."""
+    """Страницы отдельных работ и короткие карточки на главной.
+
+    Спрашиваем базу, а не список из кода: на сайте видно только
+    опубликованные работы, и именно про них здесь речь.
+    """
+
+    def shown(self):
+        rows = list(Work.objects.filter(is_published=True)
+                    .prefetch_related('shot_rows'))
+        self.assertTrue(rows, 'на сайте не осталось ни одной работы')
+        return rows
 
     def test_every_work_has_its_own_page(self):
-        for item in WORKS:
-            with self.subTest(work=item['slug']):
-                response = self.client.get(reverse('work', args=[item['slug']]))
+        for work in self.shown():
+            with self.subTest(work=work.slug):
+                response = self.client.get(reverse('work', args=[work.slug]))
                 self.assertEqual(response.status_code, 200)
                 body = response.content.decode()
-                self.assertIn(item['title'], body)
-                self.assertIn(item['site'], body)
+                self.assertIn(work.title, body)
+                if work.site:
+                    self.assertIn(work.site, body)
 
     def test_unknown_work_is_not_found(self):
         self.assertEqual(
@@ -1614,25 +1643,26 @@ class WorkPageTests(TestCase):
         на пять экранов. Теперь подробности живут на своей странице,
         а на главной — вывеска и ссылка."""
         front = self.client.get(reverse('index')).content.decode()
-        for item in WORKS:
-            with self.subTest(work=item['slug']):
-                self.assertIn(reverse('work', args=[item['slug']]), front)
+        for work in self.shown():
+            with self.subTest(work=work.slug):
+                self.assertIn(reverse('work', args=[work.slug]), front)
                 # Снимков на главной по одному на работу, а не по четыре.
-                self.assertNotIn(f'{item["shots"][3]["file"]}-sm.webp', front)
+                last = work.shots[-1]
+                self.assertNotIn(f'{last.static_name}-sm.webp', front)
 
     def test_front_page_keeps_was_and_now_in_a_dialog(self):
         """Окно «было и стало» приезжает вместе со страницей: два коротких
         списка дешевле привезти сразу, чем идти за ними запросом."""
         front = self.client.get(reverse('index')).content.decode()
-        for item in WORKS:
-            with self.subTest(work=item['slug']):
-                self.assertIn(f'id="ba-{item["slug"]}"', front)
-                self.assertIn(item['was'][0][:40], front)
+        for work in self.shown():
+            with self.subTest(work=work.slug):
+                self.assertIn(f'id="ba-{work.slug}"', front)
+                self.assertIn(work.was[0][:40], front)
 
     def test_work_pages_are_in_the_sitemap(self):
         body = self.client.get(reverse('sitemap')).content.decode()
-        for item in WORKS:
-            self.assertIn(f'raboty/{item["slug"]}/', body)
+        for work in self.shown():
+            self.assertIn(f'raboty/{work.slug}/', body)
 
 
 class CabinetEntranceTests(TestCase):
