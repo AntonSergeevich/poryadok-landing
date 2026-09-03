@@ -2935,3 +2935,56 @@ class CabinetBuildTests(TestCase):
             reverse('cabinet_project_build_page', args=[self.project.pk]))
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('login'), response.url)
+
+
+class PriceHonestyTests(TestCase):
+    """Цены и то, что о них сказано.
+
+    Числа здесь — обещание, которое потом придётся выполнять. Проверки
+    следят не за самими суммами (их назначает человек), а за тем, чтобы
+    страница не молчала о том, что стоит денег.
+    """
+
+    def test_open_ended_block_is_shown_as_a_floor(self):
+        """Перенос данных — единственный блок, объём которого задают
+        чужие данные. Твёрдая цена здесь означает однажды сделать
+        недельную работу за цену часовой."""
+        body = self.client.get(reverse('constructor')).content.decode()
+        block = build.by_id('migrate')
+        self.assertTrue(block['open_ended'])
+        self.assertIn('от 20 000 ₽', body.replace('\xa0', ' '))
+
+    def test_firm_prices_have_no_word_from(self):
+        """У остальных блоков цена твёрдая, и «от» рядом с ней было бы
+        обещанием подорожать."""
+        for block in build.BLOCKS:
+            if block['core'] or block.get('open_ended'):
+                continue
+            with self.subTest(block=block['id']):
+                self.assertFalse(block.get('open_ended'))
+
+    def test_page_says_what_costs_money_every_month(self):
+        """Позиционирование держится на «честно про деньги». Умолчать
+        про кассу и комиссию выгоднее на один разговор и дороже
+        на все следующие."""
+        body = self.client.get(reverse('constructor')).content.decode()
+        self.assertIn('Что платится каждый месяц', body)
+        for what in ('Сервер и домен', '54-ФЗ', 'эсэмэс'):
+            with self.subTest(what=what):
+                self.assertIn(what, body)
+
+    def test_page_compares_with_the_market(self):
+        """Раздел уже выпадал при перестройке вёрстки: стили остались,
+        разметки не стало. Без него названная цена не с чем соотнести."""
+        body = self.client.get(reverse('constructor')).content.decode()
+        self.assertIn('class="versus"', body)
+        for column in ('Готовый сервис', 'Система под вас', 'Студия'):
+            with self.subTest(column=column):
+                self.assertIn(column, body)
+
+    def test_market_numbers_bracket_my_own(self):
+        """Своя цена должна стоять между подпиской и студией — иначе
+        сравнение работает против меня, а не объясняет разницу."""
+        body = self.client.get(reverse('constructor')).content.decode()
+        self.assertIn('от 300 000 ₽', body.replace('\xa0', ' '))
+        self.assertLess(build.BASE_PRICE, 300000)
