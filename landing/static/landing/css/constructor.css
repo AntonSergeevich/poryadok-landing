@@ -250,3 +250,12 @@ html[data-js] .build__recount{display:none}
 .vs--mine{border-color:var(--ink);border-left-width:3px}
 .vs--mine .vs__fig{color:var(--ink)!important}
 .versus__src{margin-top:var(--gut);color:var(--muted)}
+
+/* Ежемесячные счета — свёрнуто. Развёрнутым этот список стоит между
+   ценой и кнопкой заявки и читается как «а, тут ещё и это»; свёрнутым
+   он никуда не девается, но открывает его тот, кто считает бюджет. */
+.build__after{margin:14px 0 18px;border-top:1px solid var(--line);padding-top:12px}
+.build__after summary{cursor:pointer;font-size:var(--t-small)}
+.build__after ul{margin:10px 0;padding-left:18px;display:grid;gap:7px}
+.build__after li{line-height:1.5}
+.build__after p{margin:8px 0 0}
