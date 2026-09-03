@@ -1,5 +1,5 @@
 {% extends "landing/base.html" %}
-{% load static %}
+{% load static ru %}
 
 {% block content %}
 
@@ -198,8 +198,14 @@
     <div class="sec-head rv">
       <span class="tag">Лист 04 · Сделано</span>
       <h2>Системы, которые уже работают</h2>
+      {% comment %}
+        Число работ не вписано словом. Работы заводятся в кабинете,
+        и «два живых бизнеса» пережило бы третью работу ровно до первого
+        внимательного читателя — а он и есть тот, ради кого этот раздел.
+      {% endcomment %}
       <p class="lede">
-        Два живых бизнеса. Оба сайта открыты — можно зайти и потрогать.
+        {{ works|length }} {{ works|length|ru_plural:"живой бизнес,живых бизнеса,живых бизнесов" }}.
+        Не макеты и не демо: этим пользуются каждый день.
       </p>
     </div>
 
@@ -225,10 +231,18 @@
             <ul class="work__facts">
               <li><span>Город</span><b>{{ work.city }}</b></li>
               {% if work.term %}<li><span>Срок</span><b>{{ work.term }}</b></li>{% endif %}
-              <li><span>Сайт</span><b>
-                <a href="https://{{ work.site }}" target="_blank" rel="noopener">
-                  {{ work.site }}<span class="arrow" aria-hidden="true">↗</span>
-                </a></b></li>
+              {% comment %}
+                Строка с сайтом только у тех работ, где он есть. Систему
+                могли собрать раньше, чем её выложили под своим именем,
+                и ссылка «https://» в никуда хуже отсутствующей строки:
+                по ней нажимают.
+              {% endcomment %}
+              {% if work.site %}
+                <li><span>Сайт</span><b>
+                  <a href="https://{{ work.site }}" target="_blank" rel="noopener">
+                    {{ work.site }}<span class="arrow" aria-hidden="true">↗</span>
+                  </a></b></li>
+              {% endif %}
             </ul>
 
             <p class="work__go">

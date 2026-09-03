@@ -24,11 +24,13 @@
       <p class="lede">{{ work.lede }}</p>
     </div>
 
-    <p class="work__go">
-      <a class="btn" href="https://{{ work.site }}" target="_blank" rel="noopener">
-        Открыть {{ work.site }} <span class="arrow" aria-hidden="true">↗</span>
-      </a>
-    </p>
+    {% if work.site %}
+      <p class="work__go">
+        <a class="btn" href="https://{{ work.site }}" target="_blank" rel="noopener">
+          Открыть {{ work.site }} <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+      </p>
+    {% endif %}
 
     <ul class="work__facts work__facts--wide">
       {% if work.term %}
