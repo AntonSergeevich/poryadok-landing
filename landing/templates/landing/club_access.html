@@ -22,8 +22,12 @@
     {% if state == 'ok' %}
       <h1 class="q-title">Узнал вас{% if name %}, {{ name }}{% endif %}</h1>
       <p class="lead">
-        Подписка активна до {{ subscription.ends_at|date:"j E Y" }}.
-        Осталось {{ subscription.days_left }} дн.
+        {% if subscription.ends_at %}
+          Подписка активна до {{ subscription.ends_at|date:"j E Y" }}.
+          Осталось {{ subscription.days_left }} дн.
+        {% else %}
+          Доступ в клуб открыт, срока у него нет.
+        {% endif %}
       </p>
       <div class="res-next">
         <h2>Ссылка на вход</h2>

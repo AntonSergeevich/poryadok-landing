@@ -21,6 +21,48 @@ def club_url():
     return f'https://{host}/club/#join'
 
 
+def open_free_access(client):
+    """Открывает свободный вход и выдаёт одноразовую ссылку в канал.
+
+    Вход в клуб бесплатный, поэтому здесь нет ни оплаты, ни срока: если
+    доступ у человека уже есть — возвращаем его же, второй подписки не
+    заводим. Ссылку создаём один раз и храним: Telegram выдаёт её на
+    одного человека, и повторный запрос сделал бы прежнюю ненужной,
+    а человек мог уже сохранить её себе.
+    """
+    from ..models import ClubSubscription  # импорт здесь: модели тянут сервисы
+
+    subscription = client.club_subscriptions.running().by_freshness().first()
+    if subscription is None:
+        subscription = ClubSubscription.objects.create(
+            client=client, plan=ClubSubscription.Plan.FREE, price=0)
+        subscription.activate()
+
+    if not subscription.invite_link:
+        link = tg.create_club_invite(name_hint=client.name)
+        if link:
+            subscription.invite_link = link
+            subscription.invite_sent_at = timezone.now()
+            subscription.save(update_fields=['invite_link', 'invite_sent_at',
+                                             'updated_at'])
+        else:
+            logger.error('Не удалось создать приглашение для подписки %s',
+                         subscription.pk)
+
+    tg.notify(
+        'ПОРЯДОК // ВСТУПИЛИ В КЛУБ\n'
+        + '-' * 32 + '\n'
+        + f'Имя: {client.name}\n'
+        + f'Телефон: {client.phone_pretty}\n'
+        + f'Telegram: @{client.telegram_username or "—"}\n'
+        + f'Сфера: {client.area or "—"}\n'
+        + '-' * 32 + '\n'
+        + ('Ссылка выдана автоматически.' if subscription.invite_link
+           else 'Ссылку создать не удалось — выдайте доступ вручную.')
+    )
+    return subscription
+
+
 def grant_access(payment):
     """Включает подписку и выдаёт одноразовую ссылку в канал."""
     subscription = getattr(payment, 'club_subscription', None)

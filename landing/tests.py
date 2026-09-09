@@ -3216,3 +3216,94 @@ class ConditionalQuestionTests(TestCase):
         body = self.client.get(reverse('survey')).content.decode()
         self.assertEqual(views._asked_count(), len(survey_logic.QUESTIONS) - 1)
         self.assertIn(f'из {views._asked_count()}', body)
+
+
+class FreeClubTests(TestCase):
+    """Вступление в клуб бесплатное.
+
+    Три вещи, которые здесь дороже всего сломать: попросить денег там, где
+    их не берут; завести человеку вторую подписку на тот же канал; и молча
+    закрыть бессрочный доступ по сроку, которого у него нет.
+    """
+
+    JOIN = {'name': 'Ирина', 'phone': '+7 (902) 444-55-66',
+            'telegram_username': 'irina_biz', 'area': 'Барбершоп', 'consent': '1'}
+
+    def _join(self, link='https://t.me/+abc123', **over):
+        from unittest.mock import patch
+        data = dict(self.JOIN, **over)
+        with patch('landing.services.telegram.create_club_invite', return_value=link), \
+             patch('landing.services.telegram.notify', return_value=True), \
+             patch('landing.services.telegram.notify_lead', return_value=True):
+            return self.client.post(reverse('club'), data, follow=True)
+
+    def test_joining_opens_endless_free_access(self):
+        response = self._join()
+        self.assertEqual(response.status_code, 200)
+        subscription = ClubSubscription.objects.get()
+        self.assertEqual(subscription.plan, ClubSubscription.Plan.FREE)
+        self.assertEqual(subscription.status, ClubSubscription.Status.ACTIVE)
+        self.assertEqual(subscription.price, 0)
+        self.assertIsNone(subscription.ends_at)
+        self.assertTrue(subscription.is_endless)
+
+    def test_link_is_shown_right_away(self):
+        """Человек заполнил форму и ждёт. Отправлять его за результатом
+        в другое место — лишний шаг, на котором часть людей теряется."""
+        body = self._join(link='https://t.me/+xyz789').content.decode()
+        self.assertIn('https://t.me/+xyz789', body)
+
+    def test_second_join_does_not_pile_up_subscriptions(self):
+        self._join()
+        self._join()
+        self.assertEqual(ClubSubscription.objects.count(), 1)
+        self.assertEqual(Lead.objects.count(), 2)
+
+    def test_link_is_not_reissued_for_the_same_person(self):
+        """Ссылка одноразовая: выдать новую — значит обесценить ту,
+        которую человек мог уже сохранить себе."""
+        self._join(link='https://t.me/+first')
+        self._join(link='https://t.me/+second')
+        self.assertEqual(ClubSubscription.objects.get().invite_link,
+                         'https://t.me/+first')
+
+    def test_telegram_silence_does_not_lose_the_person(self):
+        response = self._join(link=None)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(ClubSubscription.objects.count(), 1)
+        self.assertIn('Записал вас', response.content.decode())
+
+    def test_endless_access_counts_as_active(self):
+        self._join()
+        person = Client.objects.get(phone='+79024445566')
+        self.assertTrue(person.club_is_active)
+
+    def test_endless_access_is_never_expired_or_reminded(self):
+        """Бессрочной подписке нечего напоминать и нечего закрывать."""
+        from unittest.mock import patch
+        self._join()
+        out = StringIO()
+        with patch('landing.services.telegram.send_to') as to_member, \
+             patch('landing.services.telegram.remove_from_club') as kick:
+            call_command('club_reminders', stdout=out)
+            call_command('expire_club', stdout=out)
+        self.assertFalse(to_member.called)
+        self.assertFalse(kick.called)
+        self.assertEqual(ClubSubscription.objects.get().status,
+                         ClubSubscription.Status.ACTIVE)
+
+    def test_page_asks_for_no_money(self):
+        body = self.client.get(reverse('club')).content.decode()
+        self.assertNotIn('Тариф', body)
+        self.assertNotIn('name="plan"', body)
+        self.assertNotIn('Перейти к оплате', body)
+        self.assertIn('Почему бесплатно', body)
+
+    def test_paid_subscription_still_works(self):
+        """Тем, кто успел оплатить, срок дохаживается как был."""
+        person = Client.objects.create(name='Пётр', phone='+79001234567')
+        paid = ClubSubscription.objects.create(
+            client=person, plan=ClubSubscription.Plan.MONTH, price=3900)
+        paid.activate()
+        self.assertIsNotNone(paid.ends_at)
+        self.assertTrue(person.club_is_active)

@@ -96,9 +96,7 @@ class Client(TimeStamped):
 
     @property
     def club_is_active(self):
-        return self.club_subscriptions.filter(
-            status=ClubSubscription.Status.ACTIVE, ends_at__gt=timezone.now()
-        ).exists()
+        return self.club_subscriptions.running().exists()
 
 
 class Lead(TimeStamped):
@@ -1036,11 +1034,33 @@ class WorkShot(TimeStamped):
         return ''
 
 
+class ClubSubscriptionQuerySet(models.QuerySet):
+    """Запросы к подпискам.
+
+    Отдельный менеджер понадобился ровно из-за одного вопроса — «доступ
+    ещё действует?». Ответ на него перестал сводиться к сравнению дат,
+    когда вход в клуб стал свободным: у бессрочной подписки конца нет,
+    и `ends_at__gt=now` молча выбрасывал бы её из выдачи.
+    """
+
+    def running(self, moment=None):
+        """Действующие: включённые и либо бессрочные, либо ещё не истёкшие."""
+        moment = moment or timezone.now()
+        return self.filter(status=ClubSubscription.Status.ACTIVE).filter(
+            models.Q(ends_at__isnull=True) | models.Q(ends_at__gt=moment))
+
+    def by_freshness(self):
+        """Сначала бессрочные, потом с самым дальним сроком."""
+        return self.order_by(models.F('ends_at').desc(nulls_first=True))
+
+
 class ClubSubscription(TimeStamped):
     """Доступ в закрытый Telegram-канал.
 
-    Внутрь ведут два пути: купленная подписка или доступ, который мы отдаём
-    клиенту, заказавшему систему. Второй — бесплатный, ставится вручную.
+    Внутрь ведут три пути: свободный вход по заявке с сайта, доступ,
+    который мы отдаём клиенту, заказавшему систему, и купленная подписка.
+    Первые два бессрочные и бесплатные; третий остался ради тех, кто
+    успел оплатить, пока клуб был платным.
     """
 
     class Status(models.TextChoices):
@@ -1050,16 +1070,19 @@ class ClubSubscription(TimeStamped):
         CANCELED = 'canceled', 'Отменена'
 
     class Plan(models.TextChoices):
+        FREE = 'free', 'Свободный вход'
         MONTH = 'month', 'Месяц'
         QUARTER = 'quarter', 'Три месяца'
         YEAR = 'year', 'Год'
         GIFT = 'gift', 'Доступ клиента (бесплатно)'
 
-    PLAN_DAYS = {'month': 30, 'quarter': 92, 'year': 365, 'gift': 365}
+    # None означает «без срока»: свободный вход не кончается, а значит
+    # ему нечего продлевать и не о чем напоминать.
+    PLAN_DAYS = {'free': None, 'month': 30, 'quarter': 92, 'year': 365, 'gift': 365}
 
     client = models.ForeignKey(Client, verbose_name='клиент', on_delete=models.CASCADE,
                                related_name='club_subscriptions')
-    plan = models.CharField('тариф', max_length=16, choices=Plan.choices, default=Plan.MONTH)
+    plan = models.CharField('тариф', max_length=16, choices=Plan.choices, default=Plan.FREE)
     status = models.CharField('статус', max_length=16, choices=Status.choices,
                               default=Status.PENDING, db_index=True)
     price = models.DecimalField('цена, ₽', max_digits=10, decimal_places=2, default=0)
@@ -1072,6 +1095,8 @@ class ClubSubscription(TimeStamped):
     payment = models.OneToOneField(Payment, verbose_name='оплата', null=True, blank=True,
                                    on_delete=models.SET_NULL, related_name='club_subscription')
 
+    objects = ClubSubscriptionQuerySet.as_manager()
+
     class Meta:
         verbose_name = 'подписка на клуб'
         verbose_name_plural = 'подписки на клуб'
@@ -1082,14 +1107,25 @@ class ClubSubscription(TimeStamped):
 
     @property
     def days(self):
+        """Сколько дней длится доступ. None — бессрочно."""
         return self.PLAN_DAYS.get(self.plan, 30)
+
+    @property
+    def is_endless(self):
+        return self.days is None
 
     def activate(self, from_moment=None):
         """Включает подписку. Если ещё не истекла — продлевает от её конца."""
         now = from_moment or timezone.now()
-        base = self.ends_at if (self.ends_at and self.ends_at > now) else now
         self.starts_at = self.starts_at or now
-        self.ends_at = base + timezone.timedelta(days=self.days)
+        if self.is_endless:
+            # Бессрочный доступ помечаем пустым концом, а не датой в 2099-м:
+            # запросы «действует ли» и так умеют читать пустоту, а выдуманная
+            # дата рано или поздно наступит и молча закроет вход.
+            self.ends_at = None
+        else:
+            base = self.ends_at if (self.ends_at and self.ends_at > now) else now
+            self.ends_at = base + timezone.timedelta(days=self.days)
         self.status = self.Status.ACTIVE
         self.save(update_fields=['starts_at', 'ends_at', 'status', 'updated_at'])
         return self

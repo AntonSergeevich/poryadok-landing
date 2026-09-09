@@ -43,12 +43,12 @@ class LeadForm(PhoneMixin, forms.ModelForm):
 
 
 class ClubForm(PhoneMixin, forms.ModelForm):
-    """Заявка в закрытый клуб. Telegram обязателен — без него некуда выдавать доступ."""
+    """Вступление в клуб. Telegram обязателен — без него некуда выдавать доступ.
+
+    Тарифа здесь больше нет: вход свободный, выбирать нечего.
+    """
 
     consent = forms.BooleanField(required=True, error_messages={'required': CONSENT_ERROR})
-    plan = forms.ChoiceField(required=False, choices=(
-        ('month', 'Месяц'), ('quarter', 'Три месяца'), ('year', 'Год'),
-    ))
 
     class Meta:
         model = Lead
