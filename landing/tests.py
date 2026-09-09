@@ -3418,3 +3418,43 @@ class QuestionCountTests(TestCase):
         for wrong in (total - 1, total + 1):
             with self.subTest(wrong=wrong):
                 self.assertNotIn(f'{wrong} вопросов', body)
+
+
+class TwoDoorsTests(TestCase):
+    """Дверей на главной две: разбор и конструктор.
+
+    Всё остальное — звонок, клуб, конструктор — стоит тише и ниже.
+    Проверяем не красоту, а порядок: чем больше равных по громкости
+    предложений на экране, тем чаще человек не выбирает ни одного.
+    """
+
+    def setUp(self):
+        page = self.client.get(reverse('index')).content.decode()
+        # Шапка ведёт во все стороны сразу — это меню, а не двери.
+        # Считаем порядок по самой странице, начиная с первого экрана.
+        self.body = page[page.index('id="top"'):]
+
+    def test_the_test_is_the_first_thing_asked(self):
+        """Первый вопрос разбора стоит выше любой другой двери."""
+        ask = self.body.index('class="ask"')
+        for later in (reverse('constructor'), reverse('club')):
+            with self.subTest(door=later):
+                self.assertLess(ask, self.body.index(later))
+
+    def test_the_club_waits_until_after_the_form(self):
+        """Клуб — для тех, кто не готов разговаривать. Предлагать его
+        до формы значит уводить готовых."""
+        self.assertLess(self.body.index('id="cta"'), self.body.index('id="club-teaser"'))
+
+    def test_the_second_door_speaks_quieter(self):
+        price = self.body[self.body.index('id="price"'):]
+        spot = price.index(reverse('constructor'))
+        self.assertIn('btn--ghost', price[spot - 120:spot])
+
+    def test_the_phone_is_not_a_button_on_the_page(self):
+        """Звонок живёт в шапке и подвале. Отдельной кнопкой посреди
+        страницы он был бы третьей равной дверью."""
+        for spot in re.finditer(r'tel:', self.body):
+            fragment = self.body[max(0, spot.start() - 160):spot.start()]
+            with self.subTest(at=spot.start()):
+                self.assertNotIn('class="btn', fragment)

@@ -302,6 +302,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   text-decoration:none;border-bottom:1px solid var(--line);
 }
 .link-q:hover{color:var(--ink);border-bottom-color:var(--ink)}
+.about__go{margin-top:calc(var(--u)*4)}
 
 /* Хаос → порядок */
 /* Бумажки — левая половина мысли «хаос → порядок». Раньше две из четырёх
@@ -655,6 +656,12 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   background:var(--paper);border-color:var(--paper);color:var(--graphite);
 }
 .price__go .btn:hover{background:var(--ink);border-color:var(--ink);color:#fff}
+/* Конструктор — вторая дверь, и говорит она тише: обводка вместо заливки.
+   Залитая кнопка здесь спорила бы с главной кнопкой сайта — «записаться
+   на разбор», — а спор двух одинаково громких кнопок человек решает тем,
+   что уходит. */
+.price__go .btn--ghost{background:transparent;border-color:rgba(242,242,238,.5);color:var(--paper)}
+.price__go .btn--ghost:hover{background:var(--paper);border-color:var(--paper);color:var(--graphite)}
 .price__box .small{margin-top:10px;color:var(--muted)}
 .price__box p{color:rgba(242,242,238,.72);font-size:var(--t-small);line-height:1.65}
 .price__side{grid-column:7 / span 6;display:grid;gap:calc(var(--u)*3)}

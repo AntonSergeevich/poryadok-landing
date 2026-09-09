@@ -435,8 +435,15 @@
           вопрос, на который человек здесь и сейчас хочет получить ответ,
           а не назначить встречу ради него.
         {% endcomment %}
+        {% comment %}
+          Дверей на сайте две: разбор и конструктор. Разбор — главная,
+          поэтому конструктор здесь нарочно тише: тот же размер, но
+          обводка вместо заливки. Две одинаково громкие кнопки рядом
+          заставляют выбирать, а выбор на этом месте стоит дороже,
+          чем любая из них.
+        {% endcomment %}
         <p class="price__go">
-          <a class="btn btn--lg" href="{% url 'constructor' %}">
+          <a class="btn btn--lg btn--ghost" href="{% url 'constructor' %}">
             Собрать свою систему <span class="arrow" aria-hidden="true">→</span>
           </a>
         </p>
@@ -588,8 +595,8 @@
           <li class="rv"><span class="k">Предприниматель</span><span class="v">Веду собственный бизнес. Считаю ваши деньги так же, как свои, и не предлагаю того, что не окупится.</span></li>
         </ul>
 
-        <p class="rv" style="margin-top:calc(var(--u)*4)">
-          <a class="btn btn--ghost" href="tel:{{ SITE_PHONE }}">Позвонить: {{ SITE_PHONE_PRETTY }}</a>
+        <p class="rv about__go">
+          <a class="link-q" href="#cta">Записаться на разбор к этому человеку</a>
         </p>
       </div>
     </div>
@@ -604,45 +611,12 @@
 </section>
 
 
-{# ═══ ЛИСТ 10 — КЛУБ ════════════════════════════════════════════════════ #}
-<section class="sheet" id="club-teaser">
-  <div class="wrap">
-    <div class="teaser rv">
-      <div class="teaser__text">
-        <span class="tag tag--ink">Лист 10 · Закрытый канал</span>
-        <h2>Клуб «Порядок»</h2>
-        <p class="lede">
-          Закрытый телеграм-канал для владельцев бизнеса {{ SITE_CITY }}а: разборы чужих процессов,
-          готовые схемы и цифры без прикрас. Вступление бесплатное, ссылка на вход выдаётся сразу.
-        </p>
-        <p style="margin-top:calc(var(--u)*4)">
-          <a class="btn" href="{% url 'club' %}">Что внутри клуба <span class="arrow" aria-hidden="true">→</span></a>
-        </p>
-      </div>
-      <div class="teaser__side">
-        <div class="teaser__row"><b>Раз в неделю</b><span>разбор процессов реального бизнеса</span></div>
-        <div class="teaser__row"><b>Схемы</b><span>которые можно повторить у себя</span></div>
-        <div class="teaser__row"><b>Свои</b><span>владельцы, а не подрядчики и не наблюдатели</span></div>
-        <div class="teaser__row"><b>0 ₽</b><span>вход бесплатный и бессрочный</span></div>
-      </div>
-    </div>
-
-    <div class="stamp" aria-hidden="true">
-      <span class="s-num">Лист 10</span>
-      <span class="s-name">Закрытый клуб</span>
-      <span class="s-scale">Telegram</span>
-      <span class="s-org">С-Порядок</span>
-    </div>
-  </div>
-</section>
-
-
-{# ═══ ЛИСТ 11 — ЗАЯВКА ══════════════════════════════════════════════════ #}
+{# ═══ ЛИСТ 10 — ЗАЯВКА ══════════════════════════════════════════════════ #}
 <section class="sheet cta on-graphite" id="cta">
   <div class="wrap">
     <div class="cta__grid">
       <div class="cta__left">
-        <span class="tag">Лист 11 · Заявка</span>
+        <span class="tag">Лист 10 · Заявка</span>
         <h2 style="margin-block:calc(var(--u)*2) calc(var(--u)*3)">Бесплатный разбор процессов</h2>
         <p class="lede">
           45 минут. Вы рассказываете, как всё устроено сейчас, — я показываю, где теряются деньги
@@ -701,12 +675,47 @@
     </div>
 
     <div class="stamp" aria-hidden="true">
-      <span class="s-num">Лист 11</span>
+      <span class="s-num">Лист 10</span>
       <span class="s-name">Заявка на разбор</span>
       <span class="s-scale">45 минут</span>
       <span class="s-org">С-Порядок</span>
     </div>
   </div>
 </section>
+
+
+{# ═══ ЛИСТ 11 — КЛУБ ════════════════════════════════════════════════════ #}
+<section class="sheet" id="club-teaser">
+  <div class="wrap">
+    <div class="teaser rv">
+      <div class="teaser__text">
+        <span class="tag tag--ink">Лист 11 · Закрытый канал</span>
+        <h2>Клуб «Порядок»</h2>
+        <p class="lede">
+          Не готовы разговаривать — не надо. Закрытый телеграм-канал для владельцев бизнеса
+          {{ SITE_CITY }}а: разборы чужих процессов, готовые схемы и цифры без прикрас.
+          Вступление бесплатное, ссылка на вход выдаётся сразу.
+        </p>
+        <p style="margin-top:calc(var(--u)*4)">
+          <a class="btn btn--ghost" href="{% url 'club' %}">Что внутри клуба <span class="arrow" aria-hidden="true">→</span></a>
+        </p>
+      </div>
+      <div class="teaser__side">
+        <div class="teaser__row"><b>Раз в неделю</b><span>разбор процессов реального бизнеса</span></div>
+        <div class="teaser__row"><b>Схемы</b><span>которые можно повторить у себя</span></div>
+        <div class="teaser__row"><b>Свои</b><span>владельцы, а не подрядчики и не наблюдатели</span></div>
+        <div class="teaser__row"><b>0 ₽</b><span>вход бесплатный и бессрочный</span></div>
+      </div>
+    </div>
+
+    <div class="stamp" aria-hidden="true">
+      <span class="s-num">Лист 11</span>
+      <span class="s-name">Закрытый клуб</span>
+      <span class="s-scale">Telegram</span>
+      <span class="s-org">С-Порядок</span>
+    </div>
+  </div>
+</section>
+
 
 {% endblock %}
