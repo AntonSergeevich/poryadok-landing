@@ -343,6 +343,30 @@ class StaticManifestTests(TestCase):
                 with self.subTest(page=name):
                     self.assertEqual(self.client.get(reverse(name)).status_code, 200)
 
+    def test_every_static_path_in_templates_has_a_file(self):
+        """Опечатка в имени файла не должна доходить до сервера.
+
+        Регистр здесь важнее, чем кажется: под Windows avatar.JPG и
+        avatar.jpg — один файл, под Linux разные. Портрет пропадает
+        молча, картинка просто не приходит, и заметить это можно
+        только глазами на живом сайте.
+        """
+        import re
+        from django.contrib.staticfiles import finders
+
+        root = Path(__file__).resolve().parent / 'templates'
+        pattern = re.compile(r"""\{%\s*static\s+['"]([^'"]+)['"]""")
+        checked = 0
+        for template in root.rglob('*.html'):
+            for path in pattern.findall(template.read_text(encoding='utf-8')):
+                checked += 1
+                with self.subTest(template=template.name, static=path):
+                    self.assertIsNotNone(
+                        finders.find(path),
+                        f'{template.name}: файла {path} нет на диске')
+        self.assertGreater(checked, 5, 'Шаблоны со статикой не нашлись — '
+                                       'проверка ничего не проверила')
+
     def test_icon_route_redirects(self):
         response = self.client.get('/favicon.ico')
         self.assertEqual(response.status_code, 301)

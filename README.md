@@ -265,7 +265,7 @@ sudo systemctl restart gunicorn
 
 ## Что осталось сделать руками
 
-- [x] Положить фото в `landing/static/landing/img/avatar.JPG` (портрет 4:5).
+- [x] Положить фото в `landing/static/landing/img/avatar.jpg` (портрет 4:5, имя строчными).
 - [x] Выложить на боевой сервер.
 - [x] Заменить кейсы на «Листе 04» реальными работами (da-des.ru, linguich.ru).
 - [ ] Проставить сроки работ в `landing/works.py` — поле `term`. Пока пусто,

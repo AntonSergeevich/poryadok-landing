@@ -498,12 +498,13 @@
     <div class="about">
       <figure class="about__photo portrait rv" id="portrait">
         {% comment %}
-          Файл лежит в landing/static/landing/img/avatar.JPG.
-          Имя чувствительно к регистру: на сервере Linux avatar.JPG и avatar.jpg —
-          разные файлы. Переименуете — поправьте и здесь.
+          Файл лежит в landing/static/landing/img/avatar.jpg — строчными.
+          На сервере Linux регистр важен: avatar.JPG и avatar.jpg там разные
+          файлы, и портрет пропадёт молча. Меняете фото — сохраняйте под
+          тем же именем в нижнем регистре.
         {% endcomment %}
         <div class="portrait__img">
-          <img src="{% static 'landing/img/avatar.JPG' %}" alt="Антон Глухов, автор систем «Порядок»"
+          <img src="{% static 'landing/img/avatar.jpg' %}" alt="Антон Глухов, автор систем «Порядок»"
                width="900" height="1125" loading="lazy" decoding="async" id="portrait-img">
         </div>
         <figcaption class="portrait__cap">
