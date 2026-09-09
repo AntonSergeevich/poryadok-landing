@@ -297,6 +297,19 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .chip:hover{border-color:var(--graphite);background:var(--graphite);color:var(--paper)}
 .chip:active{transform:translateY(1px)}
 .chip--pale{color:var(--muted);border-style:dashed}
+/* Подпись автора на первом экране. Снимок маленький нарочно: это
+   подпись под чертежом, а не портрет в раме — тот стоит ниже, на своём
+   листе. */
+.hero__who{
+  display:flex;align-items:center;gap:14px;
+  margin-top:calc(var(--u)*4);max-width:56ch;
+}
+.portrait--mini{flex:0 0 auto;width:56px}
+.portrait--mini .portrait__img::after{background-size:14px 14px}
+.portrait--mini.is-empty .portrait__img::before{content:"ФОТО";font-size:6px;letter-spacing:.1em}
+.hero__who-t{font:400 var(--t-small)/1.5 var(--f-sans);color:var(--muted)}
+.hero__who-t b{display:block;font-weight:500;color:var(--graphite)}
+
 .link-q{
   font:400 var(--t-small)/1 var(--f-sans);color:var(--muted);
   text-decoration:none;border-bottom:1px solid var(--line);

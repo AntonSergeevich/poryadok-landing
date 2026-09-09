@@ -3483,3 +3483,27 @@ class CapacityTests(TestCase):
             for word in self.HURRY:
                 with self.subTest(page=page, word=word):
                     self.assertNotIn(word, body)
+
+
+class FaceOnFirstScreenTests(TestCase):
+    """Лицо на первом экране.
+
+    Человек решает, разговаривать ли, до того как долистает до «обо мне»,
+    и решает про человека, а не про услугу.
+    """
+
+    def test_the_author_is_named_before_the_question(self):
+        page = self.client.get(reverse('index')).content.decode()
+        body = page[page.index('id="top"'):]
+        self.assertLess(body.index('hero__who'), body.index('class="ask"'))
+        self.assertIn('Антон Глухов', body[:body.index('class="ask"')])
+
+    def test_both_portraits_can_fall_back(self):
+        """Заглушка ищется по классу: портретов на странице два, и
+        пропасть молча не должен ни один."""
+        js = (Path(__file__).resolve().parent / 'static' / 'landing' / 'js'
+              / 'site.js').read_text(encoding='utf-8')
+        self.assertIn(".portrait img", js)
+        page = self.client.get(reverse('index')).content.decode()
+        figures = re.findall(r'class="[^"]*\bportrait\b[^"]*"', page)
+        self.assertEqual(len(figures), 2, figures)

@@ -305,12 +305,16 @@
   }
 
   /* ---------- Портрет: аккуратная заглушка, если файла ещё нет ---------- */
-  var portraitImg = document.getElementById('portrait-img');
-  if (portraitImg) {
-    var markEmpty = function () { document.getElementById('portrait').classList.add('is-empty'); };
-    portraitImg.addEventListener('error', markEmpty);
-    if (portraitImg.complete && portraitImg.naturalWidth === 0) markEmpty();
-  }
+  /* Портретов на странице два — подпись на первом экране и снимок на
+     своём листе. Заглушка нужна обоим, поэтому ищем по классу, а не
+     по одному идентификатору. */
+  document.querySelectorAll('.portrait img').forEach(function (img) {
+    var figure = img.closest('.portrait');
+    if (!figure) return;
+    var markEmpty = function () { figure.classList.add('is-empty'); };
+    img.addEventListener('error', markEmpty);
+    if (img.complete && img.naturalWidth === 0) markEmpty();
+  });
 
   /* ---------- Окно «было и стало» ----------
      Содержимое уже в разметке — тянуть два коротких списка запросом
