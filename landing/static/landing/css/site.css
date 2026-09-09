@@ -971,6 +971,11 @@ select.input{
 .teaser__row span{font-size:var(--t-small);line-height:1.6;color:var(--muted)}
 
 /* ---------- Телефон в блоке заявки ---------- */
+.cta__limit{
+  margin-top:calc(var(--u)*4);padding-left:14px;
+  border-left:1px solid rgba(242,242,238,.28);
+  font:400 var(--t-small)/1.6 var(--f-mono);color:rgba(242,242,238,.72);max-width:52ch;
+}
 .cta__phone{
   margin-top:calc(var(--u)*4);font:400 var(--t-small)/1.6 var(--f-mono);
   color:rgba(242,242,238,.6);

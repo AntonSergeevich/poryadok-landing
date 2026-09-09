@@ -3458,3 +3458,28 @@ class TwoDoorsTests(TestCase):
             fragment = self.body[max(0, spot.start() - 160):spot.start()]
             with self.subTest(at=spot.start()):
                 self.assertNotIn('class="btn', fragment)
+
+
+class CapacityTests(TestCase):
+    """Сколько разборов в неделю — сказано, но не как приём.
+
+    Разница между честным ограничением и «осталось два места» в том,
+    что первое не меняется от того, кто смотрит на страницу.
+    """
+
+    # Слово «осталось» само по себе безобидно — оно есть в вариантах
+    # ответа про деньги. Считаем только связки, которыми торопят.
+    HURRY = ('осталось мест', 'мест осталось', 'осталось два места',
+             'успей', 'только сегодня', 'до конца дня', 'таймер',
+             'спецпредложение', 'скидка сгорит')
+
+    def test_the_limit_is_named(self):
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn('не больше трёх разборов в неделю', body)
+
+    def test_and_nobody_is_being_hurried(self):
+        for page in ('index', 'survey', 'club', 'constructor'):
+            body = self.client.get(reverse(page)).content.decode().lower()
+            for word in self.HURRY:
+                with self.subTest(page=page, word=word):
+                    self.assertNotIn(word, body)
