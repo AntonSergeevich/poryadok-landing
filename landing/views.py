@@ -535,8 +535,24 @@ def survey(request):
     return render(request, 'landing/survey.html', {
         'form': form,
         'steps': _survey_steps(form),
-        'total': len(QUESTIONS),
+        # Сколько вопросов человек увидит на самом деле. Условные из одной
+        # пары исключают друг друга, поэтому в счёт идёт один: обещать
+        # семнадцать и показать шестнадцать — мелкое, но враньё.
+        'total': _asked_count(),
     })
+
+
+def _asked_count():
+    seen = set()
+    total = 0
+    for q in QUESTIONS:
+        rule = q.get('show_if')
+        if rule is None:
+            total += 1
+        elif rule[0] not in seen:
+            seen.add(rule[0])
+            total += 1
+    return total
 
 
 def _survey_steps(form):
@@ -557,8 +573,14 @@ def _survey_steps(form):
         if q.get('other'):
             options.append({'value': 'other', 'label': 'Другое',
                             'checked': 'other' in chosen, 'is_other': True})
+        # Условие показа — в разметку строкой «вопрос=ответ». Скрипт прячет
+        # такие шаги, пока ответ не совпал; без скрипта они просто видны все,
+        # и это правильно — спрятать вопрос нечем, а посчитается всё равно
+        # только подходящий.
+        rule = q.get('show_if')
         steps.append({
             'q': q,
+            'show_if': f'{rule[0]}={rule[1]}' if rule else '',
             'field': form[q['id']],
             'many': q['type'] == 'many',
             'is_text': q['type'] == 'text',

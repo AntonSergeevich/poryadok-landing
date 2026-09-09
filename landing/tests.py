@@ -19,6 +19,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from . import cabinet as cabinet_views
 from . import constructor as build
 from . import survey as survey_logic
+from . import views
 from .forms import LeadForm
 from .models import (STAGE_PLAN, Attachment, Client, ClubSubscription,
                      Contract, Lead, Message, MessageFile, Payment,
@@ -179,7 +180,8 @@ class SurveyTests(TestCase):
             'storage': 'head', 'lost': 'day', 'reply': 'later',
             'booking': 'me', 'noshow': 'few3', 'money_view': 'rest',
             'repeat': 'none', 'vacation': 'stop', 'routine': 'h25',
-            'check': 'c2000', 'clients': 'n100', 'consent': '1',
+            'check': 'c2000', 'rhythm': 'flow', 'clients': 'n100',
+            'consent': '1',
         }
         base.update(over)
         return base
@@ -2988,3 +2990,229 @@ class PriceHonestyTests(TestCase):
         body = self.client.get(reverse('constructor')).content.decode()
         self.assertIn('от 300 000 ₽', body.replace('\xa0', ' '))
         self.assertLess(build.BASE_PRICE, 300000)
+
+
+class LossEstimateTests(TestCase):
+    """Оценка потерь. Здесь считаются деньги, которые человек услышит
+    до всякой продажи, — и если цифра завышена, он узнает об этом
+    на разборе и почувствует себя обманутым раньше, чем что-то купил."""
+
+    def answers(self, **over):
+        base = {'check': 'c2000', 'rhythm': 'flow', 'clients': 'n100',
+                'lost': 'week', 'noshow': 'one', 'routine': 'h7'}
+        base.update(over)
+        return base
+
+    # ── Ритм бизнеса ─────────────────────────────────────────────────
+
+    def test_project_rhythm_counts_by_year_not_by_month(self):
+        """Архитектор с шестью проектами в год и чеком за пятьдесят тысяч.
+        Раньше тест брал 80 000 × 12 = 960 000 ₽ как месячную выручку —
+        завышение в двадцать четыре раза, и вместе с ней завышалось всё."""
+        got = survey_logic.estimate(self.answers(
+            check='c80000', rhythm='project', projects_year='p6',
+            clients=None))
+        self.assertEqual(got['revenue'], 40000)
+
+    def test_flow_rhythm_still_counts_by_month(self):
+        got = survey_logic.estimate(self.answers(
+            check='c2000', rhythm='flow', clients='n100'))
+        self.assertEqual(got['revenue'], 200000)
+
+    def test_project_answer_wins_over_a_stale_monthly_one(self):
+        """Без JavaScript видны оба вопроса, и человек может ответить
+        на оба. Считается тот, который подходит под названный ритм."""
+        got = survey_logic.estimate(self.answers(
+            check='c80000', rhythm='project', projects_year='p6',
+            clients='n700'))
+        self.assertEqual(got['revenue'], 40000)
+
+    def test_project_rhythm_without_an_answer_gives_no_estimate(self):
+        self.assertIsNone(survey_logic.estimate(self.answers(
+            rhythm='project', projects_year=None, clients=None)))
+
+    # ── Потолок правдоподобия ────────────────────────────────────────
+
+    def test_extreme_answers_are_capped(self):
+        """Множитель на крайних ответах давал 0,92 от выручки. Бизнесу
+        с выручкой миллион тест сообщал, что он теряет девятьсот
+        двадцать тысяч в месяц. В такое не верят."""
+        got = survey_logic.estimate(self.answers(lost='day', noshow='many'))
+        self.assertLessEqual(got['total_money'],
+                             got['revenue'] * survey_logic.LOSS_CAP + 1000)
+        self.assertTrue(got['capped'])
+
+    def test_ordinary_answers_are_not_capped(self):
+        got = survey_logic.estimate(self.answers(lost='month', noshow='few'))
+        self.assertFalse(got['capped'])
+
+    def test_capped_parts_add_up_to_the_capped_total(self):
+        """Иначе страница спорит сама с собой: в заголовке вилка вокруг
+        трёхсот тысяч, а под ней два слагаемых, дающих четыреста.
+        Читатель, который складывает, — и есть тот, ради кого писалась
+        вся эта честность."""
+        got = survey_logic.estimate(self.answers(
+            check='c25000', clients='n35', lost='week', noshow='few3'))
+        self.assertTrue(got['capped'])
+        parts = (got['lost_money'] or 0) + got['noshow_money']
+        self.assertAlmostEqual(parts, got['total_money'], delta=1000)
+
+    def test_uncapped_parts_add_up_too(self):
+        got = survey_logic.estimate(self.answers(lost='month', noshow='few'))
+        self.assertFalse(got['capped'])
+        parts = (got['lost_money'] or 0) + got['noshow_money']
+        self.assertAlmostEqual(parts, got['total_money'], delta=1000)
+
+    def test_capped_result_says_so_on_the_page(self):
+        """Молча срезанная цифра — та же выдумка, только аккуратнее."""
+        page = self._result_page(lost='day', noshow='many')
+        self.assertIn('такую цифру я показывать', page)
+
+    # ── «Не знаю» ────────────────────────────────────────────────────
+
+    def test_unknown_losses_are_not_turned_into_money(self):
+        """Раньше «честно — не считаю» превращалось в 12% потерь как факт.
+        Цифра, построенная на чужом незнании, — худший вид цифры."""
+        got = survey_logic.estimate(self.answers(lost='idk'))
+        self.assertIsNone(got['lost_money'])
+        self.assertTrue(got['lost_unknown'])
+
+    def test_unknown_losses_do_not_leak_into_the_total(self):
+        with_idk = survey_logic.estimate(self.answers(lost='idk', noshow='na'))
+        self.assertEqual(with_idk['total_money'], 0)
+
+    def test_page_says_the_finding_instead_of_a_number(self):
+        page = self._result_page(lost='idk')
+        self.assertIn('Вы не знаете, сколько теряете', page)
+
+    def test_idk_is_gone_from_the_rate_table(self):
+        self.assertNotIn('idk', survey_logic.LOST_RATE)
+
+    # ── Вилка ────────────────────────────────────────────────────────
+
+    def test_estimate_is_a_range_not_a_point(self):
+        got = survey_logic.estimate(self.answers())
+        pair = got['total_range']
+        self.assertLess(pair['low'], pair['high'])
+        for edge in ('low', 'high'):
+            with self.subTest(edge=edge):
+                self.assertEqual(pair[edge] % 1000, 0)
+
+    def test_range_edges_never_collapse(self):
+        """На маленьких суммах края сходятся после округления. Вилка,
+        у которой края равны, — это точное число, только притворяющееся
+        вилкой."""
+        for value in (1, 500, 1000, 1400, 2000):
+            with self.subTest(value=value):
+                pair = survey_logic.spread(value)
+                self.assertLess(pair['low'], pair['high'])
+
+    def test_no_range_for_nothing(self):
+        self.assertIsNone(survey_logic.spread(0))
+
+    def test_page_prints_the_range(self):
+        page = self._result_page()
+        self.assertIn('от ', page)
+        self.assertNotIn('≈ ', page)
+
+    # ── Из чего сложилась оценка ─────────────────────────────────────
+
+    def test_basis_names_what_was_taken(self):
+        got = survey_logic.estimate(self.answers())
+        said = ', '.join(got['basis'])
+        self.assertIn('чек', said)
+        self.assertIn('клиентов в месяц', said)
+
+    def test_basis_speaks_of_projects_for_project_rhythm(self):
+        got = survey_logic.estimate(self.answers(
+            rhythm='project', projects_year='p6', clients=None))
+        said = ', '.join(got['basis'])
+        self.assertIn('проектов за год', said)
+        self.assertNotIn('клиентов в месяц', said)
+
+    def test_basis_stays_silent_about_what_is_unknown(self):
+        got = survey_logic.estimate(self.answers(lost='idk'))
+        self.assertNotIn('заявки:', ', '.join(got['basis']))
+
+    # ── Что было и осталось ──────────────────────────────────────────
+
+    def test_no_check_no_estimate(self):
+        self.assertIsNone(survey_logic.estimate(self.answers(check=None)))
+
+    def test_no_count_no_estimate(self):
+        self.assertIsNone(survey_logic.estimate(self.answers(clients=None)))
+
+    # ── Вспомогательное ──────────────────────────────────────────────
+
+    def _result_page(self, **over):
+        """Пройти разбор целиком и получить страницу результата."""
+        answers = {
+            'area': 'beauty', 'team': '2_5', 'sources': ['word'],
+            'storage': 'head', 'reply': 'later', 'booking': 'me',
+            'money_view': 'rest', 'repeat': 'none', 'vacation': 'stop',
+            'consent': '1',
+        }
+        answers.update(self.answers(**over))
+        answers = {k: v for k, v in answers.items() if v is not None}
+        self.client.post(reverse('survey'), answers, follow=False)
+        return self.client.get(reverse('survey_done'), follow=True).content.decode()
+
+
+class ConditionalQuestionTests(TestCase):
+    """Условный вопрос обязан работать и без JavaScript.
+
+    Без скрипта спрятать вопрос нечем, поэтому видны оба — и про поток,
+    и про проекты. Это не поломка: считается только подходящий, а форма
+    спрашивает ровно тот, который относится к названному ритму.
+    """
+
+    def base(self, **over):
+        data = {
+            'area': 'expert', 'team': 'solo', 'sources': ['word'],
+            'storage': 'head', 'lost': 'week', 'reply': 'later',
+            'booking': 'me', 'noshow': 'na', 'money_view': 'rest',
+            'repeat': 'none', 'vacation': 'stop', 'routine': 'h7',
+            'check': 'c80000', 'consent': '1',
+        }
+        data.update(over)
+        return data
+
+    def test_both_questions_are_in_the_markup(self):
+        """Скрипт прячет лишний. Без скрипта человек видит оба и отвечает
+        на тот, который про него."""
+        body = self.client.get(reverse('survey')).content.decode()
+        self.assertIn('data-show-if="rhythm=flow"', body)
+        self.assertIn('data-show-if="rhythm=project"', body)
+
+    def test_project_rhythm_requires_the_project_question(self):
+        response = self.client.post(reverse('survey'),
+                                    self.base(rhythm='project'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('projects_year', response.context['form'].errors)
+
+    def test_flow_rhythm_requires_the_monthly_question(self):
+        response = self.client.post(reverse('survey'), self.base(rhythm='flow'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('clients', response.context['form'].errors)
+
+    def test_the_other_question_is_not_demanded(self):
+        """Заставлять проектного отвечать про клиентов в месяц — это
+        ровно та ошибка, ради которой развилка и заводилась."""
+        response = self.client.post(
+            reverse('survey'), self.base(rhythm='project', projects_year='p6'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Survey.objects.count(), 1)
+
+    def test_saved_answers_keep_the_rhythm(self):
+        self.client.post(reverse('survey'),
+                         self.base(rhythm='project', projects_year='p6'))
+        entry = Survey.objects.get()
+        self.assertEqual(entry.answers['rhythm'], 'project')
+        self.assertEqual(entry.diagnose()['estimate']['revenue'], 40000)
+
+    def test_counter_promises_what_it_shows(self):
+        """Условные вопросы исключают друг друга, значит в счёт идёт один:
+        обещать семнадцать и показать шестнадцать — мелкое, но враньё."""
+        body = self.client.get(reverse('survey')).content.decode()
+        self.assertEqual(views._asked_count(), len(survey_logic.QUESTIONS) - 1)
+        self.assertIn(f'из {views._asked_count()}', body)

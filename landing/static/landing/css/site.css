@@ -1114,3 +1114,13 @@ select.input{
   letter-spacing:.12em;color:rgba(242,242,238,.6);
 }
 .tg-login iframe{max-width:100%}
+
+/* Блок «вы не знаете, сколько теряете». Стоит вместо суммы, а не рядом
+   с ней: это не оговорка к цифре, это сама находка. */
+.res-idk{
+  border-left:3px solid var(--ink);padding:14px 0 14px 16px;
+  margin:0 0 18px;display:grid;gap:8px;
+}
+.res-idk p{margin:0;font-size:var(--t-small);line-height:1.6}
+.res-idk b{font-weight:500}
+.res-basis{border-top:1px solid var(--line);padding-top:12px;margin-top:14px}

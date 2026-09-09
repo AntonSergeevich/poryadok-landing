@@ -130,6 +130,21 @@ class SurveyForm(forms.Form):
                 isinstance(chosen, list) and 'other' in chosen)
             if picked_other and not data.get(q['id'] + '_other'):
                 self.add_error(q['id'] + '_other', 'Напишите свой вариант.')
+
+        # Условные вопросы обязательны, но только когда подходят.
+        #
+        # Само поле помечено необязательным — иначе без JavaScript, где
+        # видны оба вопроса сразу, человека заставляли бы отвечать и про
+        # поток, и про проекты. Но совсем без ответа остаётся оценка
+        # потерь, а она и есть то, ради чего тест проходят. Поэтому
+        # спрашиваем ровно тот вопрос, который подходит под названный ритм.
+        for q in QUESTIONS:
+            rule = q.get('show_if')
+            if not rule:
+                continue
+            depends_on, needed = rule
+            if data.get(depends_on) == needed and not data.get(q['id']):
+                self.add_error(q['id'], 'Выберите ответ, чтобы идти дальше.')
         return data
 
     def answers(self):

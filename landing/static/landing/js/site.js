@@ -133,12 +133,63 @@
      Скрипт лишь показывает их по одному: так короче и не пугает длиной. */
   var quiz = document.getElementById('q-steps');
   if (quiz) {
-    var steps = Array.prototype.slice.call(quiz.querySelectorAll('.q-step'));
+    var allSteps = Array.prototype.slice.call(quiz.querySelectorAll('.q-step'));
     var bar = document.getElementById('q-bar');
     var fill = document.getElementById('q-fill');
     var now = document.getElementById('q-now');
+    var steps = allSteps;
     var total = steps.length;
     var at = 0;
+
+    /* ---------- Вопросы, которые подходят не всем ----------
+
+       У шага может стоять data-show-if="rhythm=project": показывать,
+       только если на вопрос «rhythm» ответили «project». Так устроена
+       развилка «поток или проекты»: у одного спрашивают клиентов
+       в месяц, у другого — проекты за год.
+
+       Без скрипта видны оба вопроса, и это не поломка: спрятать их
+       нечем, лишний ответ ничего не портит, а сервер считает только
+       подходящий. Скрипт лишь убирает лишнее с глаз. */
+    var conditional = allSteps.filter(function (el) { return el.dataset.showIf; });
+
+    var answerOf = function (name) {
+      var picked = quiz.querySelector('input[name="' + name + '"]:checked');
+      return picked ? picked.value : null;
+    };
+
+    var applyConditions = function () {
+      conditional.forEach(function (el) {
+        var parts = el.dataset.showIf.split('=');
+        var fits = answerOf(parts[0]) === parts[1];
+        // Пока на управляющий вопрос не ответили, не показываем ни один
+        // из зависимых: человек ещё не сказал, какой к нему относится.
+        el.hidden = !fits;
+        // Спрятанный вопрос не должен уезжать в отправку с прошлым
+        // ответом: он относится к другому ритму работы.
+        if (!fits) {
+          el.querySelectorAll('input:checked').forEach(function (input) {
+            input.checked = false;
+          });
+        }
+      });
+      steps = allSteps.filter(function (el) { return !el.hidden; });
+      total = steps.length;
+      renumber();
+    };
+
+    // Номер вопроса пересчитывается: спрятанный шаг не должен оставлять
+    // дыру в счёте, иначе после четырнадцатого идёт шестнадцатый.
+    var renumber = function () {
+      var asked = bar ? Number(bar.dataset.questions) : total;
+      steps.forEach(function (el, n) {
+        var num = el.querySelector('[data-num]');
+        if (!num) return;
+        num.textContent = (n + 1 > asked)
+          ? 'Последний шаг'
+          : 'Вопрос ' + (n + 1) + ' из ' + asked;
+      });
+    };
 
     // Если сервер вернул форму с ошибками, открываем первый спорный вопрос.
     var bad = quiz.querySelector('.err--on');
@@ -149,6 +200,9 @@
 
     var show = function (i, focus) {
       at = Math.max(0, Math.min(i, total - 1));
+      // Класс снимаем со всех, а ставим только видимым: спрятанный шаг
+      // не должен остаться «текущим» после смены ответа про ритм.
+      allSteps.forEach(function (el) { el.classList.remove('is-now'); });
       steps.forEach(function (el, n) { el.classList.toggle('is-now', n === at); });
       if (fill) fill.style.width = ((at + 1) / total * 100) + '%';
       // Последний лист — не вопрос, а контакты: считать его шестнадцатым
@@ -172,11 +226,16 @@
     document.documentElement.classList.add('q-js');
     if (bar) bar.hidden = false;
 
-    steps.forEach(function (step, n) {
+    allSteps.forEach(function (step) {
       var next = step.querySelector('.q-next');
       var back = step.querySelector('.q-back');
-      if (next) { next.hidden = false; next.addEventListener('click', function () { show(n + 1, true); }); }
-      if (back && n > 0) { back.hidden = false; back.addEventListener('click', function () { show(n - 1, false); }); }
+      // Куда листать, считаем в момент нажатия, а не при навешивании:
+      // между этими двумя моментами список видимых шагов мог измениться.
+      var index = function () { return steps.indexOf(step); };
+      if (next) { next.hidden = false; next.addEventListener('click', function () { show(index() + 1, true); }); }
+      if (back) {
+        back.addEventListener('click', function () { show(index() - 1, false); });
+      }
 
       // Один вариант из списка — ответ дан, идём дальше сами.
       // Для нескольких вариантов и для «Другое» так делать нельзя:
@@ -188,10 +247,16 @@
             if (own) own.focus();
             return;
           }
-          setTimeout(function () { show(n + 1, false); }, 180);
+          // Ответ мог быть на управляющий вопрос — тогда набор видимых
+          // шагов меняется прямо сейчас, и следующий считается уже по нему.
+          applyConditions();
+          var here = index();
+          setTimeout(function () { show(here + 1, false); }, 180);
         });
       });
     });
+
+    applyConditions();
 
     // Клавиатура: цифра выбирает вариант, Enter листает дальше.
     // Мышкой всё то же самое, просто быстрее теми, кто привык печатать.
@@ -220,9 +285,13 @@
       }
     });
 
-    steps.forEach(function (step) {
+    allSteps.forEach(function (step) {
       var keys = step.querySelector('.q-keys');
       if (keys) keys.hidden = false;
+      var back = step.querySelector('.q-back');
+      // Назад некуда только с самого первого шага, и какой он — зависит
+      // от того, что сейчас видно.
+      if (back) back.hidden = steps.indexOf(step) === 0;
     });
 
     show(at, false);

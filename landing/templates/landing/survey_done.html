@@ -33,28 +33,76 @@
   </div>
 </section>
 
-{% if result.estimate and result.estimate.total_money %}
+{% if result.estimate %}
 <section class="sheet">
   <div class="wrap">
     <div class="res-money rv">
+      {% comment %}
+        Вилка, а не точное число. Модель грубая: три коэффициента и
+        середины диапазонов. Точную цифру человек читает как измерение,
+        приходит на разбор и обнаруживает, что измерения не было.
+        Точное число оспаривают, вилку — нет.
+      {% endcomment %}
+      {% if result.estimate.total_range %}
       <p class="res-money__label mono">Оценка потерь, грубо</p>
-      <p class="res-money__fig">≈ {{ result.estimate.total_money|floatformat:0 }} ₽ <span>в месяц</span></p>
+      <p class="res-money__fig">
+        от {{ result.estimate.total_range.low|floatformat:"0g" }}
+        до {{ result.estimate.total_range.high|floatformat:"0g" }} ₽
+        <span>в месяц</span>
+      </p>
+      {% endif %}
+
+      {% comment %}
+        Человек ответил «не считаю» — значит доли потерь не знает никто,
+        и назвать её числом было бы выдумкой, построенной на его незнании.
+        Это и есть первая находка разбора.
+      {% endcomment %}
+      {% if result.estimate.lost_unknown %}
+      <div class="res-idk">
+        <p><b>Вы не знаете, сколько теряете.</b></p>
+        <p>
+          Это не мелочь и не повод для стыда: так отвечает большинство.
+          Это и есть первая находка разбора — деньги утекают там, где их
+          никто не считает.
+        </p>
+      </div>
+      {% endif %}
+
       <ul class="res-money__parts">
         {% if result.estimate.lost_money %}
-        <li><b>{{ result.estimate.lost_money|floatformat:0 }} ₽</b> — на заявках, до которых не дошли руки</li>
+        <li><b>{{ result.estimate.lost_money|floatformat:"0g" }} ₽</b> — на заявках, до которых не дошли руки</li>
         {% endif %}
         {% if result.estimate.noshow_money %}
-        <li><b>{{ result.estimate.noshow_money|floatformat:0 }} ₽</b> — на клиентах, которые записались и не пришли</li>
+        <li><b>{{ result.estimate.noshow_money|floatformat:"0g" }} ₽</b> — на клиентах, которые записались и не пришли</li>
         {% endif %}
         {% if result.estimate.hours_month %}
         <li><b>{{ result.estimate.hours_month }} часов</b> вашего времени уходит на рутину</li>
         {% endif %}
       </ul>
-      <p class="small">
-        Считал по вашим же цифрам — среднему чеку и числу клиентов. Оценка грубая:
-        она нужна не для точности, а чтобы увидеть порядок величины. На встрече
-        посчитаем по факту.
+
+      {% comment %}
+        Из чего сложилась оценка. Человек видит допущение и, если оно
+        неверно, поправляет его сам — вместо того чтобы уйти с ощущением,
+        что цифру взяли с потолка.
+      {% endcomment %}
+      {% if result.estimate.basis %}
+      <p class="small res-basis">
+        Считал по вашим ответам: {{ result.estimate.basis|join:", " }}.
       </p>
+      {% endif %}
+
+      {% if result.estimate.capped %}
+      <p class="small">
+        По вашим ответам выходит и больше, но такую цифру я показывать
+        не стану: считать точнее без ваших данных смысла нет — разберём
+        на встрече.
+      </p>
+      {% else %}
+      <p class="small">
+        Оценка грубая: она нужна не для точности, а чтобы увидеть порядок
+        величины. На встрече посчитаем по факту.
+      </p>
+      {% endif %}
     </div>
   </div>
 </section>

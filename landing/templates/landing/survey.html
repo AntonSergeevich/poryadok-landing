@@ -79,12 +79,13 @@
   <div class="wrap q-steps" id="q-steps">
 
     {% for step in steps %}
-    <fieldset class="q-step" data-step="{{ forloop.counter }}">
+    <fieldset class="q-step" data-step="{{ forloop.counter }}"
+              {% if step.show_if %}data-show-if="{{ step.show_if }}"{% endif %}>
       <legend class="q-step__legend">
         {% if step.q.icon %}
         <svg class="q-step__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-{{ step.q.icon }}"></use></svg>
         {% endif %}
-        <span class="q-step__num mono">Вопрос {{ forloop.counter }} из {{ total }}</span>
+        <span class="q-step__num mono" data-num>Вопрос {{ forloop.counter }} из {{ total }}</span>
         <span class="q-step__title">{{ step.q.title }}</span>
         {% if step.q.hint %}<span class="q-step__hint">{{ step.q.hint }}</span>{% endif %}
       </legend>

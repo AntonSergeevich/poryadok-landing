@@ -301,17 +301,52 @@ QUESTIONS = [
         ],
     },
     {
+        # Развилка. Без неё тест считал всех потоком, а самый маленький
+        # ответ про клиентов — «до двадцати» — брался как двенадцать
+        # человек в месяц. Для архитектора с шестью проектами в год это
+        # завышение в пятнадцать раз, и завышается вместе с ним весь итог.
+        'id': 'rhythm',
+        'icon': 'grid',
+        'title': 'Клиенты приходят потоком или проектами?',
+        'hint': 'От этого зависит, как считать. Ошибиться тут — ошибиться во всём',
+        'type': 'one',
+        'required': True,
+        'options': [
+            {'value': 'flow',    'label': 'Потоком: каждый месяц примерно одинаково'},
+            {'value': 'project', 'label': 'Проектами: несколько крупных за год'},
+        ],
+    },
+    {
         'id': 'clients',
         'icon': 'grid',
         'title': 'Сколько клиентов вы обслуживаете за месяц?',
+        # Показывается только тем, у кого поток. Без JavaScript видны оба
+        # вопроса — и это правильно: скрыть вопрос нечем, а лишний ответ
+        # ничего не портит, потому что считается только подходящий.
+        'show_if': ('rhythm', 'flow'),
         'type': 'one',
-        'required': True,
+        'required': False,
         'options': [
             {'value': 'n12',  'label': 'До двадцати'},
             {'value': 'n35',  'label': 'От двадцати до пятидесяти'},
             {'value': 'n100', 'label': 'От пятидесяти до ста пятидесяти'},
             {'value': 'n300', 'label': 'От ста пятидесяти до пятисот'},
             {'value': 'n700', 'label': 'Больше пятисот'},
+        ],
+    },
+    {
+        'id': 'projects_year',
+        'icon': 'grid',
+        'title': 'Сколько проектов вы берёте за год?',
+        'hint': 'Крупные работы, а не отдельные визиты',
+        'show_if': ('rhythm', 'project'),
+        'type': 'one',
+        'required': False,
+        'options': [
+            {'value': 'p3',  'label': 'Два-четыре'},
+            {'value': 'p6',  'label': 'Пять-восемь'},
+            {'value': 'p12', 'label': 'Девять-пятнадцать'},
+            {'value': 'p24', 'label': 'Больше пятнадцати'},
         ],
     },
     {
@@ -332,11 +367,56 @@ QUESTIONS_BY_ID = {q['id']: q for q in QUESTIONS}
 CHECK_MID   = {'c700': 700, 'c2000': 2000, 'c6000': 6000,
                'c25000': 25000, 'c80000': 80000}
 CLIENTS_MID = {'n12': 12, 'n35': 35, 'n100': 100, 'n300': 300, 'n700': 700}
-LOST_RATE   = {'day': .20, 'week': .12, 'month': .05, 'never': 0, 'idk': .12}
+# Проектный ритм: сколько крупных работ за год. В месяц переводится делением,
+# и дробное число клиентов в месяц здесь нормально — это средняя загрузка,
+# а не количество людей в приёмной.
+PROJECTS_MID = {'p3': 3, 'p6': 6, 'p12': 12, 'p24': 24}
+
+# «Не знаю» в списке нет намеренно: доля потерь у того, кто их не считает,
+# неизвестна. Раньше здесь стояло .12 — то есть человеку, честно
+# ответившему «не считаю», система приписывала двенадцать процентов
+# как факт. Цифра, построенная на чужом незнании, — худший вид цифры.
+LOST_RATE   = {'day': .20, 'week': .12, 'month': .05, 'never': 0}
 NOSHOW_RATE = {'few': .03, 'one': .10, 'few3': .25, 'many': .40, 'na': 0}
 HOURS_MID   = {'h3': 3, 'h7': 7, 'h15': 15, 'h25': 25}
 
 HOUR_PRICE = 700  # во сколько условно оценивать час владельца
+
+# Потолок правдоподобия.
+#
+# На крайних ответах — теряем каждый день и не приходит больше трети —
+# множитель к выручке выходил 0,92. То есть бизнесу с выручкой миллион
+# тест сообщал, что он теряет девятьсот двадцать тысяч в месяц. В такое
+# не верят, и правильно делают: цифра, в которую не верят, обесценивает
+# и все остальные на странице.
+#
+# Потери сверх этой доли бывают. Но объяснять их надо голосом и с цифрами
+# в руках, а не строкой в тесте.
+LOSS_CAP = 0.35
+
+# Насколько широка вилка. Модель грубая, и выглядеть она должна грубой:
+# точное число оспаривают, вилку — нет.
+SPREAD = 0.4
+
+
+def spread(x, k=SPREAD):
+    """Вилка вокруг оценки, краями по тысяче.
+
+    Оценка построена на серединах диапазонов и трёх коэффициентах. Печатать
+    её точным числом — значит выдать допущение за факт: человек читает
+    «≈ 150 000» как измерение, приходит на разбор и обнаруживает, что
+    измерения не было.
+    """
+    if not x:
+        return None
+    low = int(round(x * (1 - k), -3))
+    high = int(round(x * (1 + k), -3))
+    if high <= low:
+        # На маленьких суммах края сходятся после округления. Вилка,
+        # у которой края равны, — это точное число, только притворяющееся
+        # вилкой.
+        high = low + 1000
+    return {'low': low, 'high': high}
 
 
 def _label(qid, value):
@@ -385,6 +465,50 @@ def score(answers):
     return totals
 
 
+def clients_per_month(answers):
+    """Сколько клиентов в месяц — по тому ритму, который человек назвал.
+
+    Два разных бизнеса считаются по-разному, и это не тонкость. У потока
+    клиенты приходят каждый месяц примерно одинаково. У проектного
+    ритма — несколько крупных работ за год, и месячная загрузка выводится
+    делением. Считать проектного по шкале потока значит завысить его
+    выручку в разы, а вместе с ней и всё, что от неё считается.
+    """
+    if answers.get('rhythm') == 'project':
+        per_year = PROJECTS_MID.get(answers.get('projects_year'))
+        return per_year / 12 if per_year else None
+    return CLIENTS_MID.get(answers.get('clients'))
+
+
+def basis(answers):
+    """Из чего сложилась оценка — человеческими словами.
+
+    Показывается под цифрой. Человек сразу видит допущение и, если оно
+    неверно, поправляет его сам — вместо того чтобы уйти с ощущением,
+    что ему назвали цифру с потолка.
+    """
+    out = []
+    check = answers.get('check')
+    if check:
+        out.append(f'чек {_label("check", check).lower()}')
+
+    if answers.get('rhythm') == 'project':
+        if answers.get('projects_year'):
+            out.append(f'{_label("projects_year", answers["projects_year"]).lower()} '
+                       f'проектов за год')
+    elif answers.get('clients'):
+        out.append(f'{_label("clients", answers["clients"]).lower()} клиентов в месяц')
+
+    lost = answers.get('lost')
+    if lost and lost != 'idk':
+        out.append(f'заявки: {_label("lost", lost).lower()}')
+
+    noshow = answers.get('noshow')
+    if noshow and noshow not in ('na',):
+        out.append(f'не приходят: {_label("noshow", noshow).lower()}')
+    return out
+
+
 def estimate(answers):
     """Грубая оценка потерь в деньгах и часах.
 
@@ -393,26 +517,63 @@ def estimate(answers):
     девятая сверх имеющейся — поэтому делим на (1 - доля), а не умножаем.
     """
     check = CHECK_MID.get(answers.get('check'))
-    clients = CLIENTS_MID.get(answers.get('clients'))
+    clients = clients_per_month(answers)
     if not check or not clients:
         return None
 
     revenue = check * clients
-    lost_rate = LOST_RATE.get(answers.get('lost'), 0)
+    lost_answer = answers.get('lost')
     noshow_rate = NOSHOW_RATE.get(answers.get('noshow'), 0)
     hours = HOURS_MID.get(answers.get('routine'), 0)
 
-    lost_money = revenue * lost_rate / (1 - lost_rate) if lost_rate < 1 else 0
+    # «Честно — не знаю, не считаю» деньгами не считается вовсе. Это
+    # не пропуск в расчёте, а находка: деньги утекают ровно там, где их
+    # никто не считает, и сказать это сильнее, чем назвать выдуманную сумму.
+    lost_unknown = lost_answer == 'idk'
+    if lost_unknown:
+        lost_money = None
+    else:
+        lost_rate = LOST_RATE.get(lost_answer, 0)
+        lost_money = revenue * lost_rate / (1 - lost_rate) if lost_rate < 1 else 0
+
     noshow_money = revenue * noshow_rate / (1 - noshow_rate) if noshow_rate < 1 else 0
+
+    raw_total = (lost_money or 0) + noshow_money
+    ceiling = revenue * LOSS_CAP
+    capped = raw_total > ceiling
+    total = min(raw_total, ceiling)
+
+    # Слагаемые ужимаются вместе с итогом.
+    #
+    # Иначе страница спорит сама с собой: в заголовке вилка вокруг
+    # трёхсот тысяч, а под ней два числа, которые в сумме дают
+    # четыреста. Читатель, который складывает — а он и есть тот, ради
+    # кого писалась вся эта честность, — увидит расхождение и перестанет
+    # верить обеим цифрам сразу.
+    if capped and raw_total:
+        squeeze = ceiling / raw_total
+        if lost_money is not None:
+            lost_money *= squeeze
+        noshow_money *= squeeze
+
     hours_month = round(hours * 4.3)
 
+    # Целыми: при проектном ритме клиентов в месяц выходит дробное число,
+    # и без этого на странице появилось бы «40 000.0 ₽».
     return {
-        'revenue': round(revenue, -3),
-        'lost_money': round(lost_money, -3),
-        'noshow_money': round(noshow_money, -3),
-        'total_money': round(lost_money + noshow_money, -3),
+        'revenue': int(round(revenue, -3)),
+        'lost_money': None if lost_money is None else int(round(lost_money, -3)),
+        'lost_unknown': lost_unknown,
+        'noshow_money': int(round(noshow_money, -3)),
+        'total_money': int(round(total, -3)),
+        'total_range': spread(total),
+        # Потолок сработал — значит на странице надо сказать об этом,
+        # а не срезать молча. Молча срезанная цифра — та же выдумка,
+        # только аккуратнее выглядящая.
+        'capped': capped,
+        'basis': basis(answers),
         'hours_month': hours_month,
-        'hours_money': round(hours_month * HOUR_PRICE, -3),
+        'hours_money': int(round(hours_month * HOUR_PRICE, -3)),
     }
 
 
