@@ -1,10 +1,10 @@
 {% extends "landing/base.html" %}
-{% load static %}
+{% load static ru %}
 
 {% block title %}Разбор процессов — Системы Порядок{% endblock %}
-{% block description %}Пятнадцать вопросов о заявках, записи, деньгах и времени. В конце — где утекают деньги и часы, с оценкой в рублях. Три минуты, без имени и телефона.{% endblock %}
+{% block description %}{{ total_word|capfirst }} {{ total|ru_plural:"вопрос,вопроса,вопросов" }} о заявках, записи, деньгах и времени. В конце — где утекают деньги и часы, с оценкой в рублях. Три минуты, без имени и телефона.{% endblock %}
 {% block og_title %}Посмотреть на свой бизнес со стороны — за три минуты{% endblock %}
-{% block og_description %}Пятнадцать вопросов о том, как устроены заявки, запись, деньги и время. В конце — что чинить первым.{% endblock %}
+{% block og_description %}{{ total_word|capfirst }} {{ total|ru_plural:"вопрос,вопроса,вопросов" }} о том, как устроены заявки, запись, деньги и время. В конце — что чинить первым.{% endblock %}
 
 {% block nav %}
 <a href="{% url 'index' %}#pains">Боли</a>
@@ -22,7 +22,7 @@
 <section class="sheet sheet--first">
   <div class="wrap">
     <span class="tag tag--ink">Лист 00 · Разбор процессов</span>
-    <h1 class="q-title">Пятнадцать вопросов о том,<br>как у вас всё устроено</h1>
+    <h1 class="q-title">{{ total_word|capfirst }} {{ total|ru_plural:"вопрос,вопроса,вопросов" }} о том,<br>как у вас всё устроено</h1>
     <p class="lead">
       Про заявки, запись, деньги и время. Все ответы готовые — нажимать, не писать.
       В конце покажу, где утекают деньги и часы, и что чинить первым.
@@ -76,7 +76,7 @@
     </div>
   </div>
 
-  <div class="wrap q-steps" id="q-steps">
+  <div class="wrap q-steps" id="q-steps" data-start="{{ start_at }}">
 
     {% for step in steps %}
     <fieldset class="q-step" data-step="{{ forloop.counter }}"

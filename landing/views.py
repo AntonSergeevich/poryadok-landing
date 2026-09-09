@@ -25,8 +25,10 @@ from .services import club as club_service
 from .services import getplatinum as gp
 from .services import payments as pay
 from .services import telegram as tg
+from . import survey as survey_logic
 from .survey import QUESTIONS
 from . import constructor as build
+from . import contract
 # Работы живут в базе и заводятся из кабинета. Модуль landing/works.py
 # остался источником переноса (миграция 0010) — из кода их больше
 # не читают.
@@ -69,6 +71,12 @@ def index(request):
         'form': form,
         'success': success,
         'works': published_works(),
+        # Первый вопрос разбора задаётся прямо здесь, на первом экране.
+        # Берём его из тех же данных, что и сам разбор: два списка
+        # вариантов разошлись бы в первый же месяц.
+        'first_question': survey_logic.first_question(),
+        'total': _asked_count(),
+        'total_word': contract.words(_asked_count()),
     })
 
 
@@ -432,6 +440,13 @@ def survey(request):
     """
     form = SurveyForm(request.POST or None)
 
+    # Ответ на первый вопрос мог прийти с главной — там его и задают.
+    preset = ''
+    if not form.is_bound:
+        first_id = survey_logic.first_question()['id']
+        value = request.GET.get(first_id, '')
+        preset = value if survey_logic.valid_answer(first_id, value) else ''
+
     if request.method == 'POST' and form.is_valid():
         entry = Survey.objects.create(
             name=form.cleaned_data.get('name', '').strip(),
@@ -466,7 +481,11 @@ def survey(request):
 
     return render(request, 'landing/survey.html', {
         'form': form,
-        'steps': _survey_steps(form),
+        'steps': _survey_steps(form, preset),
+        # Первый вопрос уже отвечен — скрипту начинать со второго. Без
+        # скрипта шагов нет, форма одна, и начинать неоткуда.
+        'start_at': 1 if preset else 0,
+        'total_word': contract.words(_asked_count()),
         # Сколько вопросов человек увидит на самом деле. Условные из одной
         # пары исключают друг друга, поэтому в счёт идёт один: обещать
         # семнадцать и показать шестнадцать — мелкое, но враньё.
@@ -487,16 +506,23 @@ def _asked_count():
     return total
 
 
-def _survey_steps(form):
+def _survey_steps(form, preset=''):
     """Готовит вопросы к отрисовке.
 
     Разметку вариантов пишем руками, а не через {{ field }}, — значит
     отметку «выбрано» надо посчитать здесь. В шаблоне логике не место.
+
+    `preset` — ответ на первый вопрос, пришедший с главной. Он именно
+    отмечается в форме, а не запоминается отдельно: человек должен
+    видеть, что за него отмечено, и мочь это поменять.
     """
     data = form.data if form.is_bound else {}
+    first_id = survey_logic.first_question()['id']
     steps = []
     for q in QUESTIONS:
         chosen = data.getlist(q['id']) if hasattr(data, 'getlist') else []
+        if preset and q['id'] == first_id and not form.is_bound:
+            chosen = [preset]
         options = [{
             'value': o['value'],
             'label': o['label'],

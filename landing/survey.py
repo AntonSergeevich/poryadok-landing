@@ -361,6 +361,25 @@ QUESTIONS = [
 
 QUESTIONS_BY_ID = {q['id']: q for q in QUESTIONS}
 
+
+def first_question():
+    """Первый вопрос. Его задают не только здесь, но и на главной."""
+    return QUESTIONS[0]
+
+
+def valid_answer(question_id, value):
+    """Есть ли у вопроса такой вариант.
+
+    Ответ, пришедший строкой запроса, набрать может кто угодно. Отметить
+    в форме непонятно что — значит показать человеку вопрос, на который
+    он якобы уже ответил, хотя такого ответа не существует.
+    """
+    question = QUESTIONS_BY_ID.get(question_id)
+    if not question:
+        return False
+    return any(option['value'] == value for option in question.get('options', []))
+
+
 # ── Числа для оценки потерь ──────────────────────────────────────────
 # Середины диапазонов. Оценка грубая и так и называется на странице.
 

@@ -3331,3 +3331,90 @@ class FreeClubTests(TestCase):
         paid.activate()
         self.assertIsNotNone(paid.ends_at)
         self.assertTrue(person.club_is_active)
+
+
+class HeroQuestionTests(TestCase):
+    """Первый вопрос разбора стоит прямо на главной.
+
+    Нажать на свою сферу проще, чем решиться «пройти тест», поэтому
+    важнее всего здесь три вещи: варианты берутся из тех же данных, что
+    и сам разбор; ответ доезжает до страницы разбора и там виден; и всё
+    это работает обычной формой, без единой строчки скрипта.
+    """
+
+    def test_options_come_from_the_survey_itself(self):
+        body = self.client.get(reverse('index')).content.decode()
+        question = survey_logic.first_question()
+        self.assertIn(question['title'], body)
+        for option in question['options']:
+            with self.subTest(option=option['value']):
+                self.assertIn(f'name="{question["id"]}"\n', body.replace('\r', ''))
+                self.assertIn(f'value="{option["value"]}"', body)
+
+    def test_the_question_is_a_plain_get_form(self):
+        """Без скрипта нажатие обязано работать: обычная форма, метод GET."""
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn(f'<form class="ask" method="GET" action="{reverse("survey")}"', body)
+
+    def test_answer_from_the_front_page_is_marked(self):
+        response = self.client.get(reverse('survey'), {'area': 'school'})
+        steps = {step['q']['id']: step for step in response.context['steps']}
+        chosen = [o['value'] for o in steps['area']['options'] if o['checked']]
+        self.assertEqual(chosen, ['school'])
+        self.assertEqual(response.context['start_at'], 1)
+
+    def test_made_up_answer_is_ignored(self):
+        """Адрес набирает кто угодно. Отметить несуществующий вариант —
+        значит показать ответ, которого человек не давал."""
+        response = self.client.get(reverse('survey'), {'area': 'нет-такого'})
+        steps = {step['q']['id']: step for step in response.context['steps']}
+        self.assertEqual([o for o in steps['area']['options'] if o['checked']], [])
+        self.assertEqual(response.context['start_at'], 0)
+
+    def test_all_questions_stay_visible_without_scripts(self):
+        """Скрипт только прячет лишнее. Без него видны все шаги, включая
+        тот, на который уже ответили с главной."""
+        body = self.client.get(reverse('survey'), {'area': 'school'}).content.decode()
+        self.assertEqual(body.count('class="q-step"'), len(survey_logic.QUESTIONS))
+        self.assertNotIn('hidden class="q-step"', body)
+
+    def test_the_first_screen_draws_a_scheme_not_a_fake_screenshot(self):
+        """Снимок чужой таблицы показывал бы то, чего человек не получит.
+        На первом экране — схема процесса, та же, что он уносит с разбора."""
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn('class="blueprint"', body)
+        self.assertNotIn('order__row', body)
+
+
+class QuestionCountTests(TestCase):
+    """Число вопросов на страницах должно совпадать с числом вопросов.
+
+    Разошлось оно тихо: вопросов стало шестнадцать, а «пятнадцать»
+    осталось в шести местах — в заголовке, в описании для поисковика,
+    в списке и в штампе листа. Мелочь, из-за которой перестают верить
+    всему остальному.
+    """
+
+    NUMERALS = ('десять', 'одиннадцать', 'двенадцать', 'тринадцать',
+                'четырнадцать', 'пятнадцать', 'шестнадцать', 'семнадцать',
+                'восемнадцать', 'девятнадцать', 'двадцать')
+
+    def test_pages_name_the_real_number(self):
+        right = paper.words(views._asked_count())
+        for page in ('index', 'survey'):
+            body = self.client.get(reverse(page)).content.decode().lower()
+            with self.subTest(page=page, word=right):
+                self.assertIn(f'{right} вопрос', body)
+            for word in self.NUMERALS:
+                if word == right:
+                    continue
+                with self.subTest(page=page, wrong=word):
+                    self.assertNotIn(f'{word} вопрос', body)
+
+    def test_digits_do_not_disagree_either(self):
+        total = views._asked_count()
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn(f'{total} вопросов', body)
+        for wrong in (total - 1, total + 1):
+            with self.subTest(wrong=wrong):
+                self.assertNotIn(f'{wrong} вопросов', body)

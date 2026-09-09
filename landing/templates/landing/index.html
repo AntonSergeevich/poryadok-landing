@@ -16,14 +16,35 @@
           Собираю операционные системы для небольших компаний. Через несколько недель вы открываете
           один экран и видите: кто записан, кто оплатил, кому нужно позвонить сегодня.
         </p>
-        <div class="hero__cta">
-          <a class="btn" href="#cta">Разобрать мои процессы <span class="arrow" aria-hidden="true">→</span></a>
-          <a class="btn btn--ghost" href="#what">Что именно я делаю</a>
-        </div>
+
+        {% comment %}
+          Первый вопрос разбора стоит прямо здесь, а не за кнопкой: нажать
+          на свою сферу проще, чем решиться «пройти тест». Форма обычная,
+          method GET — работает без скрипта, ответ уезжает в адресе и там
+          же отмечается на странице разбора.
+        {% endcomment %}
+        <form class="ask" method="GET" action="{% url 'survey' %}">
+          <p class="ask__label mono">Разбор процессов · вопрос 1 из {{ total }}</p>
+          <p class="ask__title">{{ first_question.title }}</p>
+          <div class="ask__opts">
+            {% for option in first_question.options %}
+              <button class="chip" type="submit" name="{{ first_question.id }}"
+                      value="{{ option.value }}">{{ option.label }}</button>
+            {% endfor %}
+            <button class="chip chip--pale" type="submit">Другое дело</button>
+          </div>
+        </form>
+
         <p class="hero__note">
-          Разбор бесплатный, 45 минут. Схему своих процессов вы заберёте себе,
-          даже если мы не станем работать дальше.
+          Всего {{ total }} {{ total|ru_plural:"вопрос,вопроса,вопросов" }}, все с готовыми
+          ответами — три минуты. В конце — где у вас утекают деньги и часы.
+          Имя и телефон не спрашиваю.
         </p>
+
+        <div class="hero__cta">
+          <a class="btn btn--ghost" href="#cta">Просто оставить телефон <span class="arrow" aria-hidden="true">→</span></a>
+          <a class="link-q" href="#what">Что именно я делаю</a>
+        </div>
       </div>
 
       <div class="hero__vis">
@@ -36,23 +57,62 @@
             <div class="slip">записать Диму</div>
           </div>
 
-          {# Порядок: то, как это выглядит в системе #}
-          <div class="order">
-            <div class="order__bar">
-              <span>Сегодня · 14 заявок</span>
-              <em>1 просрочена</em>
-            </div>
-            <div class="order__row">
-              <b>№1042</b><span>Директ · стрижка</span><i class="st-ok">14:00 · оплачено</i>
-            </div>
-            <div class="order__row">
-              <b>№1043</b><span>Сайт · консультация</span><i class="st-ok">16:30 · ждёт оплаты</i>
-            </div>
-            <div class="order__row">
-              <b>№1044</b><span>Звонок · новый клиент</span><i class="st-due">перезвонить · 20 мин</i>
-            </div>
-            <div class="order__foot">Напоминания клиентам уходят сами</div>
-          </div>
+          {% comment %}
+            Порядок: схема процесса, а не снимок экрана. Снимок показывал бы
+            чужую систему — у человека такой нет и не будет ровно такой же.
+            Схема показывает то, что он получит на самом деле: понятный
+            путь клиента, замкнутый в круг. Её же он уносит с разбора.
+          {% endcomment %}
+          <figure class="blueprint">
+            <svg class="blueprint__svg" viewBox="0 0 360 440" role="img"
+                 aria-labelledby="bp-title bp-desc">
+              <title id="bp-title">Схема процесса</title>
+              <desc id="bp-desc">Заявка, запись, напоминание, оплата, повторный
+                визит — пять шагов, замкнутых в круг.</desc>
+
+              {# Откуда приходят #}
+              <text class="bp-src" x="8" y="16">Карты · соцсети · звонок · сайт</text>
+              <path class="bp-thin" d="M180 22 v14"/>
+
+              <g class="bp-box"><rect x="30" y="38" width="300" height="52"/></g>
+              <text class="bp-n" x="44" y="60">01</text>
+              <text class="bp-t" x="72" y="60">Заявка</text>
+              <text class="bp-s" x="72" y="78">попадает в систему, а не в переписку</text>
+              <path class="bp-line" d="M180 90 v22"/><path class="bp-tip" d="M175 106 l5 6 5-6"/>
+
+              <g class="bp-box"><rect x="30" y="112" width="300" height="52"/></g>
+              <text class="bp-n" x="44" y="134">02</text>
+              <text class="bp-t" x="72" y="134">Запись</text>
+              <text class="bp-s" x="72" y="152">время занято, накладок нет</text>
+              <path class="bp-line" d="M180 164 v22"/><path class="bp-tip" d="M175 180 l5 6 5-6"/>
+
+              <g class="bp-box"><rect x="30" y="186" width="300" height="52"/></g>
+              <text class="bp-n" x="44" y="208">03</text>
+              <text class="bp-t" x="72" y="208">Напоминание</text>
+              <text class="bp-s" x="72" y="226">уходит само, за сутки до визита</text>
+              <path class="bp-line" d="M180 238 v22"/><path class="bp-tip" d="M175 254 l5 6 5-6"/>
+
+              <g class="bp-box"><rect x="30" y="260" width="300" height="52"/></g>
+              <text class="bp-n" x="44" y="282">04</text>
+              <text class="bp-t" x="72" y="282">Оплата</text>
+              <text class="bp-s" x="72" y="300">видно, кто заплатил и сколько</text>
+              <path class="bp-line" d="M180 312 v22"/><path class="bp-tip" d="M175 328 l5 6 5-6"/>
+
+              <g class="bp-box bp-box--last"><rect x="30" y="334" width="300" height="52"/></g>
+              <text class="bp-n" x="44" y="356">05</text>
+              <text class="bp-t" x="72" y="356">Возврат</text>
+              <text class="bp-s" x="72" y="374">не забыли позвать — пришёл снова</text>
+
+              {# Круг: пятый шаг возвращает к первому #}
+              <path class="bp-loop" d="M330 360 h16 v-296 h-16"/>
+              <path class="bp-tip" d="M336 59 l-6 5 6 5"/>
+              <text class="bp-loop-t" x="352" y="212" transform="rotate(-90 352 212)">цикл замкнут</text>
+            </svg>
+            <figcaption class="blueprint__cap">
+              Схема вашего процесса — то, что вы уносите с разбора. Даже если
+              дальше мы не работаем.
+            </figcaption>
+          </figure>
         </div>
       </div>
     </div>
@@ -463,7 +523,7 @@
         <span class="tag tag--ink">Лист 08 · Разбор за три минуты</span>
         <h2>Посмотреть на свой бизнес со стороны</h2>
         <p class="small">
-          Пятнадцать вопросов о том, как у вас устроены заявки, запись, деньги и время.
+          {{ total_word|capfirst }} {{ total|ru_plural:"вопрос,вопроса,вопросов" }} о том, как у вас устроены заявки, запись, деньги и время.
           В конце — где именно утекают деньги и часы, с оценкой в рублях.
           Отвечать можно без имени и телефона: результат вы увидите в любом случае.
         </p>
@@ -471,7 +531,7 @@
 
       <div class="tool__body">
         <ul class="tool__list">
-          <li>Пятнадцать вопросов, все с готовыми ответами — три минуты</li>
+          <li>{{ total_word|capfirst }} {{ total|ru_plural:"вопрос,вопроса,вопросов" }}, все с готовыми ответами — три минуты</li>
           <li>Сразу видно, какие три вещи чинить первыми</li>
           <li>Оценка потерь в рублях и часах по вашим же цифрам</li>
           <li>Это и есть начало бесплатного разбора — мне не придётся спрашивать заново</li>
@@ -485,7 +545,7 @@
     <div class="stamp" aria-hidden="true">
       <span class="s-num">Лист 08</span>
       <span class="s-name">Разбор процессов</span>
-      <span class="s-scale">15 вопросов</span>
+      <span class="s-scale">{{ total }} {{ total|ru_plural:"вопрос,вопроса,вопросов" }}</span>
       <span class="s-org">С-Порядок</span>
     </div>
   </div>

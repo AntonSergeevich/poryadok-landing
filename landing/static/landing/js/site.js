@@ -196,6 +196,13 @@
     if (bad) {
       var owner = bad.closest('.q-step');
       if (owner) at = steps.indexOf(owner);
+    } else {
+      // Первый вопрос могли задать ещё на главной. Ответ на него уже
+      // отмечен, и открывать его снова — значит просить нажать то же
+      // самое второй раз. Шаг остаётся на месте: кнопка «назад» ведёт
+      // к нему, ответ можно поменять.
+      var start = Number(quiz.dataset.start || 0);
+      if (start > 0 && start < allSteps.length) at = start;
     }
 
     var show = function (i, focus) {

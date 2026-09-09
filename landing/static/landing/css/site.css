@@ -271,6 +271,38 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   font:400 var(--t-small)/1.5 var(--f-mono);color:var(--muted);max-width:44ch;
 }
 
+/* Первый вопрос разбора прямо на первом экране. Кнопки, а не радио с
+   отдельной «отправить»: одно нажатие — один шаг, и это работает без
+   скрипта. Вариантов семь, поэтому они мельче кнопок и стоят плиткой. */
+.ask{
+  margin-top:calc(var(--u)*5);padding:clamp(16px,2vw,22px);
+  background:var(--sheet);border:1px solid var(--line);
+  box-shadow:6px 7px 0 rgba(13,15,14,.05);max-width:56ch;
+}
+.ask__label{
+  font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em;
+}
+.ask__title{
+  margin-top:10px;font:500 var(--t-h3)/1.25 var(--f-sans);letter-spacing:-.01em;
+}
+.ask__opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:calc(var(--u)*2)}
+.chip{
+  display:inline-flex;align-items:center;
+  padding:10px 14px;border:1px solid var(--line);background:var(--paper);
+  color:var(--graphite);font:400 var(--t-small)/1.2 var(--f-sans);
+  text-align:left;cursor:pointer;
+  transition:background .14s ease,border-color .14s ease,color .14s ease;
+}
+.chip:hover{border-color:var(--graphite);background:var(--graphite);color:var(--paper)}
+.chip:active{transform:translateY(1px)}
+.chip--pale{color:var(--muted);border-style:dashed}
+.link-q{
+  font:400 var(--t-small)/1 var(--f-sans);color:var(--muted);
+  text-decoration:none;border-bottom:1px solid var(--line);
+}
+.link-q:hover{color:var(--ink);border-bottom-color:var(--ink)}
+
 /* Хаос → порядок */
 /* Бумажки — левая половина мысли «хаос → порядок». Раньше две из четырёх
    уходили под карточку системы и не читались: смысл терялся, оставалась
@@ -341,6 +373,32 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   padding:11px 14px;border-top:1px solid var(--graphite);background:var(--graphite);color:var(--paper);
   font:400 var(--t-tag)/1.3 var(--f-mono);letter-spacing:.06em;
 }
+
+/* Схема процесса. Рисунок, а не снимок экрана: чужая таблица показывала бы
+   не то, что человек получит. Линии рисуются цветом текста, поэтому схема
+   весит ничего и одинаково чётко видна на любом экране. */
+.blueprint{
+  position:relative;z-index:2;margin:0;
+  background:var(--sheet);border:1px solid var(--graphite);
+  box-shadow:10px 12px 0 rgba(13,15,14,.06);
+  padding:clamp(12px,1.6vw,18px);
+}
+.blueprint__svg{display:block;width:100%;height:auto}
+.blueprint__cap{
+  margin-top:12px;padding-top:12px;border-top:1px solid var(--line);
+  font:400 var(--t-tag)/1.45 var(--f-mono);color:var(--muted);
+}
+.blueprint__svg text{font-family:var(--f-mono)}
+.bp-box rect{fill:none;stroke:var(--graphite);stroke-width:1}
+.bp-box--last rect{fill:var(--ink-wash)}
+.bp-n{font-size:9px;fill:var(--muted);letter-spacing:.12em}
+.bp-t{font-size:15px;font-weight:500;fill:var(--graphite)}
+.bp-s{font-size:9.5px;fill:var(--muted)}
+.bp-src{font-size:9px;fill:var(--muted);letter-spacing:.08em}
+.bp-line,.bp-tip,.bp-thin,.bp-loop{fill:none;stroke:var(--graphite);stroke-width:1}
+.bp-thin{stroke:var(--line)}
+.bp-loop{stroke:var(--ink);stroke-dasharray:4 3}
+.bp-loop-t{font-size:8.5px;fill:var(--ink);letter-spacing:.14em}
 
 /* ---------- 02. Боли ---------- */
 .pains{border-top:1px solid var(--line)}
@@ -737,11 +795,11 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 /* До появления записки утоплены в карточку и почти без наклона — потом
    выезжают вверх и расходятся веером. */
 .js-anim .flow:not(.is-set) .slip{transform:rotate(0deg) translateY(64px)}
-.js-anim .flow:not(.is-set) .order{opacity:0;transform:translateY(16px)}
-.js-anim .order{transition:opacity .6s ease .25s,transform .6s cubic-bezier(.2,.7,.3,1) .25s}
+.js-anim .flow:not(.is-set) .blueprint{opacity:0;transform:translateY(16px)}
+.js-anim .blueprint{transition:opacity .6s ease .25s,transform .6s cubic-bezier(.2,.7,.3,1) .25s}
 
 @media (prefers-reduced-motion:reduce){
-  .js-anim .rv,.js-anim .slip,.js-anim .order{opacity:1!important;transition:none!important}
+  .js-anim .rv,.js-anim .slip,.js-anim .blueprint{opacity:1!important;transition:none!important}
   .js-anim .slip{transform:rotate(var(--tilt))!important}
   .flow.is-set .slip{animation:none}
   *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
