@@ -3738,3 +3738,53 @@ class DarkThemeTests(TestCase):
         body = self.client.get(reverse('index')).content.decode()
         self.assertIn('media="(prefers-color-scheme: dark)"', body)
         self.assertIn('color-scheme:light dark', self.css)
+
+
+class ThemeSwitchTests(TestCase):
+    """Переключатель темы.
+
+    Дороже всего здесь сломать три вещи: расхождение двух описаний
+    тёмной палитры (системной и выбранной вручную) — тогда нажатие
+    даёт другой лист, чем система; мигание белым до первой отрисовки;
+    и мёртвую кнопку без скрипта.
+    """
+
+    def setUp(self):
+        self.css = (Path(__file__).resolve().parent / 'static' / 'landing' / 'css'
+                    / 'site.css').read_text(encoding='utf-8')
+
+    def _palette(self, selector):
+        start = self.css.index(selector) + len(selector)
+        return self.css[start:self.css.index('}', start)].strip()
+
+    def test_both_ways_into_the_dark_give_the_same_sheet(self):
+        """Системная тема и нажатая кнопка обязаны дать один лист.
+        Правило внутри @media нельзя объединить с правилом снаружи,
+        поэтому блока два — и они должны совпадать."""
+        by_system = self._palette(':root:not([data-theme="light"]){')
+        by_hand = self._palette(':root[data-theme="dark"]{')
+        self.assertEqual(by_system, by_hand)
+        self.assertIn('--paper:#121412', by_hand)
+
+    def test_the_choice_is_read_before_the_first_paint(self):
+        """Иначе выбранный тёмный лист успевает мигнуть белым."""
+        body = self.client.get(reverse('index')).content.decode()
+        boot = body[:body.index('</head>')]
+        self.assertIn("localStorage.getItem('poryadok-theme')", boot)
+        self.assertIn('dataset.theme', boot)
+
+    def test_the_button_is_gone_without_scripts(self):
+        self.assertIn('html:not([data-js]) .theme{display:none}', self.css)
+
+    def test_the_button_is_on_every_page(self):
+        for name in ('index', 'survey', 'club', 'constructor', 'privacy'):
+            body = self.client.get(reverse(name)).content.decode()
+            with self.subTest(page=name):
+                self.assertIn('id="theme"', body)
+
+    def test_the_choice_is_explained_where_it_is_stored(self):
+        """Мы кладём выбор в браузер человека — значит про это сказано
+        там же, где сказано про cookie."""
+        body = self.client.get(reverse('privacy')).content.decode()
+        self.assertIn('тему', body)
+        self.assertIn('хранится только у вас в браузере', body)

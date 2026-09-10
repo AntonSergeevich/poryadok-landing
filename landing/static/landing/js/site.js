@@ -316,6 +316,54 @@
     if (img.complete && img.naturalWidth === 0) markEmpty();
   });
 
+  /* ---------- Тема ----------
+
+     Выбор человека сильнее системного: если он нажал, значит система
+     угадала неправильно. Хранится в браузере и никуда не уезжает —
+     ни в куки, ни на сервер, поэтому и объяснять в политике нечего,
+     кроме одной строки.
+
+     Первый выбор считаем от того, что человек сейчас видит: атрибут
+     на корне, если он уже выбирал, иначе системная тема. */
+  var themeButton = document.getElementById('theme');
+  if (themeButton) {
+    var root = document.documentElement;
+
+    var current = function () {
+      if (root.dataset.theme) return root.dataset.theme;
+      return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    };
+
+    var label = function () {
+      // Подпись обещает, что будет после нажатия, а не что есть сейчас.
+      var next = current() === 'dark' ? 'Светлый лист' : 'Тёмный лист';
+      themeButton.setAttribute('aria-label', next);
+      themeButton.setAttribute('title', next);
+      var word = themeButton.querySelector('[data-theme-text]');
+      if (word) word.textContent = next;
+      // Цвет полосы браузера на телефоне сам за атрибутом не следит.
+      var bar = document.querySelector('meta[name=theme-color][media*=dark]');
+      var day = document.querySelector('meta[name=theme-color][media*=light]');
+      if (bar && day) {
+        var dark = current() === 'dark';
+        bar.media = dark ? 'all' : '(prefers-color-scheme: dark)';
+        day.media = dark ? '(prefers-color-scheme: light)' : 'all';
+      }
+    };
+
+    themeButton.addEventListener('click', function () {
+      var next = current() === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next;
+      try { localStorage.setItem('poryadok-theme', next); } catch (e) {}
+      label();
+    });
+
+    // Системную тему могут переключить прямо сейчас — по расписанию дня.
+    // Пока человек не выбрал сам, идём за ней.
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', label);
+    label();
+  }
+
   /* ---------- Печать листа ----------
      Кнопка открывает окно печати, где браузер сам предлагает «Сохранить
      как PDF». Своей сборки PDF здесь нет намеренно: она была бы второй

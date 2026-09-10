@@ -42,6 +42,9 @@
   --warn:#8A6A00;       /* на проверке */
   --good:#1B6B3A;       /* оплачено, сделано */
 
+  /* Портрет тонируется под графит — это тоже цвет, а не украшение. */
+  --portrait-filter:grayscale(1) contrast(1.06) brightness(1.02);
+
   --grid-minor:rgba(var(--shade),.035);
   --grid-major:rgba(var(--shade),.075);
   --ink-wash:rgba(31,62,200,.07);
@@ -83,8 +86,15 @@
    означал бы кнопку, которую надо помнить, и хранилище, которое надо
    объяснять в политике конфиденциальности. */
 
+/* Тёмная палитра включается двумя путями, и оба обязаны дать один и тот
+   же лист: системная тема — когда выбора не делали, и атрибут на корне —
+   когда человек нажал переключатель в шапке. Два одинаковых блока ниже
+   не случайность и не копипаста, которую забыли убрать: правило внутри
+   @media нельзя объединить с правилом снаружи. Держит их в согласии
+   проверка в тестах — она падает, если блоки разошлись хоть запятой. */
+
 @media (prefers-color-scheme:dark){
-  :root{
+  :root:not([data-theme="light"]){
     --graphite:#E7E8E2;   /* карандаш стал светлым: текст, линии, кнопки */
     --paper:#121412;      /* лист */
     --sheet:#1A1D19;      /* карточки, поля, наложенные панели */
@@ -105,14 +115,44 @@
     --alarm-ink:#FFA79E;
     --warn:#E0B341;
     --good:#5CC98D;
+
+    /* Портрет обесцвечен и притемнён под графит; на тёмном листе ему
+       нужен обратный ход, иначе лицо уходит в чёрное пятно. */
+    --portrait-filter:grayscale(1) contrast(1.02) brightness(1.12);
   }
-  /* Тени на тёмном не читаются вовсе — вместо них рамка. */
-  .ask,.blueprint,.order,.scheme{box-shadow:none}
-  .price__box,.cta{border:1px solid var(--line)}
-  /* Портрет обесцвечен и притемнён под графит; на тёмном листе ему
-     нужен обратный ход, иначе лицо уходит в чёрное пятно. */
-  .portrait__img img{filter:grayscale(1) contrast(1.02) brightness(1.12)}
 }
+
+:root[data-theme="dark"]{
+    --graphite:#E7E8E2;   /* карандаш стал светлым: текст, линии, кнопки */
+    --paper:#121412;      /* лист */
+    --sheet:#1A1D19;      /* карточки, поля, наложенные панели */
+    --line:#363B34;
+    --muted:#9BA194;      /* 7:1 на листе — вторичный, но не слепой */
+    --ink:#8FA6FF;        /* чернила светлее: синий из светлой темы тут не читается */
+
+    --panel:#22261F;      /* тёмная панель — на тон выше листа */
+    --on-panel:236,237,231;
+    --shade:0,0,0;
+
+    --grid-minor:rgba(231,232,226,.035);
+    --grid-major:rgba(231,232,226,.07);
+    --ink-wash:rgba(143,166,255,.12);
+    --graphite-wash:rgba(231,232,226,.06);
+
+    --alarm:#FF8F84;
+    --alarm-ink:#FFA79E;
+    --warn:#E0B341;
+    --good:#5CC98D;
+
+    /* Портрет обесцвечен и притемнён под графит; на тёмном листе ему
+       нужен обратный ход, иначе лицо уходит в чёрное пятно. */
+    --portrait-filter:grayscale(1) contrast(1.02) brightness(1.12);
+}
+
+/* Браузеру тоже надо сказать, какой лист: от этого зависят полосы
+   прокрутки и его собственные элементы в полях ввода. */
+:root[data-theme="dark"]{color-scheme:dark}
+:root[data-theme="light"]{color-scheme:light}
 
 /* ---------- База ---------- */
 *,*::before,*::after{box-sizing:border-box}
@@ -289,6 +329,23 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .nav a:hover{color:var(--graphite)}
 .nav a:hover::after{transform:scaleX(1)}
 .head .btn--sm{flex:none}
+
+/* Переключатель темы. Значок — круг с закрашенной половиной: тот же
+   знак, которым на чертеже показывают разрез. Без скрипта кнопки нет
+   вовсе: нажимать было бы не на что, а тему в этом случае задаёт
+   система — и задаёт правильно. */
+.theme{
+  flex:none;display:grid;place-items:center;width:34px;height:34px;
+  padding:0;border:1px solid var(--line);background:transparent;
+  color:var(--muted);cursor:pointer;
+  transition:color .14s ease,border-color .14s ease;
+}
+.theme__t{display:none}
+.theme svg{width:18px;height:18px}
+.theme circle{fill:none;stroke:currentColor;stroke-width:1.4}
+.theme__half{fill:currentColor}
+.theme:hover{color:var(--graphite);border-color:var(--graphite)}
+html:not([data-js]) .theme{display:none}
 .burger{display:none;width:44px;height:44px;align-items:center;justify-content:center;background:none;border:1px solid var(--line);cursor:pointer}
 .burger span{display:block;width:18px;height:1px;background:var(--graphite);position:relative}
 .burger span::before,.burger span::after{content:"";position:absolute;left:0;width:18px;height:1px;background:var(--graphite)}
@@ -325,6 +382,18 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
     display:block;padding:16px 0;
     border-top:1px solid var(--line);border-bottom:0;
     font-size:1.0625rem;
+  }
+  /* В панели меню значок стоит среди строк текста — и подписывается,
+     иначе его там просто не находят. */
+  .head__menu .theme{
+    width:100%;height:auto;justify-items:start;align-items:center;
+    grid-auto-flow:column;grid-template-columns:auto 1fr;gap:12px;
+    padding:14px 0;border:0;border-top:1px solid var(--line);
+    color:var(--graphite);
+  }
+  .head__menu .theme__t{
+    display:block;text-align:left;
+    font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.12em;
   }
   .head__menu .btn--sm{
     justify-content:center;margin-top:calc(var(--u)*2);
@@ -726,7 +795,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 
 /* ---------- 06. Цена ---------- */
 .price{display:grid;grid-template-columns:repeat(12,1fr);gap:var(--gut);align-items:start}
-.price__box{grid-column:span 5;background:var(--panel);color:rgb(var(--on-panel));padding:clamp(26px,3.4vw,44px)}
+.price__box{grid-column:span 5;background:var(--panel);color:rgb(var(--on-panel));padding:clamp(26px,3.4vw,44px);border:1px solid var(--line)}
 .price__box .tag{color:rgba(var(--on-panel),.6)}
 .price__box .tag::before{background:rgba(var(--on-panel),.6)}
 .price__box .price__fig{
@@ -805,7 +874,8 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .portrait__img{position:relative;aspect-ratio:4/5;overflow:hidden;background:var(--panel)}
 .portrait__img img{
   width:100%;height:100%;object-fit:cover;object-position:50% 22%;
-  filter:grayscale(1) contrast(1.06) brightness(1.02);
+  /* Фильтр — часть палитры: на тёмном листе лицу нужен обратный ход. */
+  filter:var(--portrait-filter);
 }
 /* Тонировка под графит + едва заметная сетка поверх — фото становится частью чертежа */
 .portrait__img::after{
@@ -836,7 +906,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 @media (max-width:600px){.facts li{grid-template-columns:1fr;gap:6px}}
 
 /* ---------- 09. Заявка ---------- */
-.cta{background:var(--panel);color:rgb(var(--on-panel));border-top:1px solid var(--panel)}
+.cta{background:var(--panel);color:rgb(var(--on-panel));border-top:1px solid var(--line)}
 .cta .lede{color:rgba(var(--on-panel),.72)}
 .cta .tag{color:rgba(var(--on-panel),.6)}
 .cta .tag::before{background:rgba(var(--on-panel),.6)}

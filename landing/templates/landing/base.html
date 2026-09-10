@@ -37,6 +37,13 @@
    прятать: без скрипта прятать нельзя ничего, иначе страница окажется
    наполовину пустой и без способа её раскрыть. */
 document.documentElement.dataset.js='1';
+/* Тема — до первой отрисовки, иначе выбранный тёмный лист успевает
+   мигнуть белым. Пока выбора не сделали, атрибута нет и решает система.
+   Выбор лежит в браузере человека и никуда не отправляется. */
+try{
+  var t=localStorage.getItem('poryadok-theme');
+  if(t==='dark'||t==='light') document.documentElement.dataset.theme=t;
+}catch(e){/* приватный режим — просто останемся на системной теме */}
 /* Прячем блоки до появления только если анимация уместна. Страховка: если site.js
    не загрузился за 2.5 с, класс снимается и содержимое показывается как есть. */
 if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
@@ -73,6 +80,21 @@ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
         {% endblock %}
       </nav>
       <a class="head__tel" href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>
+      {% comment %}
+        Переключатель темы. Без скрипта его нет — он бы ничего не делал,
+        а тему в этом случае и так задаёт система. Значок — круг, у
+        которого закрашена половина: тот же знак, которым на чертеже
+        показывают разрез.
+      {% endcomment %}
+      <button class="theme" id="theme" type="button"
+              aria-label="Тёмный лист" title="Тёмный лист">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <circle cx="10" cy="10" r="7"/>
+          <path class="theme__half" d="M10 3a7 7 0 0 1 0 14z"/>
+        </svg>
+        {# В выпадающем меню один значок среди строк текста теряется. #}
+        <span class="theme__t" data-theme-text aria-hidden="true">Тёмный лист</span>
+      </button>
       {% comment %}
         Целиком в блоке, а не только адрес: в кабинете здесь стоит выход,
         а выход обязан быть формой. Ссылка на выход срабатывает от чужой
