@@ -1022,6 +1022,72 @@ select.input{
 .cta__phone a{color:var(--paper);border-bottom:1px solid rgba(242,242,238,.4);text-decoration:none}
 .cta__phone a:hover{border-color:var(--paper)}
 
+/* ---------- Схема процессов ----------
+   Лист, который человек уносит. Всё рисуется линиями цвета текста:
+   такой лист одинаково выглядит на экране, на печати и в чёрно-белом
+   принтере, который у малого бизнеса обычно и стоит. */
+.scheme{
+  margin:0;background:var(--sheet);border:1px solid var(--graphite);
+  padding:clamp(14px,2vw,26px);
+}
+.scheme__scroll{overflow-x:auto}
+.scheme__svg{display:block;width:100%;height:auto;min-width:620px}
+/* Подсказка про горизонтальную прокрутку нужна только там, где она есть. */
+.scheme__pan{display:none;margin-top:10px;font-size:var(--t-tag);color:var(--muted)}
+@media (max-width:700px){.scheme__pan{display:block}}
+.scheme__svg text{font-family:var(--f-mono)}
+.sch-step rect{fill:none;stroke:var(--graphite);stroke-width:1}
+.sch-step.is-leak rect{stroke-dasharray:5 3;fill:var(--ink-wash)}
+.sch-n{font-size:10px;fill:var(--muted);letter-spacing:.14em}
+.sch-t{font-size:17px;font-weight:500;fill:var(--graphite)}
+.sch-said{font-size:10.5px;fill:var(--muted)}
+.sch-v{font-size:11px;fill:var(--graphite)}
+.sch-mark{font-size:9.5px;fill:var(--muted);letter-spacing:.16em;text-transform:uppercase}
+.sch-step.is-leak .sch-mark{fill:var(--ink);font-weight:500}
+.sch-fix{font-size:9.5px;fill:var(--muted);letter-spacing:.04em}
+.sch-top{font-size:10px;fill:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+.sch-arrow,.sch-tip{fill:none;stroke:var(--graphite);stroke-width:1}
+.sch-loop{fill:none;stroke:var(--ink);stroke-width:1;stroke-dasharray:4 3}
+.sch-tip--loop{stroke:var(--ink)}
+.scheme__cap{
+  margin-top:14px;padding-top:14px;border-top:1px solid var(--line);
+  font:400 var(--t-small)/1.55 var(--f-sans);color:var(--muted);max-width:74ch;
+}
+.scheme__go{
+  display:flex;flex-wrap:wrap;align-items:center;gap:var(--u) calc(var(--u)*2);
+  margin-top:calc(var(--u)*4);
+}
+.scheme__hint{font:400 var(--t-tag)/1.4 var(--f-mono);color:var(--muted)}
+.scheme__stamp{
+  display:flex;flex-wrap:wrap;margin-top:calc(var(--u)*3);border:1px solid var(--line);
+}
+.scheme__stamp span{
+  padding:9px 14px;font:400 var(--t-tag)/1.3 var(--f-mono);color:var(--muted);
+}
+.scheme__stamp span + span{border-left:1px solid var(--line)}
+.scheme__stamp b{font-weight:500;color:var(--graphite)}
+
+/* Печать: на листе остаётся лист. Всё остальное — экран, на котором
+   его открыли. */
+@media print{
+  @page{size:A4;margin:14mm}
+  html,body{background:#fff!important}
+  .head,.dock,.foot,.cookie,.skip,.scheme__go,.scheme-after,
+  .sheet--first .lead,.sheet--first .tag{display:none!important}
+  .sheet,.wrap{padding:0!important;margin:0!important;max-width:none!important}
+  .scheme{border:0;padding:0;break-inside:avoid}
+  .scheme__scroll{overflow:visible}
+  .scheme__svg{min-width:0}
+  .scheme__pan{display:none!important}
+  .scheme-sheet{break-before:avoid}
+  .q-title{font-size:16pt;margin-bottom:8mm}
+  a{color:#000;text-decoration:none}
+}
+
+/* Кнопка печати вызывается скриптом, и без него была бы мёртвой.
+   Ctrl+P работает всегда — пропадает обещание кнопки, а не возможность. */
+html:not([data-js]) [data-print]{display:none}
+
 /* ---------- Документ (политика) ---------- */
 .doc__body{max-width:74ch}
 .doc__meta{font:400 var(--t-tag)/1.6 var(--f-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:calc(var(--u)*4)}

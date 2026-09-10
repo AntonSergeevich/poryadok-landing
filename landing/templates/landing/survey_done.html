@@ -134,6 +134,33 @@
 </section>
 {% endif %}
 
+{% comment %}
+  Схема процессов — то, что человек уносит. Сайт обещает её на первом
+  экране: «схему своих процессов вы заберёте себе, даже если мы
+  не станем работать дальше». Здесь обещание и выполняется.
+{% endcomment %}
+<section class="sheet">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="tag tag--ink">Лист · Ваша схема</span>
+      <h2>Схема ваших процессов</h2>
+      <p class="lede">
+        Пять шагов, по которым к вам приходит и возвращается клиент.
+        Отмечено, где по вашим ответам теряются люди и деньги.
+      </p>
+    </div>
+
+    {% include "landing/_scheme.html" %}
+
+    <p class="scheme__go">
+      <a class="btn btn--ghost" href="{% url 'survey_scheme' %}">
+        Забрать схему листом <span class="arrow" aria-hidden="true">→</span>
+      </a>
+      <span class="scheme__hint mono">Отдельной страницей — распечатать или сохранить в PDF</span>
+    </p>
+  </div>
+</section>
+
 <section class="sheet" id="cta">
   <div class="wrap">
     <div class="res-next rv">

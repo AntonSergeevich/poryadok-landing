@@ -29,6 +29,7 @@ from . import survey as survey_logic
 from .survey import QUESTIONS
 from . import constructor as build
 from . import contract
+from . import scheme
 # Работы живут в базе и заводятся из кабинета. Модуль landing/works.py
 # остался источником переноса (миграция 0010) — из кода их больше
 # не читают.
@@ -568,11 +569,37 @@ def survey_done(request):
     # выглядел бы как подсунутый, а он именно тот, что я назвал бы
     # голосом, посмотрев на ответы.
     request.session['build_suggest'] = build.suggest(diagnosis)
+    # Схему человек уносит с собой, поэтому метка остаётся в сессии,
+    # а не съедается показом: за листом возвращаются.
+    request.session['scheme_id'] = entry.pk
 
     return render(request, 'landing/survey_done.html', {
         'entry': entry,
         'result': diagnosis,
+        'scheme': scheme.build_scheme(entry.answers),
         'left_contact': bool(entry.phone),
+    })
+
+
+def survey_scheme(request):
+    """Схема процессов отдельным листом — её печатают и уносят.
+
+    Ответы чужими не бывают: лист открывается по метке в сессии того,
+    кто проходил разбор. Ссылку с номером можно было бы переслать,
+    а вместе с ней — чужие ответы про деньги.
+    """
+    entry_id = request.session.get('scheme_id')
+    if not entry_id:
+        return redirect('survey')
+    try:
+        entry = Survey.objects.get(pk=entry_id)
+    except Survey.DoesNotExist:
+        return redirect('survey')
+
+    return render(request, 'landing/scheme.html', {
+        'entry': entry,
+        'scheme': scheme.build_scheme(entry.answers),
+        'result': entry.diagnose(),
     })
 
 
@@ -687,6 +714,7 @@ def robots_txt(request):
         'User-agent: *',
         'Disallow: /admin/',
         'Disallow: /razbor/gotovo/',
+        'Disallow: /razbor/shema/',
         'Allow: /',
         f'Sitemap: {request.scheme}://{host}/sitemap.xml',
     ]

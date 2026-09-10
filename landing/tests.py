@@ -18,6 +18,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from . import cabinet as cabinet_views
 from . import constructor as build
+from . import scheme as scheme_logic
 from . import survey as survey_logic
 from . import views
 from .forms import LeadForm
@@ -3545,3 +3546,100 @@ class PriceLadderTests(TestCase):
     def test_the_old_understated_range_is_gone(self):
         body = self.client.get(reverse('index')).content.decode()
         self.assertNotIn('150–300 тысяч', body)
+
+
+class SchemeTests(TestCase):
+    """Схема процессов — лист, который человек уносит.
+
+    Сайт обещает её на первом экране: «схему своих процессов вы
+    заберёте себе, даже если мы не станем работать дальше». Пока
+    обещание выполнялось только на живой встрече.
+    """
+
+    BAD = {'area': 'beauty', 'storage': 'head', 'lost': 'day', 'reply': 'later',
+           'booking': 'me', 'noshow': 'many', 'money_view': 'rest',
+           'repeat': 'none', 'vacation': 'stop', 'routine': 'h25'}
+    GOOD = {'area': 'beauty', 'storage': 'crm', 'lost': 'never', 'reply': 'min15',
+            'booking': 'online', 'noshow': 'few', 'money_view': 'report',
+            'repeat': 'auto', 'vacation': 'ok', 'routine': 'h3'}
+
+    def test_conditions_speak_the_same_language_as_the_questions(self):
+        """Условия течи названы значениями из landing/survey.py. Опечатка
+        в любом из них означала бы шаг, который не потечёт никогда."""
+        rules = list(scheme_logic.OWNER_LEAK)
+        for step in scheme_logic.STEPS:
+            rules.extend(step['leak_if'])
+        for question_id, values in rules:
+            self.assertIn(question_id, survey_logic.QUESTIONS_BY_ID,
+                          f'нет такого вопроса: {question_id}')
+            known = {o['value'] for o in
+                     survey_logic.QUESTIONS_BY_ID[question_id].get('options', [])}
+            for value in values:
+                with self.subTest(question=question_id, value=value):
+                    self.assertIn(value, known)
+
+    def test_every_fix_is_a_real_block(self):
+        for step in scheme_logic.STEPS:
+            with self.subTest(step=step['id']):
+                self.assertIsNotNone(build.by_id(step['fix']))
+
+    def test_bad_answers_leak_everywhere(self):
+        drawing = scheme_logic.build_scheme(self.BAD)
+        self.assertEqual(drawing['leak_count'], len(scheme_logic.STEPS))
+        self.assertTrue(drawing['owner_leak'])
+        self.assertTrue(all(step['fix'] for step in drawing['steps']))
+
+    def test_good_answers_leak_nowhere(self):
+        drawing = scheme_logic.build_scheme(self.GOOD)
+        self.assertEqual(drawing['leak_count'], 0)
+        self.assertFalse(drawing['owner_leak'])
+        self.assertEqual([s['fix'] for s in drawing['steps']], [''] * 5)
+
+    def test_lines_stay_inside_the_box(self):
+        """SVG не переносит текст сам: длинная строка вылезает за рамку
+        и ложится поверх соседней подписи."""
+        for answers in (self.BAD, self.GOOD):
+            for step in scheme_logic.build_scheme(answers)['steps']:
+                for line in step['lines']:
+                    with self.subTest(step=step['id'], line=line['text']):
+                        self.assertLessEqual(len(line['text']),
+                                             scheme_logic.CHARS_PER_LINE)
+
+    def test_nothing_is_lost_in_the_wrapping(self):
+        for step in scheme_logic.build_scheme(self.BAD)['steps']:
+            joined = ' '.join(line['text'] for line in step['lines'])
+            self.assertEqual(joined, step['verdict'])
+
+    def test_the_sheet_needs_your_own_answers(self):
+        """Ссылка без номера в адресе: переслать её вместе с чужими
+        ответами про деньги не получится."""
+        response = self.client.get(reverse('survey_scheme'))
+        self.assertRedirects(response, reverse('survey'))
+
+    def test_the_sheet_opens_after_the_test(self):
+        entry = Survey.objects.create(answers=self.BAD)
+        session = self.client.session
+        session['scheme_id'] = entry.pk
+        session.save()
+        response = self.client.get(reverse('survey_scheme'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Схема ваших процессов')
+        self.assertContains(response, 'Заявка')
+
+    def test_the_result_page_carries_the_scheme(self):
+        entry = Survey.objects.create(answers=self.BAD)
+        session = self.client.session
+        session['survey_id'] = entry.pk
+        session.save()
+        body = self.client.get(reverse('survey_done')).content.decode()
+        self.assertIn('class="scheme"', body)
+        self.assertIn(reverse('survey_scheme'), body)
+
+    def test_search_engines_are_kept_away(self):
+        body = self.client.get('/robots.txt').content.decode()
+        self.assertIn('Disallow: /razbor/shema/', body)
+
+    def test_the_print_button_hides_without_scripts(self):
+        css = (Path(__file__).resolve().parent / 'static' / 'landing' / 'css'
+               / 'site.css').read_text(encoding='utf-8')
+        self.assertIn('html:not([data-js]) [data-print]{display:none}', css)
