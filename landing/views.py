@@ -75,6 +75,8 @@ def index(request):
         # Берём его из тех же данных, что и сам разбор: два списка
         # вариантов разошлись бы в первый же месяц.
         'first_question': survey_logic.first_question(),
+        # Лестница цен считается тем же кодом, что и конструктор.
+        'ladder': build.ladder(),
         'total': _asked_count(),
         'total_word': contract.words(_asked_count()),
     })

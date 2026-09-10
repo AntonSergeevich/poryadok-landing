@@ -3507,3 +3507,41 @@ class FaceOnFirstScreenTests(TestCase):
         page = self.client.get(reverse('index')).content.decode()
         figures = re.findall(r'class="[^"]*\bportrait\b[^"]*"', page)
         self.assertEqual(len(figures), 2, figures)
+
+
+class PriceLadderTests(TestCase):
+    """Лестница цен.
+
+    «От 50 000» отвечает на вопрос «с чего начинается» и молчит о том,
+    во что это обойдётся. Раньше страница отвечала на второй вопрос
+    числом «150–300 тысяч», которое ниже собственного конструктора:
+    всё сразу выходит дороже верхней границы.
+    """
+
+    def test_figures_are_the_constructor_own_arithmetic(self):
+        for rung, described in zip(build.ladder(), build.LADDER):
+            ids = list(described['ids']) or [b['id'] for b in build.BLOCKS]
+            with self.subTest(rung=rung['id']):
+                self.assertEqual(rung['low'], build.estimate(ids, 'solo')['total'])
+                self.assertEqual(rung['high'], build.estimate(ids, 'team')['total'])
+
+    def test_the_top_step_is_not_cheaper_than_everything(self):
+        top = build.ladder()[-1]
+        every = [b['id'] for b in build.BLOCKS]
+        self.assertGreaterEqual(top['high'], build.estimate(every, 'solo')['total'])
+
+    def test_the_steps_go_up(self):
+        figures = [rung['low'] for rung in build.ladder()]
+        self.assertEqual(figures, sorted(figures))
+        self.assertEqual(len(set(figures)), len(figures))
+
+    def test_the_page_shows_the_same_numbers(self):
+        body = self.client.get(reverse('index')).content.decode()
+        for rung in build.ladder():
+            for figure in (rung['low'], rung['high']):
+                with self.subTest(figure=figure):
+                    self.assertIn(f'{figure:,}'.replace(',', '\u00a0'), body)
+
+    def test_the_old_understated_range_is_gone(self):
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertNotIn('150–300 тысяч', body)

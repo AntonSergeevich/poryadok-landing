@@ -678,6 +678,32 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .price__box .small{margin-top:10px;color:var(--muted)}
 .price__box p{color:rgba(242,242,238,.72);font-size:var(--t-small);line-height:1.65}
 .price__side{grid-column:7 / span 6;display:grid;gap:calc(var(--u)*3)}
+
+/* Лестница цен. Три строки чертежа: номер, что входит, во что обходится. */
+.ladder{margin-top:calc(var(--u)*6)}
+.ladder__head{
+  font:400 var(--t-tag)/1.5 var(--f-mono);color:var(--muted);
+  padding-bottom:calc(var(--u)*2);max-width:70ch;
+}
+.ladder__row{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;
+  gap:6px clamp(14px,2.4vw,32px);padding:clamp(14px,2vw,20px) 0;
+  border-top:1px solid var(--line);
+}
+.ladder__row:last-of-type{border-bottom:1px solid var(--line)}
+.ladder__n{font:500 var(--t-tag)/1.7 var(--f-mono);color:var(--muted);letter-spacing:.12em}
+.ladder__t{display:grid;gap:4px}
+.ladder__t b{font:500 var(--t-h3)/1.2 var(--f-sans);letter-spacing:-.01em}
+.ladder__t span{font-size:var(--t-small);line-height:1.6;color:var(--muted)}
+.ladder__fig{
+  justify-self:end;white-space:nowrap;
+  font:500 var(--t-small)/1.4 var(--f-mono);letter-spacing:.02em;
+}
+.ladder__foot{margin-top:calc(var(--u)*3);color:var(--muted);max-width:70ch}
+@media (max-width:640px){
+  .ladder__row{grid-template-columns:auto 1fr}
+  .ladder__fig{grid-column:2;justify-self:start;padding-top:6px}
+}
 @media (max-width:960px){.price{grid-template-columns:1fr}.price__box,.price__side{grid-column:1 / -1}}
 .price__row{display:grid;grid-template-columns:auto 1fr;gap:14px;padding-bottom:calc(var(--u)*3);border-bottom:1px solid var(--line)}
 .price__row:last-child{border-bottom:0;padding-bottom:0}
