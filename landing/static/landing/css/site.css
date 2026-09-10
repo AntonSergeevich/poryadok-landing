@@ -67,13 +67,6 @@ body{
   line-height:1.6;
   color:var(--graphite);
   background-color:var(--paper);
-  /* Миллиметровка: модуль 8px, крупная клетка 80px */
-  background-image:
-    linear-gradient(var(--grid-minor) 1px,transparent 1px),
-    linear-gradient(90deg,var(--grid-minor) 1px,transparent 1px),
-    linear-gradient(var(--grid-major) 1px,transparent 1px),
-    linear-gradient(90deg,var(--grid-major) 1px,transparent 1px);
-  background-size:8px 8px,8px 8px,80px 80px,80px 80px;
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;
 }
@@ -82,6 +75,14 @@ ul,ol{padding:0;list-style:none}
 img{max-width:100%;display:block}
 a{color:inherit}
 button{font:inherit;color:inherit}
+
+/* ---------- Синий ----------
+   Синий на чертеже — карандаш проверяющего: им отмечают одно место,
+   а не расчерчивают лист. Раньше он стоял на каждом номере карточки,
+   на каждой боковой подписи и в штампе каждого листа — и перестал
+   что-либо значить. Теперь он оставлен там, где означает действие
+   (ссылка, фокус, отмеченное поле) или находку (здесь течёт, здесь
+   просрочено), а ряды одинаковых подписей стали серыми. */
 
 /* Фокус — виден всегда, толщиной в чертёжную линию */
 :focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:1px}
@@ -97,7 +98,22 @@ button{font:inherit;color:inherit}
 
 /* ---------- Раскладка ---------- */
 .wrap{width:100%;max-width:var(--wrap);margin-inline:auto;padding-inline:var(--pad)}
-.sheet{position:relative;padding-block:var(--sec) calc(var(--sec) * .78)}
+/* Миллиметровка принадлежит листу, а не столу под ним: клетка начинается
+   там же, где начинается лист, и заканчивается вместе с ним. Раньше она
+   лежала на всей странице — вместе с шапкой, подвалом и полосой внизу
+   экрана, — и лист переставал быть листом. Модуль 8px, крупная клетка
+   80px, как на миллиметровке. */
+.sheet{
+  position:relative;padding-block:var(--sec) calc(var(--sec) * .78);
+  background-image:
+    linear-gradient(var(--grid-minor) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-minor) 1px,transparent 1px),
+    linear-gradient(var(--grid-major) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-major) 1px,transparent 1px);
+  background-size:8px 8px,8px 8px,80px 80px,80px 80px;
+}
+/* Тёмный лист свою клетку рисует сам, светлая на нём не читается. */
+.sheet.on-graphite{background-image:none}
 .sheet + .sheet{border-top:1px solid var(--line)}
 
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:var(--gut)}
@@ -141,7 +157,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 }
 .stamp span + span{border-left:1px solid var(--graphite)}
 .stamp .s-num{background:var(--graphite);color:var(--paper)}
-.stamp .s-org{color:var(--ink)}
+.stamp .s-org{color:var(--muted)}
 /* Штамп на графитовом листе — инверсия */
 .cta .stamp{border-color:var(--paper);background:transparent;color:var(--paper)}
 .cta .stamp span + span{border-left-color:var(--paper)}
@@ -441,7 +457,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
 .card{background:var(--paper);padding:clamp(22px,2.6vw,32px);display:flex;flex-direction:column;gap:calc(var(--u)*2);transition:background .18s}
 .card:hover{background:var(--sheet)}
-.card__n{font:500 var(--t-tag)/1 var(--f-mono);color:var(--ink);letter-spacing:.14em}
+.card__n{font:500 var(--t-tag)/1 var(--f-mono);color:var(--muted);letter-spacing:.14em}
 .card p{color:var(--muted);font-size:var(--t-small);line-height:1.6}
 .card ul{display:flex;flex-direction:column;gap:6px;margin-top:auto;padding-top:calc(var(--u)*2);border-top:1px solid var(--line)}
 .card li{font:400 var(--t-tag)/1.5 var(--f-mono);color:var(--muted);padding-left:16px;position:relative}
@@ -646,7 +662,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .step__n{font:500 clamp(1.5rem,3.4vw,2.5rem)/1 var(--f-mono);color:var(--line);letter-spacing:-.02em}
 .step h3{margin-bottom:10px}
 .step p{color:var(--muted);max-width:58ch;font-size:var(--t-small);line-height:1.65}
-.step__meta{margin-top:12px;font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.12em;color:var(--ink)}
+.step__meta{margin-top:12px;font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
 
 /* ---------- 06. Цена ---------- */
 .price{display:grid;grid-template-columns:repeat(12,1fr);gap:var(--gut);align-items:start}
@@ -707,7 +723,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 @media (max-width:960px){.price{grid-template-columns:1fr}.price__box,.price__side{grid-column:1 / -1}}
 .price__row{display:grid;grid-template-columns:auto 1fr;gap:14px;padding-bottom:calc(var(--u)*3);border-bottom:1px solid var(--line)}
 .price__row:last-child{border-bottom:0;padding-bottom:0}
-.price__row .k{font:500 var(--t-tag)/1.6 var(--f-mono);color:var(--ink);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.price__row .k{font:500 var(--t-tag)/1.6 var(--f-mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
 .price__row .v{font-size:var(--t-small);line-height:1.65;color:var(--muted)}
 .price__row .v strong{color:var(--graphite);font-weight:500}
 
@@ -755,7 +771,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .facts{display:grid;gap:0;margin-top:calc(var(--u)*4)}
 .facts li{display:grid;grid-template-columns:auto 1fr;gap:clamp(12px,2vw,28px);padding:18px 0;border-top:1px solid var(--line)}
 .facts li:last-child{border-bottom:1px solid var(--line)}
-.facts .k{font:500 var(--t-tag)/1.7 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;color:var(--ink);white-space:nowrap}
+.facts .k{font:500 var(--t-tag)/1.7 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);white-space:nowrap}
 .facts .v{font-size:var(--t-small);line-height:1.65;color:var(--muted);max-width:56ch}
 @media (max-width:600px){.facts li{grid-template-columns:1fr;gap:6px}}
 
@@ -1006,7 +1022,7 @@ select.input{
   padding:14px 0;border-top:1px solid var(--line);
 }
 .teaser__row:last-child{border-bottom:1px solid var(--line)}
-.teaser__row b{font:500 var(--t-tag)/1.7 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;color:var(--ink);white-space:nowrap}
+.teaser__row b{font:500 var(--t-tag)/1.7 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);white-space:nowrap}
 .teaser__row span{font-size:var(--t-small);line-height:1.6;color:var(--muted)}
 
 /* ---------- Телефон в блоке заявки ---------- */

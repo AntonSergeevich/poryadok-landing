@@ -3643,3 +3643,34 @@ class SchemeTests(TestCase):
         css = (Path(__file__).resolve().parent / 'static' / 'landing' / 'css'
                / 'site.css').read_text(encoding='utf-8')
         self.assertIn('html:not([data-js]) [data-print]{display:none}', css)
+
+
+class GatePagesTests(TestCase):
+    """Страницы до входа в кабинет.
+
+    Они пользуются вёрсткой кабинета, но живут на общем шаблоне сайта,
+    и файл стилей кабинета к ним не подключался: форма растягивалась
+    во всю ширину, подписи слипались с полями. Ошибка тихая — страница
+    открывалась и работала, просто выглядела черновиком. Первым, что
+    видел клиент, был этот черновик.
+    """
+
+    PAGES = ('login', 'password_reset', 'password_reset_done',
+             'password_reset_complete')
+
+    def test_cabinet_layout_comes_with_cabinet_styles(self):
+        for name in self.PAGES:
+            body = self.client.get(reverse(name)).content.decode()
+            with self.subTest(page=name):
+                self.assertIn('wrap--narrow', body,
+                              'страница перестала пользоваться вёрсткой кабинета')
+                self.assertIn('css/cabinet.css', body)
+
+    def test_the_grid_belongs_to_the_sheet(self):
+        """Миллиметровка — свойство листа, а не стола под ним."""
+        css = (Path(__file__).resolve().parent / 'static' / 'landing' / 'css'
+               / 'site.css').read_text(encoding='utf-8')
+        body_block = css[css.index('body{'):css.index('h1,h2,h3,h4,p,ul,ol')]
+        self.assertNotIn('grid-minor', body_block)
+        sheet_block = css[css.index('.sheet{'):css.index('.sheet + .sheet')]
+        self.assertIn('grid-minor', sheet_block)
