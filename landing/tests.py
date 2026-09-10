@@ -3674,3 +3674,67 @@ class GatePagesTests(TestCase):
         self.assertNotIn('grid-minor', body_block)
         sheet_block = css[css.index('.sheet{'):css.index('.sheet + .sheet')]
         self.assertIn('grid-minor', sheet_block)
+
+
+class DarkThemeTests(TestCase):
+    """Тёмная тема — отдельная палитра, а не инверсия светлой.
+
+    Дороже всего здесь сломать три вещи: цвет, у которого нет светлого
+    значения (он пропадёт у тех, у кого системная тема светлая);
+    печать из тёмной темы (светлый карандаш на белой бумаге — пустой
+    лист); и роль «графита», который значил сразу и текст, и заливку
+    тёмной панели, — в тёмной теме эти роли расходятся.
+    """
+
+    PALETTE = ('--graphite', '--paper', '--sheet', '--line', '--muted', '--ink',
+               '--panel', '--on-panel', '--shade', '--alarm', '--warn', '--good')
+
+    def setUp(self):
+        self.css = (Path(__file__).resolve().parent / 'static' / 'landing' / 'css'
+                    / 'site.css').read_text(encoding='utf-8')
+        self.light = self.css[self.css.index(':root{'):self.css.index('@media (prefers-color-scheme:dark)')]
+        start = self.css.index('@media (prefers-color-scheme:dark)')
+        self.dark = self.css[start:self.css.index('/* ---------- База ---------- */')]
+        start = self.css.index('@media print{')
+        self.printed = self.css[start:start + 1200]
+
+    def test_every_colour_has_a_light_value_too(self):
+        for token in self.PALETTE:
+            with self.subTest(token=token):
+                self.assertIn(f'{token}:', self.light)
+
+    def test_the_dark_theme_redefines_the_whole_palette(self):
+        for token in self.PALETTE:
+            with self.subTest(token=token):
+                self.assertIn(f'{token}:', self.dark)
+
+    def test_print_goes_back_to_paper(self):
+        """Печатают всегда на белом. В тёмной теме карандаш светлый,
+        и без этого от чертежа не осталось бы ни линии."""
+        for token in ('--graphite:#0D0F0E', '--paper:#fff', '--panel:#fff'):
+            with self.subTest(token=token):
+                self.assertIn(token, self.printed)
+
+    def test_pencil_fill_always_comes_with_paper_text(self):
+        """Заливка «карандашом» переворачивается вместе с темой, поэтому
+        текст на ней обязан быть «бумагой» — тем же токеном, что и фон
+        страницы. Иначе в тёмной теме получится светлое на светлом.
+
+        Панели, которые остаются тёмными в любой теме, красятся другим
+        токеном (--panel) и подписываются третьим (--on-panel).
+        """
+        for match in re.finditer(r'background(?:-color)?:var\(--graphite\)', self.css):
+            start = self.css.rfind('}', 0, match.start()) + 1
+            end = self.css.find('}', match.end())
+            rule = self.css[start:end]
+            # Декоративная линия — просто линия цвета текста, писать
+            # на ней нечего, и проверять тут тоже нечего.
+            if 'color:' not in rule:
+                continue
+            with self.subTest(rule=rule.strip()[:70]):
+                self.assertIn('var(--paper)', rule)
+
+    def test_the_page_says_which_theme_it_is(self):
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn('media="(prefers-color-scheme: dark)"', body)
+        self.assertIn('color-scheme:light dark', self.css)

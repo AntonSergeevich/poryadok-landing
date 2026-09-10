@@ -21,7 +21,9 @@
 
 /* ---------- Токены ---------- */
 :root{
-  /* Палитра */
+  /* Палитра. Цвет назван ролью, а не собой: «графит» — это и карандаш,
+     и заливка тёмной панели, и в тёмной теме эти две роли расходятся
+     в разные стороны. Поэтому заливка панели живёт отдельным токеном. */
   --graphite:#0D0F0E;   /* графит — текст, линии, кнопки, «карандаш» */
   --paper:#F2F2EE;      /* бумага — фон страницы */
   --sheet:#FFFFFF;      /* лист — карточки, поля, наложенные панели */
@@ -29,10 +31,21 @@
   --muted:#5E635C;      /* серый текст — вторичный уровень */
   --ink:#1F3EC8;        /* чернила — акцент: активное, ссылки, фокус */
 
-  --grid-minor:rgba(13,15,14,.035);
-  --grid-major:rgba(13,15,14,.075);
+  --panel:#0D0F0E;      /* заливка тёмной панели: цена, заявка, штамп */
+  --on-panel:242,242,238;  /* что написано на тёмной панели */
+  --shade:13,15,14;        /* тень и штриховка — каналами, ради прозрачности */
+
+  /* Состояния. Красный, жёлтый и зелёный на бумаге тёмные, на тёмном
+     листе — светлые: иначе просроченное на нём просто не видно. */
+  --alarm:#B3261E;      /* просрочено, ждёт клиента, ошибка */
+  --alarm-ink:#7A1C15;  /* тот же смысл текстом на светлом фоне */
+  --warn:#8A6A00;       /* на проверке */
+  --good:#1B6B3A;       /* оплачено, сделано */
+
+  --grid-minor:rgba(var(--shade),.035);
+  --grid-major:rgba(var(--shade),.075);
   --ink-wash:rgba(31,62,200,.07);
-  --graphite-wash:rgba(13,15,14,.045);
+  --graphite-wash:rgba(var(--shade),.045);
 
   /* Сетка */
   --wrap:1240px;
@@ -54,11 +67,58 @@
   --t-tag:.6875rem;   /* mono-надписи чертежа */
 }
 
+/* ---------- Тёмная тема ----------
+
+   Не «инверсия светлой»: на чертеже переворачивать нечего — линия
+   остаётся линией, а лист остаётся листом, просто лист теперь тёмный.
+   Меняются только цвета ролей, ни одного правила вёрстки ниже это
+   не касается.
+
+   Тёмная панель (цена, заявка) в тёмной теме не становится белой:
+   белый прямоугольник на тёмной странице бьёт по глазам сильнее,
+   чем что-либо на светлой. Она поднимается на тон над листом и
+   держится рамкой.
+
+   Выбор берётся из системы: своего переключателя нет намеренно — он
+   означал бы кнопку, которую надо помнить, и хранилище, которое надо
+   объяснять в политике конфиденциальности. */
+
+@media (prefers-color-scheme:dark){
+  :root{
+    --graphite:#E7E8E2;   /* карандаш стал светлым: текст, линии, кнопки */
+    --paper:#121412;      /* лист */
+    --sheet:#1A1D19;      /* карточки, поля, наложенные панели */
+    --line:#363B34;
+    --muted:#9BA194;      /* 7:1 на листе — вторичный, но не слепой */
+    --ink:#8FA6FF;        /* чернила светлее: синий из светлой темы тут не читается */
+
+    --panel:#22261F;      /* тёмная панель — на тон выше листа */
+    --on-panel:236,237,231;
+    --shade:0,0,0;
+
+    --grid-minor:rgba(231,232,226,.035);
+    --grid-major:rgba(231,232,226,.07);
+    --ink-wash:rgba(143,166,255,.12);
+    --graphite-wash:rgba(231,232,226,.06);
+
+    --alarm:#FF8F84;
+    --alarm-ink:#FFA79E;
+    --warn:#E0B341;
+    --good:#5CC98D;
+  }
+  /* Тени на тёмном не читаются вовсе — вместо них рамка. */
+  .ask,.blueprint,.order,.scheme{box-shadow:none}
+  .price__box,.cta{border:1px solid var(--line)}
+  /* Портрет обесцвечен и притемнён под графит; на тёмном листе ему
+     нужен обратный ход, иначе лицо уходит в чёрное пятно. */
+  .portrait__img img{filter:grayscale(1) contrast(1.02) brightness(1.12)}
+}
+
 /* ---------- База ---------- */
 *,*::before,*::after{box-sizing:border-box}
 /* Атрибут hidden должен побеждать любые display из компонентов */
 [hidden]{display:none!important}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;color-scheme:light dark}
 @media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 body{
   margin:0;
@@ -86,7 +146,7 @@ button{font:inherit;color:inherit}
 
 /* Фокус — виден всегда, толщиной в чертёжную линию */
 :focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:1px}
-.on-graphite :focus-visible{outline-color:var(--paper)}
+.on-graphite :focus-visible{outline-color:rgb(var(--on-panel))}
 
 .skip{
   position:absolute;left:var(--pad);top:-100px;z-index:100;
@@ -159,10 +219,10 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .stamp .s-num{background:var(--graphite);color:var(--paper)}
 .stamp .s-org{color:var(--muted)}
 /* Штамп на графитовом листе — инверсия */
-.cta .stamp{border-color:var(--paper);background:transparent;color:var(--paper)}
-.cta .stamp span + span{border-left-color:var(--paper)}
-.cta .stamp .s-num{background:var(--paper);color:var(--graphite)}
-.cta .stamp .s-org{color:var(--paper)}
+.cta .stamp{border-color:rgb(var(--on-panel));background:transparent;color:rgb(var(--on-panel))}
+.cta .stamp span + span{border-left-color:rgb(var(--on-panel))}
+.cta .stamp .s-num{background:rgb(var(--on-panel));color:var(--panel)}
+.cta .stamp .s-org{color:rgb(var(--on-panel))}
 @media (max-width:600px){
   .stamp{width:100%}
   .stamp .s-scale{display:none}
@@ -255,7 +315,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
     max-height:calc(100vh - 64px);
     max-height:calc(100dvh - 64px);
     overflow-y:auto;
-    box-shadow:0 14px 26px rgba(13,15,14,.10);
+    box-shadow:0 14px 26px rgba(var(--shade),.10);
   }
   .head.is-open .head__menu{display:flex}
   .head__menu .nav{flex-direction:column;gap:0}
@@ -293,7 +353,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .ask{
   margin-top:calc(var(--u)*5);padding:clamp(16px,2vw,22px);
   background:var(--sheet);border:1px solid var(--line);
-  box-shadow:6px 7px 0 rgba(13,15,14,.05);max-width:56ch;
+  box-shadow:6px 7px 0 rgba(var(--shade),.05);max-width:56ch;
 }
 .ask__label{
   font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);
@@ -346,7 +406,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .slip{
   position:absolute;background:var(--paper);border:1px solid var(--line);
   padding:8px 10px;font:400 var(--t-tag)/1.3 var(--f-mono);color:var(--muted);
-  box-shadow:2px 3px 0 rgba(13,15,14,.05);
+  box-shadow:2px 3px 0 rgba(var(--shade),.05);
   width:min(46%,152px);min-height:130px;
   /* Свой угол поворота у каждой — чтобы дрейф не сбивал наклон. */
   --tilt:0deg;
@@ -381,7 +441,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 
 .order{
   position:relative;z-index:2;background:var(--sheet);border:1px solid var(--graphite);
-  box-shadow:10px 12px 0 rgba(13,15,14,.06);
+  box-shadow:10px 12px 0 rgba(var(--shade),.06);
 }
 .order__bar{
   display:flex;justify-content:space-between;align-items:center;gap:12px;
@@ -410,7 +470,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .blueprint{
   position:relative;z-index:2;margin:0;
   background:var(--sheet);border:1px solid var(--graphite);
-  box-shadow:10px 12px 0 rgba(13,15,14,.06);
+  box-shadow:10px 12px 0 rgba(var(--shade),.06);
   padding:clamp(12px,1.6vw,18px);
 }
 .blueprint__svg{display:block;width:100%;height:auto}
@@ -449,7 +509,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 }
 .pains__after{
   margin-top:calc(var(--u)*5);padding:clamp(18px,2.6vw,28px);
-  background:var(--graphite);color:var(--paper);max-width:64ch;
+  background:var(--panel);color:rgb(var(--on-panel));max-width:64ch;
 }
 .pains__after p{font-size:var(--t-lede);line-height:1.5;text-wrap:balance}
 
@@ -526,7 +586,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   border:0;padding:0;background:transparent;
   max-width:min(900px,94vw);max-height:92vh;
 }
-.ba-box::backdrop{background:rgba(13,15,14,.86)}
+.ba-box::backdrop{background:rgba(var(--shade),.86)}
 .ba-box__in{
   background:var(--sheet);border:1px solid var(--graphite);
   color:var(--graphite);max-height:92vh;overflow-y:auto;
@@ -627,25 +687,25 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .lightbox{
   border:0;padding:0;background:transparent;
   max-width:min(1400px,94vw);max-height:94vh;
-  color:var(--paper);
+  color:rgb(var(--on-panel));
 }
-.lightbox::backdrop{background:rgba(13,15,14,.88)}
+.lightbox::backdrop{background:rgba(var(--shade),.88)}
 .lightbox__img{
   display:block;width:100%;height:auto;max-height:82vh;object-fit:contain;
-  border:1px solid rgba(242,242,238,.25);background:var(--sheet);
+  border:1px solid rgba(var(--on-panel),.25);background:var(--sheet);
 }
 .lightbox__cap{margin-top:12px;font-size:var(--t-small);line-height:1.5;text-align:center}
 .lightbox__close{
   position:absolute;top:-6px;right:0;transform:translateY(-100%);
   width:40px;height:40px;line-height:1;
-  font-size:1.5rem;color:var(--paper);
-  background:transparent;border:1px solid rgba(242,242,238,.4);
+  font-size:1.5rem;color:rgb(var(--on-panel));
+  background:transparent;border:1px solid rgba(var(--on-panel),.4);
   cursor:pointer;
 }
-.lightbox__close:hover{background:rgba(242,242,238,.15)}
+.lightbox__close:hover{background:rgba(var(--on-panel),.15)}
 /* На узком экране крестику некуда уехать вверх — он садится в угол снимка. */
 @media (max-width:640px){
-  .lightbox__close{top:8px;right:8px;transform:none;background:var(--graphite)}
+  .lightbox__close{top:8px;right:8px;transform:none;background:var(--panel)}
 }
 @media (prefers-reduced-motion:no-preference){
   .lightbox[open]{animation:lightbox-in .22s ease both}
@@ -666,11 +726,11 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 
 /* ---------- 06. Цена ---------- */
 .price{display:grid;grid-template-columns:repeat(12,1fr);gap:var(--gut);align-items:start}
-.price__box{grid-column:span 5;background:var(--graphite);color:var(--paper);padding:clamp(26px,3.4vw,44px)}
-.price__box .tag{color:rgba(242,242,238,.6)}
-.price__box .tag::before{background:rgba(242,242,238,.6)}
+.price__box{grid-column:span 5;background:var(--panel);color:rgb(var(--on-panel));padding:clamp(26px,3.4vw,44px)}
+.price__box .tag{color:rgba(var(--on-panel),.6)}
+.price__box .tag::before{background:rgba(var(--on-panel),.6)}
 .price__box .price__fig{
-  font-family:var(--f-sans);font-weight:500;line-height:1;color:var(--paper);
+  font-family:var(--f-sans);font-weight:500;line-height:1;color:rgb(var(--on-panel));
   font-size:clamp(2.1rem,1.2rem + 3.4vw,3.75rem);
   letter-spacing:-.03em;margin:calc(var(--u)*2) 0 calc(var(--u)*1.5);
 }
@@ -682,17 +742,17 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
    не видно. Здесь она выворачивается: бумага на графите. */
 .price__go{margin-top:clamp(20px,3vw,28px)}
 .price__go .btn{
-  background:var(--paper);border-color:var(--paper);color:var(--graphite);
+  background:rgb(var(--on-panel));border-color:rgb(var(--on-panel));color:var(--panel);
 }
 .price__go .btn:hover{background:var(--ink);border-color:var(--ink);color:#fff}
 /* Конструктор — вторая дверь, и говорит она тише: обводка вместо заливки.
    Залитая кнопка здесь спорила бы с главной кнопкой сайта — «записаться
    на разбор», — а спор двух одинаково громких кнопок человек решает тем,
    что уходит. */
-.price__go .btn--ghost{background:transparent;border-color:rgba(242,242,238,.5);color:var(--paper)}
-.price__go .btn--ghost:hover{background:var(--paper);border-color:var(--paper);color:var(--graphite)}
-.price__box .small{margin-top:10px;color:var(--muted)}
-.price__box p{color:rgba(242,242,238,.72);font-size:var(--t-small);line-height:1.65}
+.price__go .btn--ghost{background:transparent;border-color:rgba(var(--on-panel),.5);color:rgb(var(--on-panel))}
+.price__go .btn--ghost:hover{background:rgb(var(--on-panel));border-color:rgb(var(--on-panel));color:var(--panel)}
+.price__box .small{margin-top:10px;color:rgba(var(--on-panel),.55)}
+.price__box p{color:rgba(var(--on-panel),.72);font-size:var(--t-small);line-height:1.65}
 .price__side{grid-column:7 / span 6;display:grid;gap:calc(var(--u)*3)}
 
 /* Лестница цен. Три строки чертежа: номер, что входит, во что обходится. */
@@ -741,8 +801,8 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .about__text{grid-column:6 / span 7}
 @media (max-width:960px){.about{grid-template-columns:1fr}.about__photo{grid-column:1 / -1;max-width:340px}.about__text{grid-column:1 / -1}}
 
-.portrait{border:1px solid var(--graphite);background:var(--graphite)}
-.portrait__img{position:relative;aspect-ratio:4/5;overflow:hidden;background:var(--graphite)}
+.portrait{border:1px solid var(--graphite);background:var(--panel)}
+.portrait__img{position:relative;aspect-ratio:4/5;overflow:hidden;background:var(--panel)}
 .portrait__img img{
   width:100%;height:100%;object-fit:cover;object-position:50% 22%;
   filter:grayscale(1) contrast(1.06) brightness(1.02);
@@ -759,7 +819,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .portrait.is-empty .portrait__img img{display:none}
 .portrait.is-empty .portrait__img::before{
   content:"ФОТО 4:5";position:absolute;inset:0;display:grid;place-items:center;
-  font:400 var(--t-tag)/1 var(--f-mono);letter-spacing:.2em;color:rgba(242,242,238,.35);
+  font:400 var(--t-tag)/1 var(--f-mono);letter-spacing:.2em;color:rgba(var(--on-panel),.35);
 }
 .portrait__cap{
   display:flex;border-top:1px solid var(--line);background:var(--sheet);
@@ -776,25 +836,25 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 @media (max-width:600px){.facts li{grid-template-columns:1fr;gap:6px}}
 
 /* ---------- 09. Заявка ---------- */
-.cta{background:var(--graphite);color:var(--paper);border-top:1px solid var(--graphite)}
-.cta .lede{color:rgba(242,242,238,.72)}
-.cta .tag{color:rgba(242,242,238,.6)}
-.cta .tag::before{background:rgba(242,242,238,.6)}
+.cta{background:var(--panel);color:rgb(var(--on-panel));border-top:1px solid var(--panel)}
+.cta .lede{color:rgba(var(--on-panel),.72)}
+.cta .tag{color:rgba(var(--on-panel),.6)}
+.cta .tag::before{background:rgba(var(--on-panel),.6)}
 .cta__grid{display:grid;grid-template-columns:repeat(12,1fr);gap:clamp(32px,4vw,64px) var(--gut);align-items:start}
 .cta__left{grid-column:span 6}
 .cta__right{grid-column:8 / span 5}
 @media (max-width:960px){.cta__grid{grid-template-columns:1fr}.cta__left,.cta__right{grid-column:1 / -1}}
 .cta__list{margin-top:calc(var(--u)*4);display:grid;gap:0}
-.cta__list li{display:grid;grid-template-columns:auto 1fr;gap:14px;padding:14px 0;border-top:1px solid rgba(242,242,238,.18)}
-.cta__list li:last-child{border-bottom:1px solid rgba(242,242,238,.18)}
-.cta__list .n{font:500 var(--t-tag)/1.7 var(--f-mono);color:rgba(242,242,238,.5)}
-.cta__list .v{font-size:var(--t-small);line-height:1.6;color:rgba(242,242,238,.85)}
+.cta__list li{display:grid;grid-template-columns:auto 1fr;gap:14px;padding:14px 0;border-top:1px solid rgba(var(--on-panel),.18)}
+.cta__list li:last-child{border-bottom:1px solid rgba(var(--on-panel),.18)}
+.cta__list .n{font:500 var(--t-tag)/1.7 var(--f-mono);color:rgba(var(--on-panel),.5)}
+.cta__list .v{font-size:var(--t-small);line-height:1.6;color:rgba(var(--on-panel),.85)}
 
 /* ---------- Формы ---------- */
 .form{display:grid;gap:calc(var(--u)*2)}
 .field{display:grid;gap:8px}
 .field > label{font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
-.cta .field > label{color:rgba(242,242,238,.6)}
+.cta .field > label{color:rgba(var(--on-panel),.6)}
 .input{
   width:100%;padding:15px 16px;background:var(--sheet);color:var(--graphite);
   border:1px solid var(--line);border-radius:0;
@@ -805,13 +865,13 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .input:hover{border-color:var(--muted)}
 .input:focus{outline:none;border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.cta .input{background:transparent;color:var(--paper);border-color:rgba(242,242,238,.3)}
-.cta .input::placeholder{color:rgba(242,242,238,.35)}
-.cta .input:hover{border-color:rgba(242,242,238,.55)}
-.cta .input:focus{border-color:var(--paper);box-shadow:inset 0 0 0 1px var(--paper)}
-.cta .btn{background:var(--paper);color:var(--graphite);border-color:var(--paper)}
+.cta .input{background:transparent;color:rgb(var(--on-panel));border-color:rgba(var(--on-panel),.3)}
+.cta .input::placeholder{color:rgba(var(--on-panel),.35)}
+.cta .input:hover{border-color:rgba(var(--on-panel),.55)}
+.cta .input:focus{border-color:rgb(var(--on-panel));box-shadow:inset 0 0 0 1px rgb(var(--on-panel))}
+.cta .btn{background:rgb(var(--on-panel));color:var(--panel);border-color:rgb(var(--on-panel))}
 .cta .btn:hover{background:var(--ink);border-color:var(--ink);color:#fff}
-.consent{font:400 var(--t-tag)/1.55 var(--f-mono);color:rgba(242,242,238,.55)}
+.consent{font:400 var(--t-tag)/1.55 var(--f-mono);color:rgba(var(--on-panel),.55)}
 .consent a{color:inherit}
 .err{font:400 var(--t-tag)/1.5 var(--f-mono);color:var(--ink);display:none}
 .cta .err{color:#FFD2CB}
@@ -831,7 +891,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .done{border:1px solid var(--paper);padding:22px;margin-bottom:calc(var(--u)*3)}
 .done b{display:block;font:500 var(--t-small)/1.3 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
 .done--bad{border-style:dashed}
-.done p{font-size:var(--t-small);color:rgba(242,242,238,.72)}
+.done p{font-size:var(--t-small);color:rgba(var(--on-panel),.72)}
 .note{border:1px solid var(--line);background:var(--sheet);padding:18px;font-size:var(--t-small);line-height:1.55}
 
 /* ---------- Подвал ---------- */
@@ -882,10 +942,6 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   .order__row i{grid-column:2;justify-self:start}
 }
 
-@media print{
-  body{background:#fff}
-  .head,.cta,.tool,.burger{display:none}
-}
 
 /* =========================================================================
    ДОБАВЛЕНИЯ: телефон в шапке, липкая кнопка, cookie, вопросы, клуб, документ
@@ -926,7 +982,7 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
   max-width:640px;margin-inline:auto;
   display:flex;gap:var(--gut);align-items:center;flex-wrap:wrap;
   padding:16px 18px;background:var(--sheet);
-  border:1px solid var(--graphite);box-shadow:6px 8px 0 rgba(13,15,14,.08);
+  border:1px solid var(--graphite);box-shadow:6px 8px 0 rgba(var(--shade),.08);
 }
 .cookie__text{flex:1;min-width:220px;font:400 var(--t-tag)/1.6 var(--f-mono);color:var(--muted)}
 .cookie__text a{color:var(--ink)}
@@ -946,11 +1002,11 @@ h3,.h3{font-size:var(--t-h3);font-weight:600;line-height:1.25;letter-spacing:-.0
 .check input:checked{background:var(--ink);border-color:var(--ink)}
 .check input:checked::after{content:"";width:8px;height:4px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
 .check a{color:var(--ink)}
-.cta .check{color:rgba(242,242,238,.6)}
-.cta .check input{background:transparent;border-color:rgba(242,242,238,.4)}
-.cta .check input:checked{background:var(--paper);border-color:var(--paper)}
+.cta .check{color:rgba(var(--on-panel),.6)}
+.cta .check input{background:transparent;border-color:rgba(var(--on-panel),.4)}
+.cta .check input:checked{background:rgb(var(--on-panel));border-color:rgb(var(--on-panel))}
 .cta .check input:checked::after{border-color:var(--graphite)}
-.cta .check a{color:var(--paper)}
+.cta .check a{color:rgb(var(--on-panel))}
 .check.is-bad input{border-color:var(--ink)}
 .cta .check.is-bad input{border-color:#FFD2CB}
 
@@ -1000,9 +1056,9 @@ select.input{
   margin:calc(var(--u)*2) 0 calc(var(--u)*1.5);
 }
 .plan__note{color:var(--muted);font-size:var(--t-small);line-height:1.6}
-.plan--best{border-color:var(--graphite);background:var(--graphite);color:var(--paper)}
-.plan--best .plan__n{color:rgba(242,242,238,.6)}
-.plan--best .plan__note{color:rgba(242,242,238,.72)}
+.plan--best{border-color:var(--panel);background:var(--panel);color:rgb(var(--on-panel))}
+.plan--best .plan__n{color:rgba(var(--on-panel),.6)}
+.plan--best .plan__note{color:rgba(var(--on-panel),.72)}
 .plan__flag{
   position:absolute;top:-1px;right:-1px;
   background:var(--ink);color:#fff;padding:5px 10px;
@@ -1028,15 +1084,15 @@ select.input{
 /* ---------- Телефон в блоке заявки ---------- */
 .cta__limit{
   margin-top:calc(var(--u)*4);padding-left:14px;
-  border-left:1px solid rgba(242,242,238,.28);
-  font:400 var(--t-small)/1.6 var(--f-mono);color:rgba(242,242,238,.72);max-width:52ch;
+  border-left:1px solid rgba(var(--on-panel),.28);
+  font:400 var(--t-small)/1.6 var(--f-mono);color:rgba(var(--on-panel),.72);max-width:52ch;
 }
 .cta__phone{
   margin-top:calc(var(--u)*4);font:400 var(--t-small)/1.6 var(--f-mono);
-  color:rgba(242,242,238,.6);
+  color:rgba(var(--on-panel),.6);
 }
-.cta__phone a{color:var(--paper);border-bottom:1px solid rgba(242,242,238,.4);text-decoration:none}
-.cta__phone a:hover{border-color:var(--paper)}
+.cta__phone a{color:rgb(var(--on-panel));border-bottom:1px solid rgba(var(--on-panel),.4);text-decoration:none}
+.cta__phone a:hover{border-color:rgb(var(--on-panel))}
 
 /* ---------- Схема процессов ----------
    Лист, который человек уносит. Всё рисуется линиями цвета текста:
@@ -1087,8 +1143,19 @@ select.input{
    его открыли. */
 @media print{
   @page{size:A4;margin:14mm}
-  html,body{background:#fff!important}
+  /* Печать всегда светлая: в тёмной теме карандаш стал светлым, и на
+     белой бумаге от чертежа не осталось бы ни линии. Палитра здесь
+     задаётся заново, а не «поверх» — правил вёрстки это не касается. */
+  :root{
+    --graphite:#0D0F0E;--paper:#fff;--sheet:#fff;--line:#B9BDB5;
+    --muted:#4A4F48;--ink:#1F3EC8;--panel:#fff;--on-panel:13,15,14;
+    --shade:0,0,0;--grid-minor:transparent;--grid-major:transparent;
+    --ink-wash:transparent;--graphite-wash:transparent;
+    --alarm:#B3261E;--alarm-ink:#7A1C15;--warn:#8A6A00;--good:#1B6B3A;
+  }
+  html,body{background:#fff!important;color:#0D0F0E!important}
   .head,.dock,.foot,.cookie,.skip,.scheme__go,.scheme-after,
+  .cta,.tool,.burger,
   .sheet--first .lead,.sheet--first .tag{display:none!important}
   .sheet,.wrap{padding:0!important;margin:0!important;max-width:none!important}
   .scheme{border:0;padding:0;break-inside:avoid}
@@ -1297,12 +1364,12 @@ html:not([data-js]) [data-print]{display:none}
 
 /* ---------- Вход через Telegram ---------- */
 .tg-login{
-  border:1px solid rgba(242,242,238,.25);padding:16px 18px;
+  border:1px solid rgba(var(--on-panel),.25);padding:16px 18px;
   margin-bottom:calc(var(--u)*3);display:grid;gap:10px;justify-items:start;
 }
 .tg-login__label{
   font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
-  letter-spacing:.12em;color:rgba(242,242,238,.6);
+  letter-spacing:.12em;color:rgba(var(--on-panel),.6);
 }
 .tg-login iframe{max-width:100%}
 

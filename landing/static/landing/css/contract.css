@@ -32,7 +32,7 @@
 }
 .doc-state--issued{color:var(--ink)}
 .doc-state--issued::before{background:currentColor}
-.doc-state--signed{color:#1c6b3f}
+.doc-state--signed{color:var(--good)}
 .doc-state--signed::before{background:currentColor;border-radius:50%}
 .doc-state--canceled{text-decoration:line-through}
 

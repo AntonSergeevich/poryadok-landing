@@ -35,7 +35,7 @@
   font-size:var(--t-small);
 }
 .note--success{border-color:var(--ink);border-left-width:3px}
-.note--error{border-color:#B3261E;border-left-width:3px;color:#7A1C15}
+.note--error{border-color:var(--alarm);border-left-width:3px;color:var(--alarm-ink)}
 
 /* ---------- Линейка времени ----------
    Главный экран кабинета, а не подпись к нему: этап открывается нажатием
@@ -90,8 +90,8 @@
   border-color:var(--ink);color:var(--ink);
   transform:scale(1.12);box-shadow:0 0 0 6px var(--ink-wash);
 }
-.rail__item.is-waiting .rail__dot{border-color:#B3261E;color:#B3261E}
-.rail__item.is-waiting .rail__meta{color:#B3261E}
+.rail__item.is-waiting .rail__dot{border-color:var(--alarm);color:var(--alarm)}
+.rail__item.is-waiting .rail__meta{color:var(--alarm)}
 .rail__link:hover .rail__dot{border-color:var(--ink)}
 .rail__link:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
 
@@ -146,7 +146,7 @@ html[data-js] .rail__hint-js{display:inline}
 .money dt{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
   letter-spacing:.1em;color:var(--muted)}
 .money dd{margin:0;font-size:var(--t-body);font-variant-numeric:tabular-nums}
-.money .is-ok{color:#1B6B3A}
+.money .is-ok{color:var(--good)}
 
 /* ---------- Карточка этапа ---------- */
 
@@ -180,9 +180,9 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
   padding:6px 9px;border:1px solid var(--line);color:var(--muted);
 }
 .flag--running{border-color:var(--ink);color:var(--ink)}
-.flag--review{border-color:#8A6A00;color:#8A6A00}
+.flag--review{border-color:var(--warn);color:var(--warn)}
 .flag--done{background:var(--ink);border-color:var(--ink);color:#fff}
-.flag--wait{border-color:#B3261E;color:#B3261E}
+.flag--wait{border-color:var(--alarm);color:var(--alarm)}
 
 .stage__status{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
 .stage__status.is-busy{opacity:.5}
@@ -194,7 +194,7 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 }
 .chip:hover{border-color:var(--graphite);color:var(--graphite)}
 .chip.is-on{background:var(--graphite);border-color:var(--graphite);color:var(--paper)}
-.chip--wait.is-on{background:#B3261E;border-color:#B3261E}
+.chip--wait.is-on{background:var(--alarm);border-color:var(--alarm)}
 .chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
 /* ---------- Задачи ---------- */
@@ -208,7 +208,7 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .task form{margin:0;display:flex}
 /* Задачи заказчика подчёркнуты слева: «ждут ли чего-то от меня» — вопрос,
    на который экран обязан отвечать до чтения. */
-.task--client,.task--both{border-left:3px solid #B3261E}
+.task--client,.task--both{border-left:3px solid var(--alarm)}
 .task.is-done{opacity:.5}
 .task.is-done .task__title{text-decoration:line-through}
 
@@ -228,12 +228,12 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .task__meta span{font:400 var(--t-tag)/1 var(--f-mono);color:var(--muted);letter-spacing:.06em}
 .task__note{margin-top:6px;font-size:var(--t-tag);color:var(--muted)}
 .who{padding:4px 7px;border:1px solid var(--line)}
-.who--client,.who--both{border-color:#B3261E;color:#B3261E!important}
+.who--client,.who--both{border-color:var(--alarm);color:var(--alarm)!important}
 .task__del{
   flex:none;background:transparent;border:0;color:var(--muted);
   font-size:1.1rem;line-height:1;cursor:pointer;padding:2px 6px;
 }
-.task__del:hover{color:#B3261E}
+.task__del:hover{color:var(--alarm)}
 .tasks__none{padding:14px;font-size:var(--t-small);color:var(--muted)}
 
 .task-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
@@ -248,7 +248,7 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .callout{padding:clamp(18px,2.4vw,26px);border:1px solid var(--line);
   background:var(--sheet);margin-bottom:clamp(24px,3vw,36px)}
 .callout h2{font-size:var(--t-h3);margin-bottom:12px}
-.callout--wait{border-color:#B3261E;border-left-width:3px}
+.callout--wait{border-color:var(--alarm);border-left-width:3px}
 .callout--calm{border-left:3px solid var(--ink)}
 .callout__list{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:10px}
 .callout__list li{display:flex;gap:12px;align-items:center}
@@ -276,7 +276,7 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .deck__list li{font-size:var(--t-small);padding-left:16px;position:relative}
 .deck__list li::before{content:"";position:absolute;left:0;top:.6em;
   width:8px;height:1px;background:var(--line)}
-.deck__list--wait li::before{background:#B3261E;height:2px}
+.deck__list--wait li::before{background:var(--alarm);height:2px}
 
 .leads{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:8px}
 .leads li{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;
@@ -285,7 +285,7 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 /* ---------- Выданный доступ ---------- */
 
 .creds{border:0;padding:0;background:transparent;max-width:min(560px,94vw)}
-.creds::backdrop{background:rgba(13,15,14,.85)}
+.creds::backdrop{background:rgba(var(--shade),.85)}
 .creds__box{background:var(--sheet);border:1px solid var(--graphite);
   padding:clamp(20px,3vw,32px);color:var(--graphite)}
 .creds__box h2{font-size:var(--t-h3);margin-bottom:10px}
@@ -307,7 +307,7 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 
 .linkish{background:none;border:0;padding:8px 0;color:var(--muted);
   font-size:var(--t-small);text-decoration:underline;cursor:pointer}
-.linkish:hover{color:#B3261E}
+.linkish:hover{color:var(--alarm)}
 
 /* ---------- Вход и смена пароля ---------- */
 
@@ -375,8 +375,8 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 /* Черновик: сообщение уже на экране, но ещё не у меня на сервере.
    Врать, что отправилось, нельзя — человек закроет вкладку. */
 .msg.is-draft .msg__body{opacity:.55}
-.msg.is-failed .msg__body{opacity:1;border-color:#B3261E}
-.msg.is-failed .msg__meta{color:#B3261E}
+.msg.is-failed .msg__body{opacity:1;border-color:var(--alarm)}
+.msg.is-failed .msg__meta{color:var(--alarm)}
 
 .msg__who{font:500 var(--t-tag)/1 var(--f-mono);color:var(--ink);
   letter-spacing:.06em;margin-bottom:7px}
@@ -453,8 +453,8 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .lead-row__when{font:400 var(--t-tag)/1.3 var(--f-mono);color:var(--muted)}
 /* Просроченная заявка — единственное здесь, что требует действия
    прямо сейчас, и это должно быть видно до чтения. */
-.lead-row.is-overdue{border-left:3px solid #B3261E}
-.lead-row.is-overdue .lead-row__when{color:#B3261E}
+.lead-row.is-overdue{border-left:3px solid var(--alarm)}
+.lead-row.is-overdue .lead-row__when{color:var(--alarm)}
 
 .client-row{
   display:grid;gap:10px 16px;grid-template-columns:1fr;
@@ -478,7 +478,7 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .facts dt{font:400 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
   letter-spacing:.1em;color:var(--muted)}
 .facts dd{margin:0;font-size:var(--t-small);text-align:right}
-.facts .is-overdue dd{color:#B3261E;font-weight:500}
+.facts .is-overdue dd{color:var(--alarm);font-weight:500}
 
 /* То, что человек написал сам. Отделено рамкой: это его слова,
    а не мои выводы, и путать их нельзя. */
@@ -493,16 +493,16 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
   font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
   letter-spacing:.1em;color:var(--muted);cursor:pointer;
 }
-.lost summary:hover{color:#B3261E}
+.lost summary:hover{color:var(--alarm)}
 .lost form{margin-top:14px;display:grid;gap:10px}
 
 .flag--new{border-color:var(--ink);color:var(--ink)}
-.flag--thinking{border-color:#8A6A00;color:#8A6A00}
+.flag--thinking{border-color:var(--warn);color:var(--warn)}
 .flag--won{background:var(--ink);border-color:var(--ink);color:#fff}
-.flag--lost{border-color:#B3261E;color:#B3261E}
+.flag--lost{border-color:var(--alarm);color:var(--alarm)}
 
-.panel--danger{border-color:#B3261E}
-.panel--danger h2{color:#B3261E}
+.panel--danger{border-color:var(--alarm)}
+.panel--danger h2{color:var(--alarm)}
 
 /* ---------- Деньги ---------- */
 
@@ -591,7 +591,7 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
   font:400 var(--t-tag)/1.3 var(--f-mono);text-transform:uppercase;
   letter-spacing:.08em;color:var(--muted);white-space:nowrap;
 }
-.cab-table td.is-ok{color:#1c6b3f}
+.cab-table td.is-ok{color:var(--good)}
 
 .reasons{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:10px}
 .reasons li{
