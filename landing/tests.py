@@ -3788,3 +3788,40 @@ class ThemeSwitchTests(TestCase):
         body = self.client.get(reverse('privacy')).content.decode()
         self.assertIn('тему', body)
         self.assertIn('хранится только у вас в браузере', body)
+
+
+class PhoneFieldTests(TestCase):
+    """Номер телефона форматируется по ходу ввода — везде, где его просят.
+
+    Маску включает атрибут data-validate на обёртке поля, и забыть его
+    ничего не стоит: поле выглядит целым, форма отправляется, номер
+    просто приезжает как попало. Именно так и случилось на конструкторе
+    и в карточке заявки.
+    """
+
+    def test_every_phone_field_has_the_mask(self):
+        root = Path(__file__).resolve().parent / 'templates'
+        found = 0
+        for template in root.rglob('*.html'):
+            text = template.read_text(encoding='utf-8')
+            for spot in re.finditer(r'type="tel"', text):
+                found += 1
+                # Обёртка поля помечена классом field — от неё и смотрим.
+                before = text[:spot.start()]
+                start = before.rfind('class="field')
+                self.assertNotEqual(start, -1, f'{template.name}: поле телефона '
+                                               'не в обёртке .field')
+                wrapper = before[start:]
+                self.assertLess(len(wrapper), 600, f'{template.name}: обёртка '
+                                                   'поля телефона не нашлась рядом')
+                with self.subTest(template=template.name):
+                    self.assertIn('data-validate', wrapper,
+                                  f'{template.name}: у поля телефона нет маски')
+        self.assertGreaterEqual(found, 4, 'поля телефона не нашлись — '
+                                          'проверка ничего не проверила')
+
+    def test_the_constructor_asks_the_same_way_as_the_front_page(self):
+        for page in ('index', 'constructor'):
+            body = self.client.get(reverse(page)).content.decode()
+            with self.subTest(page=page):
+                self.assertIn('data-validate="phone"', body)

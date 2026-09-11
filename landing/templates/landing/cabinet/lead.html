@@ -102,7 +102,11 @@
         {% csrf_token %}
         <label class="field"><span>Имя</span>
           <input class="input input--sm" type="text" name="name" value="{{ lead.name }}"></label>
-        <label class="field"><span>Телефон</span>
+        {% comment %}
+          Мягкая маска: форматирует по ходу, но сохранить не мешает —
+          здесь чинят кривые номера, а не вводят новые.
+        {% endcomment %}
+        <label class="field" data-validate="phone-soft"><span>Телефон</span>
           <input class="input input--sm" type="tel" name="phone" value="{{ lead.phone }}"></label>
         <label class="field"><span>Сфера</span>
           <input class="input input--sm" type="text" name="area" value="{{ lead.area }}"></label>

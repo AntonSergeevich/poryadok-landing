@@ -328,7 +328,8 @@
                 <p class="err err--shown">{{ form.name.errors|join:" " }}</p>
               {% endif %}
             </label>
-            <label class="field">
+            {# data-validate включает маску и проверку длины — ту же, что на главной #}
+            <label class="field" data-validate="phone">
               <span>Телефон</span>
               <input class="input" type="tel" name="phone" required
                      autocomplete="tel" placeholder="+7 (999) 000-00-00"
