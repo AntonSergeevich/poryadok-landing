@@ -4053,3 +4053,54 @@ class DeployWebhookTests(TestCase):
         unit = (Path(__file__).resolve().parent.parent / 'deploy'
                 / 'poryadok-deploy-webhook.service').read_text(encoding='utf-8')
         self.assertIn('EnvironmentFile=/etc/s-poryadok/deploy-webhook.env', unit)
+
+
+class BuildIdTests(TestCase):
+    """Страница называет выложенный коммит — по нему проверяется выкладка.
+
+    Читаем .git сами, без git: gunicorn работает не от владельца
+    репозитория, и git в таком случае молча отказывается отвечать.
+    """
+
+    def _repo(self, head, loose=None, packed=None):
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        (root / '.git' / 'refs' / 'heads').mkdir(parents=True)
+        (root / '.git' / 'HEAD').write_text(head + '\n', encoding='utf-8')
+        if loose:
+            ref, sha = loose
+            path = root / '.git' / ref
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(sha + '\n', encoding='utf-8')
+        if packed:
+            (root / '.git' / 'packed-refs').write_text(packed, encoding='utf-8')
+        return root
+
+    def test_a_branch_ref_is_followed(self):
+        from .build import build_branch, build_id
+        root = self._repo('ref: refs/heads/claude/x', loose=('refs/heads/claude/x', 'abcdef1234567'))
+        self.assertEqual(build_id(root), 'abcdef1')
+        self.assertEqual(build_branch(root), 'claude/x')
+
+    def test_packed_refs_after_gc(self):
+        from .build import build_id
+        root = self._repo('ref: refs/heads/main',
+                          packed='# pack-refs with: peeled\n1234567890abc refs/heads/main\n')
+        self.assertEqual(build_id(root), '1234567')
+
+    def test_detached_head(self):
+        from .build import build_branch, build_id
+        root = self._repo('fedcba9876543')
+        self.assertEqual(build_id(root), 'fedcba9')
+        self.assertEqual(build_branch(root), '')
+
+    def test_no_repository_is_not_an_error(self):
+        from .build import build_branch, build_id
+        self.assertEqual(build_id('/нет/такой/папки'), '')
+        self.assertEqual(build_branch('/нет/такой/папки'), '')
+
+    def test_the_page_names_its_commit(self):
+        from .build import build_id
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn(f'<meta name="build" content="{build_id()}">', body)
+        self.assertIn('<meta name="build-branch"', body)

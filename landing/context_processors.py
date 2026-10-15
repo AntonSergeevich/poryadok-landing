@@ -1,6 +1,8 @@
 """Контакты и настройки, которые нужны почти в каждом шаблоне."""
 from django.conf import settings
 
+from .build import build_branch, build_id
+
 
 def site(request):
     return {
@@ -17,4 +19,10 @@ def site(request):
         'TELEGRAM_BOT_USERNAME': settings.TELEGRAM_BOT_USERNAME,
         # По нему страница входа решает, показывать ли «Забыли пароль?».
         'EMAIL_READY': settings.EMAIL_READY,
+        # Выложенный коммит — для проверки выкладки снаружи. Читается на
+        # каждый запрос, а не один раз при запуске: два файла с диска —
+        # дёшево, а значение после выкладки не должно зависеть от того,
+        # перезапустился ли процесс.
+        'BUILD_ID': build_id(),
+        'BUILD_BRANCH': build_branch(),
     }

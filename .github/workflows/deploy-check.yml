@@ -1,0 +1,54 @@
+name: Выкладка после пуша
+
+# Проверяет автодеплой настоящей выкладкой, а не на слово.
+#
+# Страница сайта называет свой коммит (<meta name="build">) и ветку
+# (<meta name="build-branch">). После пуша проверка ждёт, пока на сайте
+# появится именно этот коммит. Появился — вся цепочка жива: GitHub
+# отправил вебхук, слушатель принял подпись, deploy.sh прошёл, gunicorn
+# поднял новый код. Не появился за десять минут — красный крест здесь,
+# а подробности на сервере: journalctl -u poryadok-deploy-webhook -n 200.
+#
+# Если сайт выкладывается с другой ветки, ждать на нём этого пуша нечего —
+# проверка так и пишет и завершается без ошибки.
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch: {}
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Вебхук отвечает и отказывает без подписи
+        run: |
+          code=$(curl -sS -o body.txt -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' -H 'X-GitHub-Event: ping' \
+            -d '{}' https://s-poryadok.ru/internal/deploy-webhook || true)
+          echo "HTTP $code: $(head -c 300 body.txt)"
+          if [ "$code" != "401" ]; then
+            echo "::warning::Ожидался 401. 502 — слушатель не запущен; 404/405 — в nginx нет пути. См. DEPLOY.md, раздел 2а."
+          fi
+
+      - name: На сайте появился этот коммит
+        run: |
+          want="${GITHUB_SHA::7}"
+          pushed="${GITHUB_REF_NAME}"
+          for i in $(seq 1 40); do
+            page="$(curl -fsS -m 20 https://s-poryadok.ru/ || true)"
+            got="$(printf '%s' "$page" | grep -o '<meta name="build" content="[0-9a-f]*"' | grep -o '[0-9a-f]\{7,\}' || true)"
+            branch="$(printf '%s' "$page" | grep -o '<meta name="build-branch" content="[^"]*"' | sed 's/.*content="//; s/"$//' || true)"
+            echo "попытка $i: на сайте ${got:-—} (ветка ${branch:-—}), ждём $want из «$pushed»"
+            if [ "$got" = "$want" ]; then
+              echo "Выложено: на сайте $got — тот самый коммит."
+              exit 0
+            fi
+            if [ -n "$branch" ] && [ "$branch" != "$pushed" ]; then
+              echo "Сайт выкладывается с ветки «$branch», пуш был в «$pushed» — выкладывать его и не должны."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::За 10 минут на сайте не появился $want. На сервере: journalctl -u poryadok-deploy-webhook -n 200"
+          exit 1
