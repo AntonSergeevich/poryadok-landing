@@ -133,6 +133,17 @@ cd /var/www/s-poryadok
 sudo bash deploy/install_deploy_webhook.sh
 ```
 
+Или — если удобнее, чтобы сайт обновлялся сам с рабочей ветки (так
+устроено в NASLUX), — укажите её явно:
+
+```bash
+cd /var/www/s-poryadok
+sudo bash deploy/install_deploy_webhook.sh --branch claude/business-os-website-design-7hvb9a
+```
+
+Тогда каждый пуш в эту ветку выкладывается сам. Перейти потом на `main` —
+тем же запуском с `--branch main`, после того как ветка в него влита.
+
 Скрипт заведёт секрет, запустит службу, поставит путь в nginx (через
 `scripts/nginx-setup.sh` — с проверкой и откатом) и напечатает, что
 вписать в GitHub:

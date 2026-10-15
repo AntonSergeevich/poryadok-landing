@@ -4,8 +4,10 @@
 # без ручного deploy.sh по SSH. Та же схема, что в NASLUX.
 #
 #   cd /var/www/s-poryadok
-#   sudo bash deploy/install_deploy_webhook.sh
+#   sudo bash deploy/install_deploy_webhook.sh                  выкладывать main
+#   sudo bash deploy/install_deploy_webhook.sh --branch ИМЯ     выкладывать ИМЯ
 #
+# Ветку можно сменить и позже — тем же запуском с другим --branch.
 # Что делает:
 #   1. заводит секрет в /etc/s-poryadok/deploy-webhook.env (если его нет);
 #   2. проверяет, что сайт стоит на той ветке, которую будет выкладывать —
@@ -26,6 +28,15 @@ ETC="${ETC:-/etc/s-poryadok}"   # переопределяется для про
 ENV_FILE="$ETC/deploy-webhook.env"
 UNIT=poryadok-deploy-webhook
 DOMAIN="${DOMAIN:-s-poryadok.ru}"
+
+WANT_BRANCH=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --branch)   WANT_BRANCH="${2:-}"; shift 2 ;;
+    --branch=*) WANT_BRANCH="${1#--branch=}"; shift ;;
+    *) echo "Неизвестный ключ: $1" >&2; exit 2 ;;
+  esac
+done
 
 if [ -t 1 ]; then
   B=$'\e[1m'; R=$'\e[31m'; G=$'\e[32m'; Y=$'\e[33m'; N=$'\e[0m'
@@ -57,6 +68,16 @@ if [ ! -f "$ENV_FILE" ]; then
 else
   ok "файл $ENV_FILE уже есть — секрет не трогаю"
 fi
+if [ -n "$WANT_BRANCH" ]; then
+  # Ветку пишем в тот же файл, откуда её читает служба: два места,
+  # где она записана, однажды разошлись бы.
+  if grep -q '^DEPLOY_WEBHOOK_BRANCH=' "$ENV_FILE"; then
+    sed -i "s|^DEPLOY_WEBHOOK_BRANCH=.*|DEPLOY_WEBHOOK_BRANCH=$WANT_BRANCH|" "$ENV_FILE"
+  else
+    echo "DEPLOY_WEBHOOK_BRANCH=$WANT_BRANCH" >> "$ENV_FILE"
+  fi
+  ok "выкладываться будет ветка «$WANT_BRANCH»"
+fi
 SECRET="$(grep '^DEPLOY_WEBHOOK_SECRET=' "$ENV_FILE" | cut -d= -f2-)"
 BRANCH="$(grep '^DEPLOY_WEBHOOK_BRANCH=' "$ENV_FILE" | cut -d= -f2- || true)"
 BRANCH="${BRANCH:-main}"
@@ -82,9 +103,8 @@ if [ "$LIVE" != "$BRANCH" ]; then
     • влить «$LIVE» в «$BRANCH» на GitHub, выложить её:
           bash deploy.sh $BRANCH
       и запустить этот скрипт снова;
-    • или выкладывать «$LIVE»: поменять в $ENV_FILE строку
-          DEPLOY_WEBHOOK_BRANCH=$LIVE
-      и запустить этот скрипт снова."
+    • или выкладывать «$LIVE»:
+          sudo bash deploy/install_deploy_webhook.sh --branch $LIVE"
 fi
 ok "сайт стоит на «$LIVE», выкладываться будет она же"
 
