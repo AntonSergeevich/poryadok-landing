@@ -3918,3 +3918,138 @@ class HandLeadTests(TestCase):
         self.client.force_login(card.user)
         response = self.client.get(reverse('cabinet_lead_new'))
         self.assertNotEqual(response.status_code, 200)
+
+
+def _load_webhook():
+    """Слушатель автодеплоя живёт вне Django — грузим его как отдельный файл."""
+    import importlib.util
+    path = Path(__file__).resolve().parent.parent / 'deploy' / 'webhook_deploy.py'
+    spec = importlib.util.spec_from_file_location('webhook_deploy', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class DeployWebhookTests(TestCase):
+    """Автодеплой: пуш в ветку — сервер сам выкладывает код.
+
+    Дороже всего здесь три вещи: выложить по чужому запросу (подпись),
+    выложить не ту ветку (сайт откатится) и выложить молча, не сказав,
+    что выкладка упала.
+    """
+
+    SECRET = 's' * 64
+
+    def setUp(self):
+        self.hook = _load_webhook()
+
+    def _sign(self, body):
+        import hashlib, hmac
+        return 'sha256=' + hmac.new(self.SECRET.encode(), body, hashlib.sha256).hexdigest()
+
+    def test_only_a_correct_signature_passes(self):
+        body = b'{"ref": "refs/heads/main"}'
+        self.assertTrue(self.hook.verify_signature(self.SECRET, body, self._sign(body)))
+        self.assertFalse(self.hook.verify_signature(self.SECRET, body, None))
+        self.assertFalse(self.hook.verify_signature(self.SECRET, body, 'sha256=00'))
+        self.assertFalse(self.hook.verify_signature(self.SECRET, body + b' ', self._sign(body)))
+        # Пустой секрет на сервере не должен пропускать никого — даже
+        # того, кто «подписал» пустым секретом.
+        self.assertFalse(self.hook.verify_signature('', body, self._sign(body)))
+
+    def test_only_a_push_to_the_chosen_branch_deploys(self):
+        deploy = self.hook.should_deploy
+        self.assertEqual(deploy('push', {'ref': 'refs/heads/main'}, 'main')[0], True)
+        self.assertEqual(deploy('push', {'ref': 'refs/heads/other'}, 'main')[0], False)
+        self.assertEqual(deploy('ping', {}, 'main')[0], False)
+        self.assertEqual(deploy('issues', {'ref': 'refs/heads/main'}, 'main')[0], False)
+        self.assertEqual(deploy('push', {'ref': 'refs/heads/main', 'deleted': True}, 'main')[0], False)
+
+    def test_the_default_branch_is_main(self):
+        """Не рабочая ветка из прошлых сессий: вебхук по умолчанию не
+        должен выкатывать то, что ещё не влито."""
+        self.assertEqual(self.hook.BRANCH, 'main')
+
+    def test_telegram_keys_are_read_and_nothing_else(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile('w', suffix='.env', delete=False,
+                                         encoding='utf-8') as handle:
+            handle.write('SECRET_KEY=nope\nTELEGRAM_BOT_TOKEN="123:abc"\n'
+                         'TELEGRAM_CHAT_ID=42\nDATABASE_URL=postgres://x\n')
+        found = self.hook.read_env(handle.name)
+        self.assertEqual(found, {'TELEGRAM_BOT_TOKEN': '123:abc', 'TELEGRAM_CHAT_ID': '42'})
+        self.assertEqual(self.hook.read_env('/нет/такого/файла'), {})
+
+    def test_a_failed_deploy_is_reported(self):
+        """Упавшая выкладка оставляет сайт на старой версии — безопасно,
+        но тихо. Тишина здесь и есть ошибка."""
+        from unittest.mock import MagicMock, patch
+        process = MagicMock()
+        process.wait.return_value = 1
+        with patch.object(self.hook, 'tell') as tell:
+            self.hook.watch(process, 'Кабинет: заявки')
+        text = tell.call_args[0][0]
+        self.assertIn('УПАЛ', text)
+        self.assertIn('прежней версии', text)
+
+        process.wait.return_value = 0
+        with patch.object(self.hook, 'tell') as tell:
+            self.hook.watch(process, 'Кабинет: заявки')
+        self.assertIn('Выложено: Кабинет: заявки', tell.call_args[0][0])
+
+    def test_the_listener_answers_over_http(self):
+        """Живой слушатель на свободном порту: без подписи — 401, ping
+        с подписью — 200 без выкладки, пуш в ветку — 202 и запуск."""
+        import json as _json
+        import threading
+        import urllib.error
+        import urllib.request
+        from http.server import ThreadingHTTPServer
+        from unittest.mock import MagicMock, patch
+
+        self.hook.SECRET = self.SECRET
+        self.hook.BRANCH = 'main'
+        self.hook._running = None
+        server = ThreadingHTTPServer(('127.0.0.1', 0), self.hook.Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        url = f'http://127.0.0.1:{server.server_address[1]}/internal/deploy-webhook'
+
+        def post(body, event, signed=True):
+            headers = {'Content-Type': 'application/json', 'X-GitHub-Event': event}
+            if signed:
+                headers['X-Hub-Signature-256'] = self._sign(body)
+            request = urllib.request.Request(url, data=body, headers=headers)
+            try:
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    return response.status
+            except urllib.error.HTTPError as error:
+                return error.code
+
+        try:
+            self.assertEqual(post(b'{}', 'ping', signed=False), 401)
+            self.assertEqual(post(b'{}', 'ping'), 200)
+            started = MagicMock()
+            started.poll.return_value = None
+            started.wait.return_value = 0
+            with patch.object(self.hook.subprocess, 'Popen', return_value=started) as popen, \
+                 patch.object(self.hook, 'tell'):
+                body = _json.dumps({'ref': 'refs/heads/main', 'after': 'abc1234',
+                                    'head_commit': {'message': 'Правка'}}).encode()
+                self.assertEqual(post(body, 'push'), 202)
+                command = popen.call_args[0][0]
+                self.assertEqual(command[-1], 'main')
+                self.assertTrue(command[1].endswith('deploy.sh'))
+                # Второй пуш, пока первая выкладка идёт, — не второй запуск.
+                self.assertEqual(post(body, 'push'), 202)
+                self.assertEqual(popen.call_count, 1)
+        finally:
+            server.shutdown()
+
+    def test_nginx_lets_github_reach_the_listener(self):
+        conf = (Path(__file__).resolve().parent.parent / 'deploy' / 'nginx'
+                / 's-poryadok.conf').read_text(encoding='utf-8')
+        self.assertIn('location = /internal/deploy-webhook', conf)
+        self.assertIn('proxy_pass http://127.0.0.1:8098;', conf)
+        unit = (Path(__file__).resolve().parent.parent / 'deploy'
+                / 'poryadok-deploy-webhook.service').read_text(encoding='utf-8')
+        self.assertIn('EnvironmentFile=/etc/s-poryadok/deploy-webhook.env', unit)

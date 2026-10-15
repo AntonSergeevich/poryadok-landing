@@ -1,0 +1,28 @@
+name: Проверка вебхука автодеплоя
+
+# Запускается руками: Actions → «Проверка вебхука автодеплоя» → Run workflow.
+#
+# Стучится в вебхук без подписи. Ответ говорит, где рвётся цепочка:
+#   401 «подпись не совпала» — слушатель жив, nginx его видит; значит,
+#       рвётся на стороне GitHub: вебхук не добавлен или секрет не тот;
+#   503 «DEPLOY_WEBHOOK_SECRET не задан» — слушатель жив, но без секрета;
+#   502 — nginx путь знает, а слушатель не запущен;
+#   404 / 405 / страница сайта — в nginx нет пути /internal/deploy-webhook.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /internal/deploy-webhook без подписи
+        run: |
+          code=$(curl -sS -o body.txt -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' -H 'X-GitHub-Event: ping' \
+            -d '{}' https://s-poryadok.ru/internal/deploy-webhook)
+          echo "HTTP $code"
+          head -c 600 body.txt; echo
+          case "$code" in
+            401) echo "Цепочка живая: слушатель отвечает и отказывает без подписи." ;;
+            *)   echo "::error::Ожидался 401, пришёл $code — см. расшифровку в начале файла."; exit 1 ;;
+          esac
