@@ -1,0 +1,74 @@
+{% comment %}
+  Схема процессов. Рисуется на сервере обычным SVG: её печатают и
+  сохраняют в PDF, а печать не должна зависеть от того, выполнился ли
+  скрипт. Координаты и переносы строк пришли из landing/scheme.py —
+  в шаблоне логике не место, а текст в SVG сам не переносится: длинная
+  строка вылезает за рамку и ложится поверх соседней подписи.
+
+  Текст внутри рисунка — настоящий текст: он ищется поиском, читается
+  вслух и не рассыпается при увеличении.
+{% endcomment %}
+<figure class="scheme">
+  {% comment %}
+    На узком экране чертёж не ужимается до нечитаемого кегля, а едет
+    вбок: подписи внутри рисунка должны читаться, иначе он не чертёж,
+    а картинка. На печати и на большом экране это ничего не меняет.
+  {% endcomment %}
+  <div class="scheme__scroll">
+  <svg class="scheme__svg" viewBox="0 0 {{ scheme.width }} {{ scheme.height }}"
+       role="img" aria-labelledby="sch-title sch-desc">
+    <title id="sch-title">Схема ваших процессов</title>
+    <desc id="sch-desc">Пять шагов пути клиента: заявка, запись, напоминание,
+      оплата, возврат. Отмечено, где по вашим ответам теряются люди и деньги.</desc>
+
+    <text class="sch-top" x="{{ scheme.box_x }}" y="26">Путь клиента · пять шагов</text>
+    <text class="sch-top" x="{{ scheme.right_x }}" y="26" text-anchor="end">
+      {% if scheme.leak_count %}течёт в {{ scheme.leak_count }} из 5{% else %}течей не нашлось{% endif %}
+    </text>
+
+    {% for step in scheme.steps %}
+    <g class="sch-step{% if step.leaking %} is-leak{% endif %}">
+      <rect x="{{ scheme.box_x }}" y="{{ step.y }}"
+            width="{{ scheme.box_w }}" height="{{ scheme.box_h }}"/>
+      <text class="sch-n" x="{{ scheme.box_x }}" y="{{ step.title_y }}" dx="16">{{ step.n }}</text>
+      <text class="sch-t" x="{{ scheme.text_x }}" y="{{ step.title_y }}">{{ step.title }}</text>
+      {% if step.said %}
+      <text class="sch-said" x="{{ scheme.text_x }}" y="{{ step.said_y }}">Вы ответили: {{ step.said }}</text>
+      {% endif %}
+      {% for line in step.lines %}
+      <text class="sch-v" x="{{ scheme.text_x }}" y="{{ line.y }}">{{ line.text }}</text>
+      {% endfor %}
+      <text class="sch-mark" x="{{ scheme.right_x }}" y="{{ step.mark_y }}"
+            text-anchor="end">{% if step.leaking %}течёт{% else %}держится{% endif %}</text>
+      {% if step.fix %}
+      <text class="sch-fix" x="{{ scheme.right_x }}" y="{{ step.fix_y }}"
+            text-anchor="end">закрывает: {{ step.fix|lower }}</text>
+      {% endif %}
+    </g>
+    {% if not step.last %}
+    <path class="sch-arrow" d="M{{ scheme.mid_x }} {{ step.arrow_y }} V{{ step.arrow_tip }}"/>
+    <path class="sch-tip" d="M{{ scheme.mid_x }} {{ step.arrow_tip }} l-5 -6 M{{ scheme.mid_x }} {{ step.arrow_tip }} l5 -6"/>
+    {% endif %}
+    {% endfor %}
+
+    {% comment %} Цикл: пятый шаг возвращает к первому. {% endcomment %}
+    <path class="sch-loop" d="M{{ scheme.loop_x }} {{ scheme.loop_bottom }}
+                              H{{ scheme.loop_out }} V{{ scheme.loop_top }}
+                              H{{ scheme.loop_x }}"/>
+    <path class="sch-tip sch-tip--loop"
+          d="M{{ scheme.loop_x }} {{ scheme.loop_top }} l6 -5 M{{ scheme.loop_x }} {{ scheme.loop_top }} l6 5"/>
+  </svg>
+  </div>
+  <p class="scheme__pan mono" aria-hidden="true">Лист шире экрана — его можно двигать вбок</p>
+
+  <figcaption class="scheme__cap">
+    {% if scheme.owner_leak %}
+      И всё это держится на вас: по вашим же ответам без вас работа
+      останавливается или теряет деньги. Это шестое место, где течёт, —
+      просто оно не рисуется прямоугольником.
+    {% else %}
+      Держится не только на вас — по ответам видно, что без вас неделя
+      проходит без потерь. Это редкость, и это стоит беречь.
+    {% endif %}
+  </figcaption>
+</figure>

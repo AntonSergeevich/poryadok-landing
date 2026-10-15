@@ -54,6 +54,14 @@
 <div class="cab__grid">
   <div class="cab__main">
     {% include 'landing/cabinet/_stages.html' %}
+
+    {% comment %}
+      Переписка — в основной колонке, сразу под этапами. Внизу на всю
+      ширину её не находили: до неё надо было пролистать деньги, договор
+      и файлы, а строки во всю ширину экрана читать тяжело. Здесь она
+      там же, где решают, что делать дальше.
+    {% endcomment %}
+    {% include 'landing/cabinet/_chat.html' %}
   </div>
 
   <aside class="cab__side">
@@ -80,6 +88,4 @@
     </section>
   </aside>
 </div>
-
-{% include 'landing/cabinet/_chat.html' %}
 {% endblock %}

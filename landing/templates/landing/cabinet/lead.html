@@ -12,6 +12,24 @@
   <a class="btn btn--ghost btn--sm" href="{% url 'cabinet_leads' %}">← Все заявки</a>
 </div>
 
+{% comment %}
+  Первое, что делают с заявкой, — звонят или пишут. Номер в таблице
+  ниже тоже нажимается, но это мелкая ссылка в середине карточки, а на
+  телефоне в неё не попасть с первого раза. Здесь — три крупные кнопки
+  в один ряд, под большой палец.
+{% endcomment %}
+{% if lead.phone %}
+<nav class="reach" aria-label="Связаться">
+  <a class="btn" href="tel:{{ lead.phone }}">Позвонить</a>
+  <a class="btn btn--ghost" href="https://wa.me/{{ lead.phone|slice:'1:' }}"
+     target="_blank" rel="noopener">WhatsApp</a>
+  {% if lead.telegram_username %}
+    <a class="btn btn--ghost" href="https://t.me/{{ lead.telegram_username }}"
+       target="_blank" rel="noopener">Telegram</a>
+  {% endif %}
+</nav>
+{% endif %}
+
 <div class="cab__grid">
   <div class="cab__main">
     <div data-lead-slot>
@@ -102,7 +120,11 @@
         {% csrf_token %}
         <label class="field"><span>Имя</span>
           <input class="input input--sm" type="text" name="name" value="{{ lead.name }}"></label>
-        <label class="field"><span>Телефон</span>
+        {% comment %}
+          Мягкая маска: форматирует по ходу, но сохранить не мешает —
+          здесь чинят кривые номера, а не вводят новые.
+        {% endcomment %}
+        <label class="field" data-validate="phone-soft"><span>Телефон</span>
           <input class="input input--sm" type="tel" name="phone" value="{{ lead.phone }}"></label>
         <label class="field"><span>Сфера</span>
           <input class="input input--sm" type="text" name="area" value="{{ lead.area }}"></label>

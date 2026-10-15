@@ -11,6 +11,7 @@ from django.utils.html import format_html
 from .models import (Attachment, Client, ClubSubscription, Contract, Lead,
                      Message, MessageFile, Payment, Project, Stage, StageTask,
                      Survey, Work, WorkFact, WorkShot, format_phone)
+from .services import club as club_service
 from .services import telegram as tg
 
 admin.site.site_header = 'Порядок — рабочий стол'
@@ -126,8 +127,10 @@ class ClientAdmin(admin.ModelAdmin):
     def club_badge(self, obj):
         return '● активен' if obj.club_is_active else '—'
 
-    @admin.action(description='Открыть доступ в клуб на год (бесплатно)')
+    @admin.action(description='Открыть доступ в клуб (бесплатно, без срока)')
     def give_club_access(self, request, queryset):
+        # Ровно тот же путь, каким человек вступает сам с сайта: одна
+        # цепочка — одно место, где её можно сломать.
         opened = 0
         for client in queryset:
             if not client.telegram_username:
@@ -135,15 +138,8 @@ class ClientAdmin(admin.ModelAdmin):
                     request, f'{client.name}: не заполнен ник в Telegram — пропустил.',
                     level=messages.WARNING)
                 continue
-            subscription = ClubSubscription.objects.create(
-                client=client, plan=ClubSubscription.Plan.GIFT, price=0)
-            subscription.activate()
-            link = tg.create_club_invite(name_hint=client.name)
-            if link:
-                subscription.invite_link = link
-                subscription.invite_sent_at = timezone.now()
-                subscription.save(update_fields=['invite_link', 'invite_sent_at',
-                                                 'updated_at'])
+            subscription = club_service.open_free_access(client)
+            if subscription.invite_link:
                 opened += 1
             else:
                 self.message_user(
@@ -353,10 +349,14 @@ class ClubSubscriptionAdmin(admin.ModelAdmin):
 
     @admin.display(description='действует до', ordering='ends_at')
     def ends_column(self, obj):
+        if obj.is_endless:
+            return 'без срока'
         return timezone.localtime(obj.ends_at).strftime('%d.%m.%Y') if obj.ends_at else '—'
 
     @admin.display(description='осталось дней')
     def days_left_column(self, obj):
+        if obj.is_endless:
+            return '∞'
         left = obj.days_left
         return '—' if left is None else left
 

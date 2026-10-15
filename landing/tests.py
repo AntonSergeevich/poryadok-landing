@@ -18,7 +18,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from . import cabinet as cabinet_views
 from . import constructor as build
+from . import scheme as scheme_logic
 from . import survey as survey_logic
+from . import views
 from .forms import LeadForm
 from .models import (STAGE_PLAN, Attachment, Client, ClubSubscription,
                      Contract, Lead, Message, MessageFile, Payment,
@@ -179,7 +181,8 @@ class SurveyTests(TestCase):
             'storage': 'head', 'lost': 'day', 'reply': 'later',
             'booking': 'me', 'noshow': 'few3', 'money_view': 'rest',
             'repeat': 'none', 'vacation': 'stop', 'routine': 'h25',
-            'check': 'c2000', 'clients': 'n100', 'consent': '1',
+            'check': 'c2000', 'rhythm': 'flow', 'clients': 'n100',
+            'consent': '1',
         }
         base.update(over)
         return base
@@ -340,6 +343,30 @@ class StaticManifestTests(TestCase):
             for name in ('index', 'survey', 'club', 'privacy'):
                 with self.subTest(page=name):
                     self.assertEqual(self.client.get(reverse(name)).status_code, 200)
+
+    def test_every_static_path_in_templates_has_a_file(self):
+        """Опечатка в имени файла не должна доходить до сервера.
+
+        Регистр здесь важнее, чем кажется: под Windows avatar.JPG и
+        avatar.jpg — один файл, под Linux разные. Портрет пропадает
+        молча, картинка просто не приходит, и заметить это можно
+        только глазами на живом сайте.
+        """
+        import re
+        from django.contrib.staticfiles import finders
+
+        root = Path(__file__).resolve().parent / 'templates'
+        pattern = re.compile(r"""\{%\s*static\s+['"]([^'"]+)['"]""")
+        checked = 0
+        for template in root.rglob('*.html'):
+            for path in pattern.findall(template.read_text(encoding='utf-8')):
+                checked += 1
+                with self.subTest(template=template.name, static=path):
+                    self.assertIsNotNone(
+                        finders.find(path),
+                        f'{template.name}: файла {path} нет на диске')
+        self.assertGreater(checked, 5, 'Шаблоны со статикой не нашлись — '
+                                       'проверка ничего не проверила')
 
     def test_icon_route_redirects(self):
         response = self.client.get('/favicon.ico')
@@ -980,16 +1007,20 @@ class CabinetViewTests(TestCase):
     def login_client(self):
         self.client.force_login(self.card.user)
 
-    def test_one_door_sends_owner_to_the_desk(self):
+    def test_one_door_sends_owner_to_the_leads(self):
+        """«Сегодня» и «Заявки» были двумя пунктами на один вопрос.
+        Остались заявки — с проектами в работе под ними."""
         self.login_owner()
         body = self.client.get(reverse('cabinet')).content.decode()
-        self.assertIn('За что взяться сегодня', body)
+        self.assertIn('Кто написал', body)
+        self.assertIn('Проекты в работе', body)
+        self.assertNotIn('>Сегодня<', body)
 
     def test_one_door_sends_client_to_their_project(self):
         self.login_client()
         body = self.client.get(reverse('cabinet')).content.decode()
         self.assertIn('Ваш проект', body)
-        self.assertNotIn('За что взяться сегодня', body)
+        self.assertNotIn('Кто написал', body)
 
     def test_stranger_is_sent_to_the_login_page(self):
         response = self.client.get(reverse('cabinet'))
@@ -2935,3 +2966,1141 @@ class CabinetBuildTests(TestCase):
             reverse('cabinet_project_build_page', args=[self.project.pk]))
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('login'), response.url)
+
+
+class PriceHonestyTests(TestCase):
+    """Цены и то, что о них сказано.
+
+    Числа здесь — обещание, которое потом придётся выполнять. Проверки
+    следят не за самими суммами (их назначает человек), а за тем, чтобы
+    страница не молчала о том, что стоит денег.
+    """
+
+    def test_open_ended_block_is_shown_as_a_floor(self):
+        """Перенос данных — единственный блок, объём которого задают
+        чужие данные. Твёрдая цена здесь означает однажды сделать
+        недельную работу за цену часовой."""
+        body = self.client.get(reverse('constructor')).content.decode()
+        block = build.by_id('migrate')
+        self.assertTrue(block['open_ended'])
+        self.assertIn('от 20 000 ₽', body.replace('\xa0', ' '))
+
+    def test_firm_prices_have_no_word_from(self):
+        """У остальных блоков цена твёрдая, и «от» рядом с ней было бы
+        обещанием подорожать."""
+        for block in build.BLOCKS:
+            if block['core'] or block.get('open_ended'):
+                continue
+            with self.subTest(block=block['id']):
+                self.assertFalse(block.get('open_ended'))
+
+    def test_page_says_what_costs_money_every_month(self):
+        """Позиционирование держится на «честно про деньги». Умолчать
+        про кассу и комиссию выгоднее на один разговор и дороже
+        на все следующие."""
+        body = self.client.get(reverse('constructor')).content.decode()
+        self.assertIn('Что платится каждый месяц', body)
+        for what in ('Сервер и домен', '54-ФЗ', 'эсэмэс'):
+            with self.subTest(what=what):
+                self.assertIn(what, body)
+
+    def test_page_compares_with_the_market(self):
+        """Раздел уже выпадал при перестройке вёрстки: стили остались,
+        разметки не стало. Без него названная цена не с чем соотнести."""
+        body = self.client.get(reverse('constructor')).content.decode()
+        self.assertIn('class="versus"', body)
+        for column in ('Готовый сервис', 'Система под вас', 'Студия'):
+            with self.subTest(column=column):
+                self.assertIn(column, body)
+
+    def test_market_numbers_bracket_my_own(self):
+        """Своя цена должна стоять между подпиской и студией — иначе
+        сравнение работает против меня, а не объясняет разницу."""
+        body = self.client.get(reverse('constructor')).content.decode()
+        self.assertIn('от 300 000 ₽', body.replace('\xa0', ' '))
+        self.assertLess(build.BASE_PRICE, 300000)
+
+
+class LossEstimateTests(TestCase):
+    """Оценка потерь. Здесь считаются деньги, которые человек услышит
+    до всякой продажи, — и если цифра завышена, он узнает об этом
+    на разборе и почувствует себя обманутым раньше, чем что-то купил."""
+
+    def answers(self, **over):
+        base = {'check': 'c2000', 'rhythm': 'flow', 'clients': 'n100',
+                'lost': 'week', 'noshow': 'one', 'routine': 'h7'}
+        base.update(over)
+        return base
+
+    # ── Ритм бизнеса ─────────────────────────────────────────────────
+
+    def test_project_rhythm_counts_by_year_not_by_month(self):
+        """Архитектор с шестью проектами в год и чеком за пятьдесят тысяч.
+        Раньше тест брал 80 000 × 12 = 960 000 ₽ как месячную выручку —
+        завышение в двадцать четыре раза, и вместе с ней завышалось всё."""
+        got = survey_logic.estimate(self.answers(
+            check='c80000', rhythm='project', projects_year='p6',
+            clients=None))
+        self.assertEqual(got['revenue'], 40000)
+
+    def test_flow_rhythm_still_counts_by_month(self):
+        got = survey_logic.estimate(self.answers(
+            check='c2000', rhythm='flow', clients='n100'))
+        self.assertEqual(got['revenue'], 200000)
+
+    def test_project_answer_wins_over_a_stale_monthly_one(self):
+        """Без JavaScript видны оба вопроса, и человек может ответить
+        на оба. Считается тот, который подходит под названный ритм."""
+        got = survey_logic.estimate(self.answers(
+            check='c80000', rhythm='project', projects_year='p6',
+            clients='n700'))
+        self.assertEqual(got['revenue'], 40000)
+
+    def test_project_rhythm_without_an_answer_gives_no_estimate(self):
+        self.assertIsNone(survey_logic.estimate(self.answers(
+            rhythm='project', projects_year=None, clients=None)))
+
+    # ── Потолок правдоподобия ────────────────────────────────────────
+
+    def test_extreme_answers_are_capped(self):
+        """Множитель на крайних ответах давал 0,92 от выручки. Бизнесу
+        с выручкой миллион тест сообщал, что он теряет девятьсот
+        двадцать тысяч в месяц. В такое не верят."""
+        got = survey_logic.estimate(self.answers(lost='day', noshow='many'))
+        self.assertLessEqual(got['total_money'],
+                             got['revenue'] * survey_logic.LOSS_CAP + 1000)
+        self.assertTrue(got['capped'])
+
+    def test_ordinary_answers_are_not_capped(self):
+        got = survey_logic.estimate(self.answers(lost='month', noshow='few'))
+        self.assertFalse(got['capped'])
+
+    def test_capped_parts_add_up_to_the_capped_total(self):
+        """Иначе страница спорит сама с собой: в заголовке вилка вокруг
+        трёхсот тысяч, а под ней два слагаемых, дающих четыреста.
+        Читатель, который складывает, — и есть тот, ради кого писалась
+        вся эта честность."""
+        got = survey_logic.estimate(self.answers(
+            check='c25000', clients='n35', lost='week', noshow='few3'))
+        self.assertTrue(got['capped'])
+        parts = (got['lost_money'] or 0) + got['noshow_money']
+        self.assertAlmostEqual(parts, got['total_money'], delta=1000)
+
+    def test_uncapped_parts_add_up_too(self):
+        got = survey_logic.estimate(self.answers(lost='month', noshow='few'))
+        self.assertFalse(got['capped'])
+        parts = (got['lost_money'] or 0) + got['noshow_money']
+        self.assertAlmostEqual(parts, got['total_money'], delta=1000)
+
+    def test_capped_result_says_so_on_the_page(self):
+        """Молча срезанная цифра — та же выдумка, только аккуратнее."""
+        page = self._result_page(lost='day', noshow='many')
+        self.assertIn('такую цифру я показывать', page)
+
+    # ── «Не знаю» ────────────────────────────────────────────────────
+
+    def test_unknown_losses_are_not_turned_into_money(self):
+        """Раньше «честно — не считаю» превращалось в 12% потерь как факт.
+        Цифра, построенная на чужом незнании, — худший вид цифры."""
+        got = survey_logic.estimate(self.answers(lost='idk'))
+        self.assertIsNone(got['lost_money'])
+        self.assertTrue(got['lost_unknown'])
+
+    def test_unknown_losses_do_not_leak_into_the_total(self):
+        with_idk = survey_logic.estimate(self.answers(lost='idk', noshow='na'))
+        self.assertEqual(with_idk['total_money'], 0)
+
+    def test_page_says_the_finding_instead_of_a_number(self):
+        page = self._result_page(lost='idk')
+        self.assertIn('Вы не знаете, сколько теряете', page)
+
+    def test_idk_is_gone_from_the_rate_table(self):
+        self.assertNotIn('idk', survey_logic.LOST_RATE)
+
+    # ── Вилка ────────────────────────────────────────────────────────
+
+    def test_estimate_is_a_range_not_a_point(self):
+        got = survey_logic.estimate(self.answers())
+        pair = got['total_range']
+        self.assertLess(pair['low'], pair['high'])
+        for edge in ('low', 'high'):
+            with self.subTest(edge=edge):
+                self.assertEqual(pair[edge] % 1000, 0)
+
+    def test_range_edges_never_collapse(self):
+        """На маленьких суммах края сходятся после округления. Вилка,
+        у которой края равны, — это точное число, только притворяющееся
+        вилкой."""
+        for value in (1, 500, 1000, 1400, 2000):
+            with self.subTest(value=value):
+                pair = survey_logic.spread(value)
+                self.assertLess(pair['low'], pair['high'])
+
+    def test_no_range_for_nothing(self):
+        self.assertIsNone(survey_logic.spread(0))
+
+    def test_page_prints_the_range(self):
+        page = self._result_page()
+        self.assertIn('от ', page)
+        self.assertNotIn('≈ ', page)
+
+    # ── Из чего сложилась оценка ─────────────────────────────────────
+
+    def test_basis_names_what_was_taken(self):
+        got = survey_logic.estimate(self.answers())
+        said = ', '.join(got['basis'])
+        self.assertIn('чек', said)
+        self.assertIn('клиентов в месяц', said)
+
+    def test_basis_speaks_of_projects_for_project_rhythm(self):
+        got = survey_logic.estimate(self.answers(
+            rhythm='project', projects_year='p6', clients=None))
+        said = ', '.join(got['basis'])
+        self.assertIn('проектов за год', said)
+        self.assertNotIn('клиентов в месяц', said)
+
+    def test_basis_stays_silent_about_what_is_unknown(self):
+        got = survey_logic.estimate(self.answers(lost='idk'))
+        self.assertNotIn('заявки:', ', '.join(got['basis']))
+
+    # ── Что было и осталось ──────────────────────────────────────────
+
+    def test_no_check_no_estimate(self):
+        self.assertIsNone(survey_logic.estimate(self.answers(check=None)))
+
+    def test_no_count_no_estimate(self):
+        self.assertIsNone(survey_logic.estimate(self.answers(clients=None)))
+
+    # ── Вспомогательное ──────────────────────────────────────────────
+
+    def _result_page(self, **over):
+        """Пройти разбор целиком и получить страницу результата."""
+        answers = {
+            'area': 'beauty', 'team': '2_5', 'sources': ['word'],
+            'storage': 'head', 'reply': 'later', 'booking': 'me',
+            'money_view': 'rest', 'repeat': 'none', 'vacation': 'stop',
+            'consent': '1',
+        }
+        answers.update(self.answers(**over))
+        answers = {k: v for k, v in answers.items() if v is not None}
+        self.client.post(reverse('survey'), answers, follow=False)
+        return self.client.get(reverse('survey_done'), follow=True).content.decode()
+
+
+class ConditionalQuestionTests(TestCase):
+    """Условный вопрос обязан работать и без JavaScript.
+
+    Без скрипта спрятать вопрос нечем, поэтому видны оба — и про поток,
+    и про проекты. Это не поломка: считается только подходящий, а форма
+    спрашивает ровно тот, который относится к названному ритму.
+    """
+
+    def base(self, **over):
+        data = {
+            'area': 'expert', 'team': 'solo', 'sources': ['word'],
+            'storage': 'head', 'lost': 'week', 'reply': 'later',
+            'booking': 'me', 'noshow': 'na', 'money_view': 'rest',
+            'repeat': 'none', 'vacation': 'stop', 'routine': 'h7',
+            'check': 'c80000', 'consent': '1',
+        }
+        data.update(over)
+        return data
+
+    def test_both_questions_are_in_the_markup(self):
+        """Скрипт прячет лишний. Без скрипта человек видит оба и отвечает
+        на тот, который про него."""
+        body = self.client.get(reverse('survey')).content.decode()
+        self.assertIn('data-show-if="rhythm=flow"', body)
+        self.assertIn('data-show-if="rhythm=project"', body)
+
+    def test_project_rhythm_requires_the_project_question(self):
+        response = self.client.post(reverse('survey'),
+                                    self.base(rhythm='project'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('projects_year', response.context['form'].errors)
+
+    def test_flow_rhythm_requires_the_monthly_question(self):
+        response = self.client.post(reverse('survey'), self.base(rhythm='flow'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('clients', response.context['form'].errors)
+
+    def test_the_other_question_is_not_demanded(self):
+        """Заставлять проектного отвечать про клиентов в месяц — это
+        ровно та ошибка, ради которой развилка и заводилась."""
+        response = self.client.post(
+            reverse('survey'), self.base(rhythm='project', projects_year='p6'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Survey.objects.count(), 1)
+
+    def test_saved_answers_keep_the_rhythm(self):
+        self.client.post(reverse('survey'),
+                         self.base(rhythm='project', projects_year='p6'))
+        entry = Survey.objects.get()
+        self.assertEqual(entry.answers['rhythm'], 'project')
+        self.assertEqual(entry.diagnose()['estimate']['revenue'], 40000)
+
+    def test_counter_promises_what_it_shows(self):
+        """Условные вопросы исключают друг друга, значит в счёт идёт один:
+        обещать семнадцать и показать шестнадцать — мелкое, но враньё."""
+        body = self.client.get(reverse('survey')).content.decode()
+        self.assertEqual(views._asked_count(), len(survey_logic.QUESTIONS) - 1)
+        self.assertIn(f'из {views._asked_count()}', body)
+
+
+class FreeClubTests(TestCase):
+    """Вступление в клуб бесплатное.
+
+    Три вещи, которые здесь дороже всего сломать: попросить денег там, где
+    их не берут; завести человеку вторую подписку на тот же канал; и молча
+    закрыть бессрочный доступ по сроку, которого у него нет.
+    """
+
+    JOIN = {'name': 'Ирина', 'phone': '+7 (902) 444-55-66',
+            'telegram_username': 'irina_biz', 'area': 'Барбершоп', 'consent': '1'}
+
+    def _join(self, link='https://t.me/+abc123', **over):
+        from unittest.mock import patch
+        data = dict(self.JOIN, **over)
+        with patch('landing.services.telegram.create_club_invite', return_value=link), \
+             patch('landing.services.telegram.notify', return_value=True), \
+             patch('landing.services.telegram.notify_lead', return_value=True):
+            return self.client.post(reverse('club'), data, follow=True)
+
+    def test_joining_opens_endless_free_access(self):
+        response = self._join()
+        self.assertEqual(response.status_code, 200)
+        subscription = ClubSubscription.objects.get()
+        self.assertEqual(subscription.plan, ClubSubscription.Plan.FREE)
+        self.assertEqual(subscription.status, ClubSubscription.Status.ACTIVE)
+        self.assertEqual(subscription.price, 0)
+        self.assertIsNone(subscription.ends_at)
+        self.assertTrue(subscription.is_endless)
+
+    def test_link_is_shown_right_away(self):
+        """Человек заполнил форму и ждёт. Отправлять его за результатом
+        в другое место — лишний шаг, на котором часть людей теряется."""
+        body = self._join(link='https://t.me/+xyz789').content.decode()
+        self.assertIn('https://t.me/+xyz789', body)
+
+    def test_second_join_does_not_pile_up_subscriptions(self):
+        self._join()
+        self._join()
+        self.assertEqual(ClubSubscription.objects.count(), 1)
+        self.assertEqual(Lead.objects.count(), 2)
+
+    def test_link_is_not_reissued_for_the_same_person(self):
+        """Ссылка одноразовая: выдать новую — значит обесценить ту,
+        которую человек мог уже сохранить себе."""
+        self._join(link='https://t.me/+first')
+        self._join(link='https://t.me/+second')
+        self.assertEqual(ClubSubscription.objects.get().invite_link,
+                         'https://t.me/+first')
+
+    def test_telegram_silence_does_not_lose_the_person(self):
+        response = self._join(link=None)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(ClubSubscription.objects.count(), 1)
+        self.assertIn('Записал вас', response.content.decode())
+
+    def test_endless_access_counts_as_active(self):
+        self._join()
+        person = Client.objects.get(phone='+79024445566')
+        self.assertTrue(person.club_is_active)
+
+    def test_endless_access_is_never_expired_or_reminded(self):
+        """Бессрочной подписке нечего напоминать и нечего закрывать."""
+        from unittest.mock import patch
+        self._join()
+        out = StringIO()
+        with patch('landing.services.telegram.send_to') as to_member, \
+             patch('landing.services.telegram.remove_from_club') as kick:
+            call_command('club_reminders', stdout=out)
+            call_command('expire_club', stdout=out)
+        self.assertFalse(to_member.called)
+        self.assertFalse(kick.called)
+        self.assertEqual(ClubSubscription.objects.get().status,
+                         ClubSubscription.Status.ACTIVE)
+
+    def test_page_asks_for_no_money(self):
+        body = self.client.get(reverse('club')).content.decode()
+        self.assertNotIn('Тариф', body)
+        self.assertNotIn('name="plan"', body)
+        self.assertNotIn('Перейти к оплате', body)
+        self.assertIn('Почему бесплатно', body)
+
+    def test_paid_subscription_still_works(self):
+        """Тем, кто успел оплатить, срок дохаживается как был."""
+        person = Client.objects.create(name='Пётр', phone='+79001234567')
+        paid = ClubSubscription.objects.create(
+            client=person, plan=ClubSubscription.Plan.MONTH, price=3900)
+        paid.activate()
+        self.assertIsNotNone(paid.ends_at)
+        self.assertTrue(person.club_is_active)
+
+
+class HeroQuestionTests(TestCase):
+    """Первый вопрос разбора стоит прямо на главной.
+
+    Нажать на свою сферу проще, чем решиться «пройти тест», поэтому
+    важнее всего здесь три вещи: варианты берутся из тех же данных, что
+    и сам разбор; ответ доезжает до страницы разбора и там виден; и всё
+    это работает обычной формой, без единой строчки скрипта.
+    """
+
+    def test_options_come_from_the_survey_itself(self):
+        body = self.client.get(reverse('index')).content.decode()
+        question = survey_logic.first_question()
+        self.assertIn(question['title'], body)
+        for option in question['options']:
+            with self.subTest(option=option['value']):
+                self.assertIn(f'name="{question["id"]}"\n', body.replace('\r', ''))
+                self.assertIn(f'value="{option["value"]}"', body)
+
+    def test_the_question_is_a_plain_get_form(self):
+        """Без скрипта нажатие обязано работать: обычная форма, метод GET."""
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn(f'<form class="ask" method="GET" action="{reverse("survey")}"', body)
+
+    def test_answer_from_the_front_page_is_marked(self):
+        response = self.client.get(reverse('survey'), {'area': 'school'})
+        steps = {step['q']['id']: step for step in response.context['steps']}
+        chosen = [o['value'] for o in steps['area']['options'] if o['checked']]
+        self.assertEqual(chosen, ['school'])
+        self.assertEqual(response.context['start_at'], 1)
+
+    def test_made_up_answer_is_ignored(self):
+        """Адрес набирает кто угодно. Отметить несуществующий вариант —
+        значит показать ответ, которого человек не давал."""
+        response = self.client.get(reverse('survey'), {'area': 'нет-такого'})
+        steps = {step['q']['id']: step for step in response.context['steps']}
+        self.assertEqual([o for o in steps['area']['options'] if o['checked']], [])
+        self.assertEqual(response.context['start_at'], 0)
+
+    def test_all_questions_stay_visible_without_scripts(self):
+        """Скрипт только прячет лишнее. Без него видны все шаги, включая
+        тот, на который уже ответили с главной."""
+        body = self.client.get(reverse('survey'), {'area': 'school'}).content.decode()
+        self.assertEqual(body.count('class="q-step"'), len(survey_logic.QUESTIONS))
+        self.assertNotIn('hidden class="q-step"', body)
+
+    def test_the_first_screen_draws_a_scheme_not_a_fake_screenshot(self):
+        """Снимок чужой таблицы показывал бы то, чего человек не получит.
+        На первом экране — схема процесса, та же, что он уносит с разбора."""
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn('class="blueprint"', body)
+        self.assertNotIn('order__row', body)
+
+
+class QuestionCountTests(TestCase):
+    """Число вопросов на страницах должно совпадать с числом вопросов.
+
+    Разошлось оно тихо: вопросов стало шестнадцать, а «пятнадцать»
+    осталось в шести местах — в заголовке, в описании для поисковика,
+    в списке и в штампе листа. Мелочь, из-за которой перестают верить
+    всему остальному.
+    """
+
+    NUMERALS = ('десять', 'одиннадцать', 'двенадцать', 'тринадцать',
+                'четырнадцать', 'пятнадцать', 'шестнадцать', 'семнадцать',
+                'восемнадцать', 'девятнадцать', 'двадцать')
+
+    def test_pages_name_the_real_number(self):
+        right = paper.words(views._asked_count())
+        for page in ('index', 'survey'):
+            body = self.client.get(reverse(page)).content.decode().lower()
+            with self.subTest(page=page, word=right):
+                self.assertIn(f'{right} вопрос', body)
+            for word in self.NUMERALS:
+                if word == right:
+                    continue
+                with self.subTest(page=page, wrong=word):
+                    self.assertNotIn(f'{word} вопрос', body)
+
+    def test_digits_do_not_disagree_either(self):
+        total = views._asked_count()
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn(f'{total} вопросов', body)
+        for wrong in (total - 1, total + 1):
+            with self.subTest(wrong=wrong):
+                self.assertNotIn(f'{wrong} вопросов', body)
+
+
+class TwoDoorsTests(TestCase):
+    """Дверей на главной две: разбор и конструктор.
+
+    Всё остальное — звонок, клуб, конструктор — стоит тише и ниже.
+    Проверяем не красоту, а порядок: чем больше равных по громкости
+    предложений на экране, тем чаще человек не выбирает ни одного.
+    """
+
+    def setUp(self):
+        page = self.client.get(reverse('index')).content.decode()
+        # Шапка ведёт во все стороны сразу — это меню, а не двери.
+        # Считаем порядок по самой странице, начиная с первого экрана.
+        self.body = page[page.index('id="top"'):]
+
+    def test_the_test_is_the_first_thing_asked(self):
+        """Первый вопрос разбора стоит выше любой другой двери."""
+        ask = self.body.index('class="ask"')
+        for later in (reverse('constructor'), reverse('club')):
+            with self.subTest(door=later):
+                self.assertLess(ask, self.body.index(later))
+
+    def test_the_club_waits_until_after_the_form(self):
+        """Клуб — для тех, кто не готов разговаривать. Предлагать его
+        до формы значит уводить готовых."""
+        self.assertLess(self.body.index('id="cta"'), self.body.index('id="club-teaser"'))
+
+    def test_the_second_door_speaks_quieter(self):
+        price = self.body[self.body.index('id="price"'):]
+        spot = price.index(reverse('constructor'))
+        self.assertIn('btn--ghost', price[spot - 120:spot])
+
+    def test_the_phone_is_not_a_button_on_the_page(self):
+        """Звонок живёт в шапке и подвале. Отдельной кнопкой посреди
+        страницы он был бы третьей равной дверью."""
+        for spot in re.finditer(r'tel:', self.body):
+            fragment = self.body[max(0, spot.start() - 160):spot.start()]
+            with self.subTest(at=spot.start()):
+                self.assertNotIn('class="btn', fragment)
+
+
+class CapacityTests(TestCase):
+    """Сколько разборов в неделю — сказано, но не как приём.
+
+    Разница между честным ограничением и «осталось два места» в том,
+    что первое не меняется от того, кто смотрит на страницу.
+    """
+
+    # Слово «осталось» само по себе безобидно — оно есть в вариантах
+    # ответа про деньги. Считаем только связки, которыми торопят.
+    HURRY = ('осталось мест', 'мест осталось', 'осталось два места',
+             'успей', 'только сегодня', 'до конца дня', 'таймер',
+             'спецпредложение', 'скидка сгорит')
+
+    def test_the_limit_is_named(self):
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn('не больше трёх разборов в неделю', body)
+
+    def test_and_nobody_is_being_hurried(self):
+        for page in ('index', 'survey', 'club', 'constructor'):
+            body = self.client.get(reverse(page)).content.decode().lower()
+            for word in self.HURRY:
+                with self.subTest(page=page, word=word):
+                    self.assertNotIn(word, body)
+
+
+class FaceOnFirstScreenTests(TestCase):
+    """Лицо на первом экране.
+
+    Человек решает, разговаривать ли, до того как долистает до «обо мне»,
+    и решает про человека, а не про услугу.
+    """
+
+    def test_the_author_is_named_before_the_question(self):
+        page = self.client.get(reverse('index')).content.decode()
+        body = page[page.index('id="top"'):]
+        self.assertLess(body.index('hero__who'), body.index('class="ask"'))
+        self.assertIn('Антон Глухов', body[:body.index('class="ask"')])
+
+    def test_both_portraits_can_fall_back(self):
+        """Заглушка ищется по классу: портретов на странице два, и
+        пропасть молча не должен ни один."""
+        js = (Path(__file__).resolve().parent / 'static' / 'landing' / 'js'
+              / 'site.js').read_text(encoding='utf-8')
+        self.assertIn(".portrait img", js)
+        page = self.client.get(reverse('index')).content.decode()
+        figures = re.findall(r'class="[^"]*\bportrait\b[^"]*"', page)
+        self.assertEqual(len(figures), 2, figures)
+
+
+class PriceLadderTests(TestCase):
+    """Лестница цен.
+
+    «От 50 000» отвечает на вопрос «с чего начинается» и молчит о том,
+    во что это обойдётся. Раньше страница отвечала на второй вопрос
+    числом «150–300 тысяч», которое ниже собственного конструктора:
+    всё сразу выходит дороже верхней границы.
+    """
+
+    def test_figures_are_the_constructor_own_arithmetic(self):
+        for rung, described in zip(build.ladder(), build.LADDER):
+            ids = list(described['ids']) or [b['id'] for b in build.BLOCKS]
+            with self.subTest(rung=rung['id']):
+                self.assertEqual(rung['low'], build.estimate(ids, 'solo')['total'])
+                self.assertEqual(rung['high'], build.estimate(ids, 'team')['total'])
+
+    def test_the_top_step_is_not_cheaper_than_everything(self):
+        top = build.ladder()[-1]
+        every = [b['id'] for b in build.BLOCKS]
+        self.assertGreaterEqual(top['high'], build.estimate(every, 'solo')['total'])
+
+    def test_the_steps_go_up(self):
+        figures = [rung['low'] for rung in build.ladder()]
+        self.assertEqual(figures, sorted(figures))
+        self.assertEqual(len(set(figures)), len(figures))
+
+    def test_the_page_shows_the_same_numbers(self):
+        body = self.client.get(reverse('index')).content.decode()
+        for rung in build.ladder():
+            for figure in (rung['low'], rung['high']):
+                with self.subTest(figure=figure):
+                    self.assertIn(f'{figure:,}'.replace(',', '\u00a0'), body)
+
+    def test_the_old_understated_range_is_gone(self):
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertNotIn('150–300 тысяч', body)
+
+
+class SchemeTests(TestCase):
+    """Схема процессов — лист, который человек уносит.
+
+    Сайт обещает её на первом экране: «схему своих процессов вы
+    заберёте себе, даже если мы не станем работать дальше». Пока
+    обещание выполнялось только на живой встрече.
+    """
+
+    BAD = {'area': 'beauty', 'storage': 'head', 'lost': 'day', 'reply': 'later',
+           'booking': 'me', 'noshow': 'many', 'money_view': 'rest',
+           'repeat': 'none', 'vacation': 'stop', 'routine': 'h25'}
+    GOOD = {'area': 'beauty', 'storage': 'crm', 'lost': 'never', 'reply': 'min15',
+            'booking': 'online', 'noshow': 'few', 'money_view': 'report',
+            'repeat': 'auto', 'vacation': 'ok', 'routine': 'h3'}
+
+    def test_conditions_speak_the_same_language_as_the_questions(self):
+        """Условия течи названы значениями из landing/survey.py. Опечатка
+        в любом из них означала бы шаг, который не потечёт никогда."""
+        rules = list(scheme_logic.OWNER_LEAK)
+        for step in scheme_logic.STEPS:
+            rules.extend(step['leak_if'])
+        for question_id, values in rules:
+            self.assertIn(question_id, survey_logic.QUESTIONS_BY_ID,
+                          f'нет такого вопроса: {question_id}')
+            known = {o['value'] for o in
+                     survey_logic.QUESTIONS_BY_ID[question_id].get('options', [])}
+            for value in values:
+                with self.subTest(question=question_id, value=value):
+                    self.assertIn(value, known)
+
+    def test_every_fix_is_a_real_block(self):
+        for step in scheme_logic.STEPS:
+            with self.subTest(step=step['id']):
+                self.assertIsNotNone(build.by_id(step['fix']))
+
+    def test_bad_answers_leak_everywhere(self):
+        drawing = scheme_logic.build_scheme(self.BAD)
+        self.assertEqual(drawing['leak_count'], len(scheme_logic.STEPS))
+        self.assertTrue(drawing['owner_leak'])
+        self.assertTrue(all(step['fix'] for step in drawing['steps']))
+
+    def test_good_answers_leak_nowhere(self):
+        drawing = scheme_logic.build_scheme(self.GOOD)
+        self.assertEqual(drawing['leak_count'], 0)
+        self.assertFalse(drawing['owner_leak'])
+        self.assertEqual([s['fix'] for s in drawing['steps']], [''] * 5)
+
+    def test_lines_stay_inside_the_box(self):
+        """SVG не переносит текст сам: длинная строка вылезает за рамку
+        и ложится поверх соседней подписи."""
+        for answers in (self.BAD, self.GOOD):
+            for step in scheme_logic.build_scheme(answers)['steps']:
+                for line in step['lines']:
+                    with self.subTest(step=step['id'], line=line['text']):
+                        self.assertLessEqual(len(line['text']),
+                                             scheme_logic.CHARS_PER_LINE)
+
+    def test_nothing_is_lost_in_the_wrapping(self):
+        for step in scheme_logic.build_scheme(self.BAD)['steps']:
+            joined = ' '.join(line['text'] for line in step['lines'])
+            self.assertEqual(joined, step['verdict'])
+
+    def test_the_sheet_needs_your_own_answers(self):
+        """Ссылка без номера в адресе: переслать её вместе с чужими
+        ответами про деньги не получится."""
+        response = self.client.get(reverse('survey_scheme'))
+        self.assertRedirects(response, reverse('survey'))
+
+    def test_the_sheet_opens_after_the_test(self):
+        entry = Survey.objects.create(answers=self.BAD)
+        session = self.client.session
+        session['scheme_id'] = entry.pk
+        session.save()
+        response = self.client.get(reverse('survey_scheme'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Схема ваших процессов')
+        self.assertContains(response, 'Заявка')
+
+    def test_the_result_page_carries_the_scheme(self):
+        entry = Survey.objects.create(answers=self.BAD)
+        session = self.client.session
+        session['survey_id'] = entry.pk
+        session.save()
+        body = self.client.get(reverse('survey_done')).content.decode()
+        self.assertIn('class="scheme"', body)
+        self.assertIn(reverse('survey_scheme'), body)
+
+    def test_search_engines_are_kept_away(self):
+        body = self.client.get('/robots.txt').content.decode()
+        self.assertIn('Disallow: /razbor/shema/', body)
+
+    def test_the_print_button_hides_without_scripts(self):
+        css = (Path(__file__).resolve().parent / 'static' / 'landing' / 'css'
+               / 'site.css').read_text(encoding='utf-8')
+        self.assertIn('html:not([data-js]) [data-print]{display:none}', css)
+
+
+class GatePagesTests(TestCase):
+    """Страницы до входа в кабинет.
+
+    Они пользуются вёрсткой кабинета, но живут на общем шаблоне сайта,
+    и файл стилей кабинета к ним не подключался: форма растягивалась
+    во всю ширину, подписи слипались с полями. Ошибка тихая — страница
+    открывалась и работала, просто выглядела черновиком. Первым, что
+    видел клиент, был этот черновик.
+    """
+
+    PAGES = ('login', 'password_reset', 'password_reset_done',
+             'password_reset_complete')
+
+    def test_cabinet_layout_comes_with_cabinet_styles(self):
+        for name in self.PAGES:
+            body = self.client.get(reverse(name)).content.decode()
+            with self.subTest(page=name):
+                self.assertIn('wrap--narrow', body,
+                              'страница перестала пользоваться вёрсткой кабинета')
+                self.assertIn('css/cabinet.css', body)
+
+    def test_the_grid_belongs_to_the_sheet(self):
+        """Миллиметровка — свойство листа, а не стола под ним."""
+        css = (Path(__file__).resolve().parent / 'static' / 'landing' / 'css'
+               / 'site.css').read_text(encoding='utf-8')
+        body_block = css[css.index('body{'):css.index('h1,h2,h3,h4,p,ul,ol')]
+        self.assertNotIn('grid-minor', body_block)
+        sheet_block = css[css.index('.sheet{'):css.index('.sheet + .sheet')]
+        self.assertIn('grid-minor', sheet_block)
+
+
+class DarkThemeTests(TestCase):
+    """Тёмная тема — отдельная палитра, а не инверсия светлой.
+
+    Дороже всего здесь сломать три вещи: цвет, у которого нет светлого
+    значения (он пропадёт у тех, у кого системная тема светлая);
+    печать из тёмной темы (светлый карандаш на белой бумаге — пустой
+    лист); и роль «графита», который значил сразу и текст, и заливку
+    тёмной панели, — в тёмной теме эти роли расходятся.
+    """
+
+    PALETTE = ('--graphite', '--paper', '--sheet', '--line', '--muted', '--ink',
+               '--panel', '--on-panel', '--shade', '--alarm', '--warn', '--good')
+
+    def setUp(self):
+        self.css = (Path(__file__).resolve().parent / 'static' / 'landing' / 'css'
+                    / 'site.css').read_text(encoding='utf-8')
+        self.light = self.css[self.css.index(':root{'):self.css.index('@media (prefers-color-scheme:dark)')]
+        start = self.css.index('@media (prefers-color-scheme:dark)')
+        self.dark = self.css[start:self.css.index('/* ---------- База ---------- */')]
+        start = self.css.index('@media print{')
+        self.printed = self.css[start:start + 1200]
+
+    def test_every_colour_has_a_light_value_too(self):
+        for token in self.PALETTE:
+            with self.subTest(token=token):
+                self.assertIn(f'{token}:', self.light)
+
+    def test_the_dark_theme_redefines_the_whole_palette(self):
+        for token in self.PALETTE:
+            with self.subTest(token=token):
+                self.assertIn(f'{token}:', self.dark)
+
+    def test_print_goes_back_to_paper(self):
+        """Печатают всегда на белом. В тёмной теме карандаш светлый,
+        и без этого от чертежа не осталось бы ни линии."""
+        for token in ('--graphite:#0D0F0E', '--paper:#fff', '--panel:#fff'):
+            with self.subTest(token=token):
+                self.assertIn(token, self.printed)
+
+    def test_pencil_fill_always_comes_with_paper_text(self):
+        """Заливка «карандашом» переворачивается вместе с темой, поэтому
+        текст на ней обязан быть «бумагой» — тем же токеном, что и фон
+        страницы. Иначе в тёмной теме получится светлое на светлом.
+
+        Панели, которые остаются тёмными в любой теме, красятся другим
+        токеном (--panel) и подписываются третьим (--on-panel).
+        """
+        for match in re.finditer(r'background(?:-color)?:var\(--graphite\)', self.css):
+            start = self.css.rfind('}', 0, match.start()) + 1
+            end = self.css.find('}', match.end())
+            rule = self.css[start:end]
+            # Декоративная линия — просто линия цвета текста, писать
+            # на ней нечего, и проверять тут тоже нечего.
+            if 'color:' not in rule:
+                continue
+            with self.subTest(rule=rule.strip()[:70]):
+                self.assertIn('var(--paper)', rule)
+
+    def test_the_page_says_which_theme_it_is(self):
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn('media="(prefers-color-scheme: dark)"', body)
+        self.assertIn('color-scheme:light dark', self.css)
+
+
+class ThemeSwitchTests(TestCase):
+    """Переключатель темы.
+
+    Дороже всего здесь сломать три вещи: расхождение двух описаний
+    тёмной палитры (системной и выбранной вручную) — тогда нажатие
+    даёт другой лист, чем система; мигание белым до первой отрисовки;
+    и мёртвую кнопку без скрипта.
+    """
+
+    def setUp(self):
+        self.css = (Path(__file__).resolve().parent / 'static' / 'landing' / 'css'
+                    / 'site.css').read_text(encoding='utf-8')
+
+    def _palette(self, selector):
+        start = self.css.index(selector) + len(selector)
+        return self.css[start:self.css.index('}', start)].strip()
+
+    def test_both_ways_into_the_dark_give_the_same_sheet(self):
+        """Системная тема и нажатая кнопка обязаны дать один лист.
+        Правило внутри @media нельзя объединить с правилом снаружи,
+        поэтому блока два — и они должны совпадать."""
+        by_system = self._palette(':root:not([data-theme="light"]){')
+        by_hand = self._palette(':root[data-theme="dark"]{')
+        self.assertEqual(by_system, by_hand)
+        self.assertIn('--paper:#121412', by_hand)
+
+    def test_the_choice_is_read_before_the_first_paint(self):
+        """Иначе выбранный тёмный лист успевает мигнуть белым."""
+        body = self.client.get(reverse('index')).content.decode()
+        boot = body[:body.index('</head>')]
+        self.assertIn("localStorage.getItem('poryadok-theme')", boot)
+        self.assertIn('dataset.theme', boot)
+
+    def test_the_button_is_gone_without_scripts(self):
+        self.assertIn('html:not([data-js]) .theme{display:none}', self.css)
+
+    def test_the_button_is_on_every_page(self):
+        for name in ('index', 'survey', 'club', 'constructor', 'privacy'):
+            body = self.client.get(reverse(name)).content.decode()
+            with self.subTest(page=name):
+                self.assertIn('id="theme"', body)
+
+    def test_the_choice_is_explained_where_it_is_stored(self):
+        """Мы кладём выбор в браузер человека — значит про это сказано
+        там же, где сказано про cookie."""
+        body = self.client.get(reverse('privacy')).content.decode()
+        self.assertIn('тему', body)
+        self.assertIn('хранится только у вас в браузере', body)
+
+
+class PhoneFieldTests(TestCase):
+    """Номер телефона форматируется по ходу ввода — везде, где его просят.
+
+    Маску включает атрибут data-validate на обёртке поля, и забыть его
+    ничего не стоит: поле выглядит целым, форма отправляется, номер
+    просто приезжает как попало. Именно так и случилось на конструкторе
+    и в карточке заявки.
+    """
+
+    def test_every_phone_field_has_the_mask(self):
+        root = Path(__file__).resolve().parent / 'templates'
+        found = 0
+        for template in root.rglob('*.html'):
+            text = template.read_text(encoding='utf-8')
+            for spot in re.finditer(r'type="tel"', text):
+                found += 1
+                # Обёртка поля помечена классом field — от неё и смотрим.
+                before = text[:spot.start()]
+                start = before.rfind('class="field')
+                self.assertNotEqual(start, -1, f'{template.name}: поле телефона '
+                                               'не в обёртке .field')
+                wrapper = before[start:]
+                self.assertLess(len(wrapper), 600, f'{template.name}: обёртка '
+                                                   'поля телефона не нашлась рядом')
+                with self.subTest(template=template.name):
+                    self.assertIn('data-validate', wrapper,
+                                  f'{template.name}: у поля телефона нет маски')
+        self.assertGreaterEqual(found, 4, 'поля телефона не нашлись — '
+                                          'проверка ничего не проверила')
+
+    def test_the_constructor_asks_the_same_way_as_the_front_page(self):
+        for page in ('index', 'constructor'):
+            body = self.client.get(reverse(page)).content.decode()
+            with self.subTest(page=page):
+                self.assertIn('data-validate="phone"', body)
+
+
+class HandLeadTests(TestCase):
+    """Заявка, заведённая руками.
+
+    Раньше её было некуда записать, кроме админки, — а значит, её не
+    записывали вовсе. Дороже всего здесь сломать три вещи: выдать звонок
+    за форму на сайте (сводка начнёт врать в пользу сайта), поставить
+    напоминание задним числом и молча завести второго «Евгения» с тем же
+    номером.
+    """
+
+    GOOD = {'name': 'Евгений Тарасов', 'phone': '+7 (983) 157-69-12',
+            'source': 'call', 'area': 'Мебель', 'note': 'Хочет запись онлайн',
+            'remind': 'tomorrow'}
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.client.force_login(self.owner)
+
+    def test_the_button_is_on_the_leads_page(self):
+        body = self.client.get(reverse('cabinet')).content.decode()
+        self.assertIn(reverse('cabinet_lead_new'), body)
+        self.assertIn('Завести заявку', body)
+
+    def test_questions_come_one_by_one_and_only_offline_sources(self):
+        body = self.client.get(reverse('cabinet_lead_new')).content.decode()
+        self.assertIn('id="q-steps"', body)
+        self.assertEqual(len(re.findall(r'<fieldset class="q-step[" ]', body)), 6)
+        for value in Lead.HAND_SOURCES:
+            with self.subTest(source=value):
+                self.assertIn(f'name="source" value="{value}"', body)
+        self.assertNotIn('name="source" value="form"', body)
+
+    def test_a_good_answer_makes_a_lead(self):
+        response = self.client.post(reverse('cabinet_lead_new'), self.GOOD)
+        lead = Lead.objects.get()
+        self.assertRedirects(response, reverse('cabinet_lead', args=[lead.pk]))
+        self.assertEqual(lead.phone, '+79831576912')
+        self.assertEqual(lead.source, Lead.Source.CALL)
+        self.assertEqual(lead.status, Lead.Status.CONTACTED)
+        self.assertEqual(lead.note, 'Хочет запись онлайн')
+        self.assertEqual(lead.comment, '', 'мои слова — в заметки, не в его комментарий')
+        moment = timezone.localtime(lead.remind_at)
+        self.assertEqual((moment.hour, moment.minute), (10, 0))
+        self.assertEqual(moment.date(), (timezone.localtime() + timedelta(days=1)).date())
+
+    def test_a_call_cannot_pass_for_the_site_form(self):
+        response = self.client.post(reverse('cabinet_lead_new'),
+                                    dict(self.GOOD, source='form'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Lead.objects.count(), 0)
+
+    def test_name_and_phone_are_required(self):
+        response = self.client.post(reverse('cabinet_lead_new'),
+                                    dict(self.GOOD, name='', phone='123'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Lead.objects.count(), 0)
+        body = response.content.decode()
+        self.assertIn('Как его зовут?', body)
+        self.assertIn('10 цифр', body)
+
+    def test_no_reminder_means_none(self):
+        self.client.post(reverse('cabinet_lead_new'), dict(self.GOOD, remind='none'))
+        self.assertIsNone(Lead.objects.get().remind_at)
+
+    def test_this_evening_is_never_in_the_past(self):
+        """После семи «сегодня вечером» не должно сработать мгновенно."""
+        from .forms import HandLeadForm
+        form = HandLeadForm(dict(self.GOOD, remind='evening'))
+        self.assertTrue(form.is_valid(), form.errors)
+        late = timezone.localtime().replace(hour=22, minute=0)
+        self.assertGreater(form.remind_at(late), late)
+        early = timezone.localtime().replace(hour=9, minute=0)
+        self.assertEqual(timezone.localtime(form.remind_at(early)).hour, 19)
+
+    def test_the_same_number_is_noticed(self):
+        Lead.objects.create(name='Евгений', phone='+79831576912')
+        response = self.client.post(reverse('cabinet_lead_new'), self.GOOD, follow=True)
+        self.assertContains(response, 'По этому номеру уже есть заявка')
+
+    def test_a_client_cannot_make_leads(self):
+        card = Client.objects.create(name='Ирина', phone='+79130000004')
+        access.issue(card)
+        card.refresh_from_db()
+        self.client.force_login(card.user)
+        response = self.client.get(reverse('cabinet_lead_new'))
+        self.assertNotEqual(response.status_code, 200)
+
+
+def _load_webhook():
+    """Слушатель автодеплоя живёт вне Django — грузим его как отдельный файл."""
+    import importlib.util
+    path = Path(__file__).resolve().parent.parent / 'deploy' / 'webhook_deploy.py'
+    spec = importlib.util.spec_from_file_location('webhook_deploy', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class DeployWebhookTests(TestCase):
+    """Автодеплой: пуш в ветку — сервер сам выкладывает код.
+
+    Дороже всего здесь три вещи: выложить по чужому запросу (подпись),
+    выложить не ту ветку (сайт откатится) и выложить молча, не сказав,
+    что выкладка упала.
+    """
+
+    SECRET = 's' * 64
+
+    def setUp(self):
+        self.hook = _load_webhook()
+
+    def _sign(self, body):
+        import hashlib, hmac
+        return 'sha256=' + hmac.new(self.SECRET.encode(), body, hashlib.sha256).hexdigest()
+
+    def test_only_a_correct_signature_passes(self):
+        body = b'{"ref": "refs/heads/main"}'
+        self.assertTrue(self.hook.verify_signature(self.SECRET, body, self._sign(body)))
+        self.assertFalse(self.hook.verify_signature(self.SECRET, body, None))
+        self.assertFalse(self.hook.verify_signature(self.SECRET, body, 'sha256=00'))
+        self.assertFalse(self.hook.verify_signature(self.SECRET, body + b' ', self._sign(body)))
+        # Пустой секрет на сервере не должен пропускать никого — даже
+        # того, кто «подписал» пустым секретом.
+        self.assertFalse(self.hook.verify_signature('', body, self._sign(body)))
+
+    def test_only_a_push_to_the_chosen_branch_deploys(self):
+        deploy = self.hook.should_deploy
+        self.assertEqual(deploy('push', {'ref': 'refs/heads/main'}, 'main')[0], True)
+        self.assertEqual(deploy('push', {'ref': 'refs/heads/other'}, 'main')[0], False)
+        self.assertEqual(deploy('ping', {}, 'main')[0], False)
+        self.assertEqual(deploy('issues', {'ref': 'refs/heads/main'}, 'main')[0], False)
+        self.assertEqual(deploy('push', {'ref': 'refs/heads/main', 'deleted': True}, 'main')[0], False)
+
+    def test_the_default_branch_is_main(self):
+        """Не рабочая ветка из прошлых сессий: вебхук по умолчанию не
+        должен выкатывать то, что ещё не влито."""
+        self.assertEqual(self.hook.BRANCH, 'main')
+
+    def test_telegram_keys_are_read_and_nothing_else(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile('w', suffix='.env', delete=False,
+                                         encoding='utf-8') as handle:
+            handle.write('SECRET_KEY=nope\nTELEGRAM_BOT_TOKEN="123:abc"\n'
+                         'TELEGRAM_CHAT_ID=42\nDATABASE_URL=postgres://x\n')
+        found = self.hook.read_env(handle.name)
+        self.assertEqual(found, {'TELEGRAM_BOT_TOKEN': '123:abc', 'TELEGRAM_CHAT_ID': '42'})
+        self.assertEqual(self.hook.read_env('/нет/такого/файла'), {})
+
+    def test_a_failed_deploy_is_reported(self):
+        """Упавшая выкладка оставляет сайт на старой версии — безопасно,
+        но тихо. Тишина здесь и есть ошибка."""
+        from unittest.mock import MagicMock, patch
+        process = MagicMock()
+        process.wait.return_value = 1
+        with patch.object(self.hook, 'tell') as tell:
+            self.hook.watch(process, 'Кабинет: заявки')
+        text = tell.call_args[0][0]
+        self.assertIn('УПАЛ', text)
+        self.assertIn('прежней версии', text)
+
+        process.wait.return_value = 0
+        with patch.object(self.hook, 'tell') as tell:
+            self.hook.watch(process, 'Кабинет: заявки')
+        self.assertIn('Выложено: Кабинет: заявки', tell.call_args[0][0])
+
+    def test_the_listener_answers_over_http(self):
+        """Живой слушатель на свободном порту: без подписи — 401, ping
+        с подписью — 200 без выкладки, пуш в ветку — 202 и запуск."""
+        import json as _json
+        import threading
+        import urllib.error
+        import urllib.request
+        from http.server import ThreadingHTTPServer
+        from unittest.mock import MagicMock, patch
+
+        self.hook.SECRET = self.SECRET
+        self.hook.BRANCH = 'main'
+        self.hook._running = None
+        server = ThreadingHTTPServer(('127.0.0.1', 0), self.hook.Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        url = f'http://127.0.0.1:{server.server_address[1]}/internal/deploy-webhook'
+
+        def post(body, event, signed=True):
+            headers = {'Content-Type': 'application/json', 'X-GitHub-Event': event}
+            if signed:
+                headers['X-Hub-Signature-256'] = self._sign(body)
+            request = urllib.request.Request(url, data=body, headers=headers)
+            try:
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    return response.status
+            except urllib.error.HTTPError as error:
+                return error.code
+
+        try:
+            self.assertEqual(post(b'{}', 'ping', signed=False), 401)
+            self.assertEqual(post(b'{}', 'ping'), 200)
+            started = MagicMock()
+            started.poll.return_value = None
+            started.wait.return_value = 0
+            with patch.object(self.hook.subprocess, 'Popen', return_value=started) as popen, \
+                 patch.object(self.hook, 'tell'):
+                body = _json.dumps({'ref': 'refs/heads/main', 'after': 'abc1234',
+                                    'head_commit': {'message': 'Правка'}}).encode()
+                self.assertEqual(post(body, 'push'), 202)
+                command = popen.call_args[0][0]
+                self.assertEqual(command[-1], 'main')
+                self.assertTrue(command[1].endswith('deploy.sh'))
+                # Второй пуш, пока первая выкладка идёт, — не второй запуск.
+                self.assertEqual(post(body, 'push'), 202)
+                self.assertEqual(popen.call_count, 1)
+        finally:
+            server.shutdown()
+
+    def test_nginx_lets_github_reach_the_listener(self):
+        conf = (Path(__file__).resolve().parent.parent / 'deploy' / 'nginx'
+                / 's-poryadok.conf').read_text(encoding='utf-8')
+        self.assertIn('location = /internal/deploy-webhook', conf)
+        self.assertIn('proxy_pass http://127.0.0.1:8098;', conf)
+        unit = (Path(__file__).resolve().parent.parent / 'deploy'
+                / 'poryadok-deploy-webhook.service').read_text(encoding='utf-8')
+        self.assertIn('EnvironmentFile=/etc/s-poryadok/deploy-webhook.env', unit)
+
+
+class BuildIdTests(TestCase):
+    """Страница называет выложенный коммит — по нему проверяется выкладка.
+
+    Читаем .git сами, без git: gunicorn работает не от владельца
+    репозитория, и git в таком случае молча отказывается отвечать.
+    """
+
+    def _repo(self, head, loose=None, packed=None):
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        (root / '.git' / 'refs' / 'heads').mkdir(parents=True)
+        (root / '.git' / 'HEAD').write_text(head + '\n', encoding='utf-8')
+        if loose:
+            ref, sha = loose
+            path = root / '.git' / ref
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(sha + '\n', encoding='utf-8')
+        if packed:
+            (root / '.git' / 'packed-refs').write_text(packed, encoding='utf-8')
+        return root
+
+    def test_a_branch_ref_is_followed(self):
+        from .build import build_branch, build_id
+        root = self._repo('ref: refs/heads/claude/x', loose=('refs/heads/claude/x', 'abcdef1234567'))
+        self.assertEqual(build_id(root), 'abcdef1')
+        self.assertEqual(build_branch(root), 'claude/x')
+
+    def test_packed_refs_after_gc(self):
+        from .build import build_id
+        root = self._repo('ref: refs/heads/main',
+                          packed='# pack-refs with: peeled\n1234567890abc refs/heads/main\n')
+        self.assertEqual(build_id(root), '1234567')
+
+    def test_detached_head(self):
+        from .build import build_branch, build_id
+        root = self._repo('fedcba9876543')
+        self.assertEqual(build_id(root), 'fedcba9')
+        self.assertEqual(build_branch(root), '')
+
+    def test_no_repository_is_not_an_error(self):
+        from .build import build_branch, build_id
+        self.assertEqual(build_id('/нет/такой/папки'), '')
+        self.assertEqual(build_branch('/нет/такой/папки'), '')
+
+    def test_the_page_names_its_commit(self):
+        from .build import build_id
+        body = self.client.get(reverse('index')).content.decode()
+        self.assertIn(f'<meta name="build" content="{build_id()}">', body)
+        self.assertIn('<meta name="build-branch"', body)

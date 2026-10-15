@@ -1,14 +1,14 @@
 {% extends "landing/base.html" %}
 
 {% block title %}Клуб «Порядок» — закрытый канал для владельцев бизнеса{% endblock %}
-{% block description %}Закрытый телеграм-канал для владельцев малого бизнеса Красноярска: разборы процессов, готовые схемы, цифры без прикрас.{% endblock %}
+{% block description %}Закрытый телеграм-канал для владельцев малого бизнеса Красноярска: разборы процессов, готовые схемы, цифры без прикрас. Вступление бесплатное.{% endblock %}
 {% block og_title %}Клуб «Порядок» — закрытый канал для владельцев бизнеса{% endblock %}
-{% block og_description %}Разборы процессов, готовые схемы и цифры без прикрас. Клиентам доступ открывается автоматически.{% endblock %}
+{% block og_description %}Разборы процессов, готовые схемы и цифры без прикрас. Вступление бесплатное, ссылка на вход выдаётся сразу.{% endblock %}
 
 {% block nav %}
   <a href="{% url 'index' %}">На главную</a>
   <a href="#inside">Что внутри</a>
-  <a href="#price-club">Сколько стоит</a>
+  <a href="#price-club">Почему бесплатно</a>
   <a href="#join">Вступить</a>
 {% endblock %}
 {% block head_cta_href %}#join{% endblock %}
@@ -36,8 +36,8 @@
           <a class="btn btn--ghost" href="#inside">Что внутри</a>
         </div>
         <p class="hero__note">
-          Клиентам, заказавшим систему, доступ открывается автоматически и бесплатно —
-          отдельно платить не нужно.
+          Вступление бесплатное и бессрочное. Ссылку на вход выдаёт форма внизу
+          сразу после заполнения — ждать ответа не нужно.
         </p>
       </div>
 
@@ -47,7 +47,7 @@
           <div class="order__row"><b>ПН</b><span>Разбор процессов</span><i class="st-ok">пример недели</i></div>
           <div class="order__row"><b>СР</b><span>Схема, которую можно повторить</span><i class="st-ok">файл</i></div>
           <div class="order__row"><b>ПТ</b><span>Цифры: что сработало, что нет</span><i class="st-due">без прикрас</i></div>
-          <div class="order__foot">Вход — по одноразовой ссылке на ваш аккаунт</div>
+          <div class="order__foot">Вход бесплатный — по одноразовой ссылке на ваш аккаунт</div>
         </div>
       </div>
     </div>
@@ -67,7 +67,7 @@
     <div class="sec-head rv">
       <span class="tag">Лист 02 · Содержание</span>
       <h2>Что внутри</h2>
-      <p class="lede">Четыре вещи, за которые здесь платят. Пятой — «общения ради общения» — не будет.</p>
+      <p class="lede">Четыре вещи, ради которых стоит зайти. Пятой — «общения ради общения» — не будет.</p>
     </div>
 
     <div class="cards">
@@ -107,37 +107,43 @@
   <div class="wrap">
     <div class="sec-head rv">
       <span class="tag">Лист 03 · Стоимость</span>
-      <h2>Сколько стоит</h2>
-      <p class="lede">Три варианта. Доступ действует, пока оплачен, и закрывается сам — без напоминаний и неловких разговоров.</p>
+      <h2>Почему бесплатно</h2>
+      <p class="lede">
+        Раньше за клуб брал деньги. Перестал — и вот по какой причине.
+      </p>
     </div>
 
-    <div class="plans">
-      <article class="plan rv">
-        <span class="plan__n">Месяц</span>
-        <p class="plan__fig">{{ prices.month }} ₽</p>
-        <p class="plan__note">Посмотреть, подходит ли вам формат.</p>
+    <div class="cards">
+      <article class="card rv">
+        <span class="card__n">01</span>
+        <h3>Это и есть моя витрина</h3>
+        <p>Я показываю, как разбираю чужие процессы. Кому-то этого хватит, чтобы навести порядок самому, — хорошо. Кто-то придёт заказывать систему — тоже хорошо. Оба исхода меня устраивают, третьего мне не надо.</p>
       </article>
-      <article class="plan plan--best rv rv-d1">
-        <span class="plan__n">Три месяца</span>
-        <p class="plan__fig">{{ prices.quarter }} ₽</p>
-        <p class="plan__note">Столько нужно, чтобы что-то у себя действительно поменять.</p>
-        <span class="plan__flag">Чаще берут</span>
+      <article class="card rv rv-d1">
+        <span class="card__n">02</span>
+        <h3>Платный клуб я обязан наполнять</h3>
+        <p>За деньги приходится писать по расписанию, даже когда разбирать нечего. Бесплатный пишется тогда, когда есть что показать. Второе честнее и полезнее — и вам, и мне.</p>
       </article>
-      <article class="plan rv rv-d2">
-        <span class="plan__n">Год</span>
-        <p class="plan__fig">{{ prices.year }} ₽</p>
-        <p class="plan__note">Дешевле всего в пересчёте на месяц.</p>
+      <article class="card rv rv-d2">
+        <span class="card__n">03</span>
+        <h3>Подписка стоила дороже, чем приносила</h3>
+        <p>Оплаты, продления, возвраты, напоминания о конце срока — это отдельная работа. На фоне стоимости систем деньги с клуба не окупали возню вокруг них.</p>
+      </article>
+      <article class="card rv rv-d3">
+        <span class="card__n">04</span>
+        <h3>Что взамен — ничего</h3>
+        <p>Ни рассылок, ни звонков с предложениями, ни «а давайте обсудим ваш проект». Захотите разбор процессов — придёте сами. Надоест канал — выйдете, и никто вас не догонит.</p>
       </article>
     </div>
 
     <div class="pains__after rv" style="margin-top:calc(var(--u)*5)">
-      <p>Заказали у меня систему — доступ в клуб открывается автоматически на год и денег не стоит. Отдельно оплачивать его в этом случае не нужно.</p>
+      <p>Тем, кто успел оплатить подписку, пока клуб был платным: доступ остаётся до конца оплаченного срока, дальше продолжается бесплатно. Возврат остатка — по звонку, без объяснений.</p>
     </div>
 
     <div class="stamp" aria-hidden="true">
       <span class="s-num">Лист 03</span>
-      <span class="s-name">Стоимость</span>
-      <span class="s-scale">Тарифов 3</span>
+      <span class="s-name">Почему бесплатно</span>
+      <span class="s-scale">Цена 0 ₽</span>
       <span class="s-org">С-Порядок</span>
     </div>
   </div>
@@ -151,18 +157,13 @@
         <span class="tag">Лист 04 · Вступление</span>
         <h2 style="margin-block:calc(var(--u)*2) calc(var(--u)*3)">Вступить в клуб</h2>
         <p class="lede">
-          {% if payments_enabled %}
-            Заполните форму и оплатите — ссылка на вход придёт сразу после оплаты.
-            Она одноразовая и работает только на ваш аккаунт.
-          {% else %}
-            Оставьте контакты — вернусь с реквизитами и открою доступ вручную.
-            Приём оплат прямо на сайте подключается отдельно.
-          {% endif %}
+          Заполните форму — ссылка на вход появится прямо здесь, сразу же.
+          Платить не нужно ни сейчас, ни потом.
         </p>
         <ul class="cta__list">
           <li><span class="n">01</span><span class="v">Ник в Telegram нужен обязательно — иначе доступ выдать некуда</span></li>
           <li><span class="n">02</span><span class="v">Ссылка на вход одноразовая: переслать её знакомому не получится</span></li>
-          <li><span class="n">03</span><span class="v">Не понравилось в первую неделю — верну деньги без вопросов</span></li>
+          <li><span class="n">03</span><span class="v">Надоест — выйдете из канала сами, спрашивать причину я не стану</span></li>
         </ul>
         <p class="cta__phone">
           Вопросы — по телефону: <a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>
@@ -178,11 +179,10 @@
           внутри Telegram, сторонние скрипты в браузере не участвуют.
         {% endcomment %}
         <div class="tg-login">
-          <p class="tg-login__label mono">Уже оплатили?</p>
+          <p class="tg-login__label mono">Потеряли ссылку?</p>
           <p class="small" style="color:rgba(242,242,238,.72);margin-bottom:var(--u)">
-            Откройте бота и поделитесь номером — тем же, что указывали при оплате.
-            Он пришлёт ссылку на вход и предупредит, когда доступ будет
-            подходить к концу.
+            Откройте бота и поделитесь номером — тем же, что оставляли в форме.
+            Он пришлёт ссылку на вход заново.
           </p>
           <a class="btn btn--sm" href="https://t.me/{{ TELEGRAM_BOT_USERNAME }}?start=club"
              target="_blank" rel="noopener">Открыть бота <span class="arrow" aria-hidden="true">→</span></a>
@@ -191,8 +191,24 @@
 
         {% if success %}
         <div class="done" role="status">
-          <b>Заявка принята</b>
-          <p>Свяжусь с вами сегодня и открою доступ. Проверьте, что вам можно написать в Telegram.</p>
+          {% if invite_link %}
+            <b>Готово, вы в клубе</b>
+            <p>
+              Ссылка одноразовая и работает только на ваш аккаунт. Если сейчас
+              не до этого — её же пришлёт бот, когда откроете его и поделитесь
+              номером.
+            </p>
+            <p style="margin-top:var(--u)">
+              <a class="btn" href="{{ invite_link }}">Войти в канал <span class="arrow" aria-hidden="true">→</span></a>
+            </p>
+          {% else %}
+            <b>Записал вас</b>
+            <p>
+              Ссылку выдать автоматически не вышло — Telegram не ответил.
+              Открою доступ вручную сегодня же. Если торопитесь, позвоните:
+              <a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE_PRETTY }}</a>.
+            </p>
+          {% endif %}
         </div>
         {% endif %}
 
@@ -221,14 +237,6 @@
             {% if form.telegram_username.errors %}<p class="err err--shown">{{ form.telegram_username.errors.0 }}</p>{% endif %}
           </div>
           <div class="field">
-            <label for="id_plan">Тариф</label>
-            <select class="input" id="id_plan" name="plan">
-              <option value="month">Месяц — {{ prices.month }} ₽</option>
-              <option value="quarter" selected>Три месяца — {{ prices.quarter }} ₽</option>
-              <option value="year">Год — {{ prices.year }} ₽</option>
-            </select>
-          </div>
-          <div class="field">
             <label for="id_area">Сфера бизнеса <span class="mono" style="text-transform:none;letter-spacing:0">(необязательно)</span></label>
             <input class="input" type="text" id="id_area" name="area" placeholder="Барбершоп, школа, стройка…"
                    value="{{ form.area.value|default_if_none:'' }}">
@@ -240,7 +248,7 @@
           </label>
           {% if form.consent.errors %}<p class="err err--shown">{{ form.consent.errors.0 }}</p>{% endif %}
           <button class="btn btn--block" type="submit">
-            {% if payments_enabled %}Перейти к оплате{% else %}Отправить заявку{% endif %}
+            Получить ссылку на вход
             <span class="arrow" aria-hidden="true">→</span>
           </button>
         </form>

@@ -1,0 +1,76 @@
+{% extends "landing/base.html" %}
+{% load ru %}
+
+{% block title %}Схема ваших процессов — Системы Порядок{% endblock %}
+{% block description %}Схема процессов по вашим ответам: где теряются люди и деньги. Лист можно распечатать или сохранить в PDF.{% endblock %}
+
+{% block nav %}
+<a href="{% url 'index' %}">На главную</a>
+<a href="{% url 'index' %}#price">Цена</a>
+<a href="{% url 'club' %}">Клуб</a>
+{% endblock %}
+{% block head_cta_href %}{% url 'index' %}#cta{% endblock %}
+
+{% block content %}
+<section class="sheet sheet--first">
+  <div class="wrap">
+    <span class="tag tag--ink">Лист · Схема процессов</span>
+    <h1 class="q-title">Схема ваших процессов</h1>
+    <p class="lead">
+      Это ваш лист. Забирайте его себе — распечатайте или сохраните в PDF
+      и покажите кому угодно, хоть другому подрядчику.
+      {% if scheme.leak_count %}
+        По ответам течёт в {{ scheme.leak_count }} {{ scheme.leak_count|ru_plural:"месте,местах,местах" }} из пяти;
+        начинать я советовал бы с шага «{{ scheme.first_leak|lower }}».
+      {% else %}
+        Течей по ответам не набралось — такое бывает редко.
+      {% endif %}
+    </p>
+
+    {% comment %}
+      Кнопка печати живёт только при работающем скрипте, иначе она была
+      бы мёртвой. Ctrl+P работает всегда, поэтому возможность унести
+      лист не пропадает — пропадает только обещание кнопки.
+    {% endcomment %}
+    <p class="scheme__go">
+      <button class="btn" type="button" data-print>
+        Распечатать или сохранить в PDF <span class="arrow" aria-hidden="true">→</span>
+      </button>
+      <span class="scheme__hint mono">Или Ctrl + P — браузер предложит и печать, и PDF</span>
+    </p>
+  </div>
+</section>
+
+<section class="sheet scheme-sheet">
+  <div class="wrap">
+    {% include "landing/_scheme.html" %}
+
+    {% comment %}
+      Штамп листа — то же, что в углу чертежа: чей лист, о чём и когда.
+      На печати он остаётся, поэтому по бумаге понятно, откуда она.
+    {% endcomment %}
+    <div class="scheme__stamp">
+      <span><b>Схема процессов</b>{% if entry.area %} · {{ entry.area }}{% endif %}</span>
+      <span>{{ entry.created_at|date:"d.m.Y" }}</span>
+      <span>Системы Порядок · s-poryadok.ru</span>
+    </div>
+  </div>
+</section>
+
+<section class="sheet scheme-after">
+  <div class="wrap">
+    <div class="res-next">
+      <h2>Что с этим делать</h2>
+      <p class="lede">
+        Схема не обязывает ни к чему. По ней можно навести порядок руками —
+        часть мест закрывается договорённостями, а не программой. Если
+        захотите разобрать её вживую, разбор бесплатный и длится 45 минут.
+      </p>
+      <p>
+        <a class="btn" href="{% url 'index' %}#cta">Записаться на разбор <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn--ghost" href="{% url 'constructor' %}">Посмотреть, во что это обойдётся</a>
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -19,22 +19,22 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from .forms import ClubForm, LeadForm, SurveyForm
-from .models import (Client, ClubSubscription, Lead, Payment, Survey, Work,
+from .models import (Client, Lead, Payment, Survey, Work,
                      normalize_phone)
 from .services import club as club_service
 from .services import getplatinum as gp
 from .services import payments as pay
 from .services import telegram as tg
+from . import survey as survey_logic
 from .survey import QUESTIONS
 from . import constructor as build
+from . import contract
+from . import scheme
 # Работы живут в базе и заводятся из кабинета. Модуль landing/works.py
 # остался источником переноса (миграция 0010) — из кода их больше
 # не читают.
 
 logger = logging.getLogger(__name__)
-
-CLUB_PRICES = {'month': 3900, 'quarter': 9900, 'year': 34900}
-
 
 def _save_lead(form, source, comment=''):
     """Сохраняет заявку и пробует уведомить в Telegram. Сохранение важнее."""
@@ -71,37 +71,45 @@ def index(request):
     return render(request, 'landing/index.html', {
         'form': form,
         'success': success,
-        'club_prices': CLUB_PRICES,
         'works': published_works(),
+        # Первый вопрос разбора задаётся прямо здесь, на первом экране.
+        # Берём его из тех же данных, что и сам разбор: два списка
+        # вариантов разошлись бы в первый же месяц.
+        'first_question': survey_logic.first_question(),
+        # Лестница цен считается тем же кодом, что и конструктор.
+        'ladder': build.ladder(),
+        'total': _asked_count(),
+        'total_word': contract.words(_asked_count()),
     })
 
 
 def club(request):
-    """Закрытый клуб: заявка или оплата, если подключён эквайринг."""
+    """Закрытый клуб. Вход свободный: заявка нужна, чтобы выдать ссылку.
+
+    Ссылку показываем прямо на странице, а не только шлём в бот: человек
+    заполнил форму и ждёт, и отправлять его за результатом в другое место
+    — лишний шаг, на котором часть людей теряется.
+    """
     form = ClubForm(request.POST or None)
     success = False
+    invite_link = ''
 
     if request.method == 'POST' and form.is_valid():
-        plan = form.cleaned_data.get('plan') or 'month'
-        lead = _save_lead(form, Lead.Source.CLUB,
-                          comment=f'Тариф: {CLUB_PRICES.get(plan, 0)} ₽ ({plan})')
-
-        url = _start_club_payment(request, lead, plan)
-        if url:
-            return redirect(url)
-
+        lead = _save_lead(form, Lead.Source.CLUB, comment='Свободный вход')
+        subscription = club_service.open_free_access(_client_from_lead(lead))
         request.session['club_sent'] = True
+        request.session['club_invite'] = subscription.invite_link
         return redirect(reverse('club') + '?ok=1#join')
 
     if request.GET.get('ok') and request.session.pop('club_sent', False):
         success = True
+        invite_link = request.session.pop('club_invite', '')
         form = ClubForm()
 
     return render(request, 'landing/club.html', {
         'form': form,
         'success': success,
-        'prices': {k: f'{v:,}'.replace(',', ' ') for k, v in CLUB_PRICES.items()},
-        'payments_enabled': gp.is_enabled() or pay.is_enabled(),
+        'invite_link': invite_link,
     })
 
 
@@ -199,14 +207,12 @@ def _bot_link_by_phone(chat_id, contact, sender):
         client.save(update_fields=fields + ['updated_at'])
     logger.info('Бот: клиент %s связан с telegram id %s', client.pk, user_id)
 
-    subscription = client.club_subscriptions.filter(
-        status=ClubSubscription.Status.ACTIVE,
-        ends_at__gt=timezone.now()).order_by('-ends_at').first()
+    subscription = client.club_subscriptions.running().by_freshness().first()
 
     if subscription is None:
         tg.reply(chat_id,
-                 f'Узнал вас, {client.name}. Активной подписки на клуб пока нет.\n\n'
-                 'Оформить можно здесь:\n' + club_service.club_url())
+                 f'Узнал вас, {client.name}. Доступа в клуб пока нет.\n\n'
+                 'Вход свободный, займёт минуту:\n' + club_service.club_url())
         return
 
     if not subscription.invite_link:
@@ -218,81 +224,20 @@ def _bot_link_by_phone(chat_id, contact, sender):
                                              'updated_at'])
 
     if subscription.invite_link:
+        # У свободного входа срока нет, и обещать напоминание не о чем.
+        term = ('Доступ бессрочный.' if subscription.is_endless
+                else f'Доступ до {subscription.ends_at:%d.%m.%Y}. '
+                     'За три дня до окончания я напомню.')
         tg.reply(chat_id,
-                 f'Готово, {client.name}. Доступ до '
-                 f'{subscription.ends_at:%d.%m.%Y}.\n\n'
+                 f'Готово, {client.name}. {term}\n\n'
                  'Ссылка на вход в канал — одноразовая, работает только '
-                 'на ваш аккаунт:\n' + subscription.invite_link + '\n\n'
-                 'За три дня до окончания я напомню.')
+                 'на ваш аккаунт:\n' + subscription.invite_link)
     else:
         tg.reply(chat_id,
                  'Узнал вас, подписка активна, но ссылку создать не вышло. '
                  f'Напишите или позвоните: {settings.SITE_PHONE_PRETTY}')
         tg.notify(f'ПОРЯДОК // КЛУБ\nНе выдалась ссылка для {client.name} '
                   f'({client.phone_pretty}) — выдайте вручную.')
-
-
-def _start_club_payment(request, lead, plan):
-    """Заводит подписку и платёж, возвращает адрес формы оплаты.
-
-    Поставщиков два, и выбор простой: если настроен GetPlatinum — платим
-    через него, иначе через ЮKassa, иначе оплаты нет вовсе и человек
-    идёт обычным путём заявки. Возврат None означает именно это: не
-    ошибку, а «оплату сейчас не провести, ведите как заявку».
-    """
-    provider = 'getplatinum' if gp.is_enabled() else ('yookassa' if pay.is_enabled() else None)
-    if not provider:
-        return None
-
-    client = _client_from_lead(lead)
-    subscription = ClubSubscription.objects.create(
-        client=client, plan=plan, price=CLUB_PRICES.get(plan, 0))
-    payment = Payment.objects.create(
-        client=client, amount=subscription.price,
-        purpose=Payment.Purpose.CLUB, provider=provider,
-        payer_phone=lead.phone, payer_telegram=lead.telegram_username)
-    subscription.payment = payment
-    subscription.save(update_fields=['payment', 'updated_at'])
-
-    title = f'Клуб «Порядок», {subscription.get_plan_display().lower()}'
-    done_url = request.build_absolute_uri(reverse('club_done'))
-
-    if provider == 'getplatinum':
-        # Идентификатор заказа придумываем сами и до обращения к API:
-        # по нему потом найдём платёж, когда придёт уведомление.
-        deal_id = f'CLUB-{payment.pk}'
-        _, form_url = gp.create_payment(
-            deal_id=deal_id,
-            amount=subscription.price,
-            title=title,
-            client_id=f'CLIENT-{client.pk}',
-            notification_url=request.build_absolute_uri(reverse('getplatinum_webhook')),
-            success_url=done_url,
-            fail_url=request.build_absolute_uri(reverse('club')) + '?pay=fail#join',
-            phone=lead.phone,
-            name=lead.name,
-            custom={'payment_pk': str(payment.pk)},
-        )
-        if form_url:
-            payment.provider_payment_id = deal_id
-            payment.save(update_fields=['provider_payment_id', 'updated_at'])
-            return form_url
-    else:
-        payment_id, confirmation_url = pay.create_payment(
-            amount=subscription.price,
-            description=title,
-            return_url=done_url,
-            metadata={'payment_pk': str(payment.pk)},
-        )
-        if payment_id and confirmation_url:
-            payment.provider_payment_id = payment_id
-            payment.save(update_fields=['provider_payment_id', 'updated_at'])
-            return confirmation_url
-
-    # Платёжная система не ответила — человека не теряем, ведём заявкой.
-    logger.error('Не удалось создать платёж (%s), заявка %s остаётся ручной',
-                 provider, lead.pk)
-    return None
 
 
 def club_telegram(request):
@@ -333,9 +278,7 @@ def club_telegram(request):
 
     subscription = None
     if client:
-        subscription = client.club_subscriptions.filter(
-            status=ClubSubscription.Status.ACTIVE,
-            ends_at__gt=timezone.now()).order_by('-ends_at').first()
+        subscription = client.club_subscriptions.running().by_freshness().first()
 
     if not subscription:
         logger.info('Вход через Telegram: %s (%s) без активной подписки', name, user_id)
@@ -500,6 +443,13 @@ def survey(request):
     """
     form = SurveyForm(request.POST or None)
 
+    # Ответ на первый вопрос мог прийти с главной — там его и задают.
+    preset = ''
+    if not form.is_bound:
+        first_id = survey_logic.first_question()['id']
+        value = request.GET.get(first_id, '')
+        preset = value if survey_logic.valid_answer(first_id, value) else ''
+
     if request.method == 'POST' and form.is_valid():
         entry = Survey.objects.create(
             name=form.cleaned_data.get('name', '').strip(),
@@ -534,21 +484,48 @@ def survey(request):
 
     return render(request, 'landing/survey.html', {
         'form': form,
-        'steps': _survey_steps(form),
-        'total': len(QUESTIONS),
+        'steps': _survey_steps(form, preset),
+        # Первый вопрос уже отвечен — скрипту начинать со второго. Без
+        # скрипта шагов нет, форма одна, и начинать неоткуда.
+        'start_at': 1 if preset else 0,
+        'total_word': contract.words(_asked_count()),
+        # Сколько вопросов человек увидит на самом деле. Условные из одной
+        # пары исключают друг друга, поэтому в счёт идёт один: обещать
+        # семнадцать и показать шестнадцать — мелкое, но враньё.
+        'total': _asked_count(),
     })
 
 
-def _survey_steps(form):
+def _asked_count():
+    seen = set()
+    total = 0
+    for q in QUESTIONS:
+        rule = q.get('show_if')
+        if rule is None:
+            total += 1
+        elif rule[0] not in seen:
+            seen.add(rule[0])
+            total += 1
+    return total
+
+
+def _survey_steps(form, preset=''):
     """Готовит вопросы к отрисовке.
 
     Разметку вариантов пишем руками, а не через {{ field }}, — значит
     отметку «выбрано» надо посчитать здесь. В шаблоне логике не место.
+
+    `preset` — ответ на первый вопрос, пришедший с главной. Он именно
+    отмечается в форме, а не запоминается отдельно: человек должен
+    видеть, что за него отмечено, и мочь это поменять.
     """
     data = form.data if form.is_bound else {}
+    first_id = survey_logic.first_question()['id']
     steps = []
     for q in QUESTIONS:
         chosen = data.getlist(q['id']) if hasattr(data, 'getlist') else []
+        if preset and q['id'] == first_id and not form.is_bound:
+            chosen = [preset]
         options = [{
             'value': o['value'],
             'label': o['label'],
@@ -557,8 +534,14 @@ def _survey_steps(form):
         if q.get('other'):
             options.append({'value': 'other', 'label': 'Другое',
                             'checked': 'other' in chosen, 'is_other': True})
+        # Условие показа — в разметку строкой «вопрос=ответ». Скрипт прячет
+        # такие шаги, пока ответ не совпал; без скрипта они просто видны все,
+        # и это правильно — спрятать вопрос нечем, а посчитается всё равно
+        # только подходящий.
+        rule = q.get('show_if')
         steps.append({
             'q': q,
+            'show_if': f'{rule[0]}={rule[1]}' if rule else '',
             'field': form[q['id']],
             'many': q['type'] == 'many',
             'is_text': q['type'] == 'text',
@@ -586,11 +569,37 @@ def survey_done(request):
     # выглядел бы как подсунутый, а он именно тот, что я назвал бы
     # голосом, посмотрев на ответы.
     request.session['build_suggest'] = build.suggest(diagnosis)
+    # Схему человек уносит с собой, поэтому метка остаётся в сессии,
+    # а не съедается показом: за листом возвращаются.
+    request.session['scheme_id'] = entry.pk
 
     return render(request, 'landing/survey_done.html', {
         'entry': entry,
         'result': diagnosis,
+        'scheme': scheme.build_scheme(entry.answers),
         'left_contact': bool(entry.phone),
+    })
+
+
+def survey_scheme(request):
+    """Схема процессов отдельным листом — её печатают и уносят.
+
+    Ответы чужими не бывают: лист открывается по метке в сессии того,
+    кто проходил разбор. Ссылку с номером можно было бы переслать,
+    а вместе с ней — чужие ответы про деньги.
+    """
+    entry_id = request.session.get('scheme_id')
+    if not entry_id:
+        return redirect('survey')
+    try:
+        entry = Survey.objects.get(pk=entry_id)
+    except Survey.DoesNotExist:
+        return redirect('survey')
+
+    return render(request, 'landing/scheme.html', {
+        'entry': entry,
+        'scheme': scheme.build_scheme(entry.answers),
+        'result': entry.diagnose(),
     })
 
 
@@ -705,6 +714,7 @@ def robots_txt(request):
         'User-agent: *',
         'Disallow: /admin/',
         'Disallow: /razbor/gotovo/',
+        'Disallow: /razbor/shema/',
         'Allow: /',
         f'Sitemap: {request.scheme}://{host}/sitemap.xml',
     ]

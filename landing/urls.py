@@ -73,6 +73,7 @@ urlpatterns = [
     path('cabinet/parol/', cabinet.password, name='cabinet_password'),
     # Разделы кабинета.
     path('cabinet/zayavki/', cabinet.leads, name='cabinet_leads'),
+    path('cabinet/zayavki/novaya/', cabinet.lead_new, name='cabinet_lead_new'),
     path('cabinet/zayavki/<int:pk>/', cabinet.lead_detail, name='cabinet_lead'),
     path('cabinet/zayavki/<int:pk>/pravka/', cabinet.lead_update,
          name='cabinet_lead_update'),
@@ -176,6 +177,7 @@ urlpatterns = [
     path('cabinet/proekt/<int:pk>/pisma/ranshe/', cabinet.chat_older,
          name='cabinet_chat_older'),
     path('razbor/gotovo/', views.survey_done, name='survey_done'),
+    path('razbor/shema/', views.survey_scheme, name='survey_scheme'),
     path('pay/yookassa/webhook/', views.yookassa_webhook, name='yookassa_webhook'),
     path('pay/getplatinum/webhook/', views.getplatinum_webhook, name='getplatinum_webhook'),
     # Секрет в адресе — первая из двух проверок подлинности.

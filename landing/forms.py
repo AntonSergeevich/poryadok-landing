@@ -2,6 +2,7 @@
 import re
 
 from django import forms
+from django.utils import timezone
 
 from .models import Lead
 from .survey import QUESTIONS
@@ -43,12 +44,12 @@ class LeadForm(PhoneMixin, forms.ModelForm):
 
 
 class ClubForm(PhoneMixin, forms.ModelForm):
-    """Заявка в закрытый клуб. Telegram обязателен — без него некуда выдавать доступ."""
+    """Вступление в клуб. Telegram обязателен — без него некуда выдавать доступ.
+
+    Тарифа здесь больше нет: вход свободный, выбирать нечего.
+    """
 
     consent = forms.BooleanField(required=True, error_messages={'required': CONSENT_ERROR})
-    plan = forms.ChoiceField(required=False, choices=(
-        ('month', 'Месяц'), ('quarter', 'Три месяца'), ('year', 'Год'),
-    ))
 
     class Meta:
         model = Lead
@@ -68,6 +69,63 @@ class ClubForm(PhoneMixin, forms.ModelForm):
             raise forms.ValidationError(
                 'Ник в Telegram — латиница, цифры и подчёркивание, от 4 символов.')
         return value
+
+
+class HandLeadForm(PhoneMixin, forms.ModelForm):
+    """Заявка, заведённая руками: звонок, знакомый, встреча.
+
+    Согласия здесь не спрашиваем: человек его не заполняет, форму
+    заполняю я, а основание обработки — сам разговор, в котором он
+    оставил номер. Источник — только из «ручных»: сайт про свои заявки
+    знает сам, и выдавать звонок за форму на сайте значило бы портить
+    сводку по источникам.
+    """
+
+    REMIND = (
+        ('evening', 'Сегодня вечером'),
+        ('tomorrow', 'Завтра утром'),
+        ('three', 'Через три дня'),
+        ('week', 'Через неделю'),
+        ('none', 'Не напоминать'),
+    )
+
+    remind = forms.ChoiceField(choices=REMIND, required=False, initial='tomorrow')
+
+    class Meta:
+        model = Lead
+        fields = ('name', 'phone', 'source', 'area', 'note')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].required = True
+        self.fields['name'].error_messages['required'] = 'Как его зовут?'
+        self.fields['source'].choices = [
+            (value, label) for value, label in Lead.Source.choices
+            if value in Lead.HAND_SOURCES]
+        self.fields['source'].error_messages['required'] = 'Откуда он пришёл?'
+        self.fields['area'].required = False
+        self.fields['note'].required = False
+
+    def remind_at(self, now):
+        """Когда напомнить — моментом, а не словами из формы."""
+        from datetime import timedelta
+        choice = self.cleaned_data.get('remind') or 'none'
+        local = timezone.localtime(now)
+        if choice == 'evening':
+            moment = local.replace(hour=19, minute=0, second=0, microsecond=0)
+            # Вечер уже прошёл — значит «сегодня вечером» превратилось
+            # бы в напоминание задним числом, которое сработает мгновенно.
+            return moment if moment > local else local + timedelta(hours=1)
+        if choice == 'tomorrow':
+            return (local + timedelta(days=1)).replace(
+                hour=10, minute=0, second=0, microsecond=0)
+        if choice == 'three':
+            return (local + timedelta(days=3)).replace(
+                hour=10, minute=0, second=0, microsecond=0)
+        if choice == 'week':
+            return (local + timedelta(days=7)).replace(
+                hour=10, minute=0, second=0, microsecond=0)
+        return None
 
 
 class SurveyForm(forms.Form):
@@ -130,6 +188,21 @@ class SurveyForm(forms.Form):
                 isinstance(chosen, list) and 'other' in chosen)
             if picked_other and not data.get(q['id'] + '_other'):
                 self.add_error(q['id'] + '_other', 'Напишите свой вариант.')
+
+        # Условные вопросы обязательны, но только когда подходят.
+        #
+        # Само поле помечено необязательным — иначе без JavaScript, где
+        # видны оба вопроса сразу, человека заставляли бы отвечать и про
+        # поток, и про проекты. Но совсем без ответа остаётся оценка
+        # потерь, а она и есть то, ради чего тест проходят. Поэтому
+        # спрашиваем ровно тот вопрос, который подходит под названный ритм.
+        for q in QUESTIONS:
+            rule = q.get('show_if')
+            if not rule:
+                continue
+            depends_on, needed = rule
+            if data.get(depends_on) == needed and not data.get(q['id']):
+                self.add_error(q['id'], 'Выберите ответ, чтобы идти дальше.')
         return data
 
     def answers(self):

@@ -19,7 +19,7 @@
 <section class="sheet sheet--first">
   <div class="wrap">
     <div class="sec-head">
-      <span class="tag tag--ink">Работа · {{ work.city }}</span>
+      <span class="tag tag--ink">Работа{% if work.city %} · {{ work.city }}{% endif %}</span>
       <h1>{{ work.title }} · {{ work.role }}</h1>
       <p class="lede">{{ work.lede }}</p>
     </div>

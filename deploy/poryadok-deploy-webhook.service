@@ -1,0 +1,27 @@
+[Unit]
+Description=Системы Порядок — слушатель вебхука автодеплоя
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+# От root сознательно: deploy.sh перезапускает gunicorn, перечитывает
+# nginx и меняет владельца папки вложений — без root этого не сделать.
+# Поэтому это отдельный от gunicorn процесс: сам он чужой ввод не
+# разбирает, только проверяет подпись GitHub и запускает один
+# фиксированный скрипт. Вся поверхность атаки — в webhook_deploy.py.
+User=root
+WorkingDirectory=/var/www/s-poryadok
+EnvironmentFile=/etc/s-poryadok/deploy-webhook.env
+
+ExecStart=/usr/bin/python3 /var/www/s-poryadok/deploy/webhook_deploy.py
+
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=poryadok-deploy-webhook
+
+[Install]
+WantedBy=multi-user.target

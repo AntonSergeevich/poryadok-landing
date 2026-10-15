@@ -15,6 +15,12 @@
       {% endif %}
     </p>
   </div>
+  {% comment %}
+    Заявка приходит не только с сайта: звонок, знакомый, встреча.
+    Раньше такую было некуда записать, кроме админки, — а значит,
+    её не записывали вовсе.
+  {% endcomment %}
+  <a class="btn" href="{% url 'cabinet_lead_new' %}">Завести заявку <span class="arrow" aria-hidden="true">+</span></a>
 </div>
 
 {% comment %}
@@ -56,4 +62,85 @@
     <p class="muted">Здесь пусто.</p>
   {% endfor %}
 </div>
+
+{% comment %}
+  Проекты в работе — под заявками, а не на отдельной странице. Вопрос
+  «за что взяться» один, и ответ на него не должен быть разложен по
+  двум пунктам меню. Заявки выше: потерянная заявка стоит дороже любой
+  задачи в проекте.
+{% endcomment %}
+<div class="cab__sub">
+  <h2>Проекты в работе</h2>
+</div>
+
+{% for row in projects %}
+  <article class="deck">
+    <header class="deck__head">
+      <div>
+        <h3><a href="{% url 'cabinet_project' row.project.pk %}">{{ row.project.title }}</a></h3>
+        <p class="muted">
+          {{ row.project.client.name }} · {{ row.project.get_status_display }} ·
+          готово {{ row.project.progress }}%
+        </p>
+      </div>
+      {% if row.current %}
+        <span class="flag flag--{{ row.current.status }}">
+          {{ row.current.number }}. {{ row.current.title }}
+        </span>
+      {% endif %}
+    </header>
+
+    <div class="deck__cols">
+      <div>
+        <h4>Ход за мной</h4>
+        {% if row.mine %}
+          <ul class="deck__list">
+            {% for task in row.mine %}<li>{{ task.title }}</li>{% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">Пусто — здесь всё сделано.</p>
+        {% endif %}
+      </div>
+      <div>
+        <h4>Ждём заказчика</h4>
+        {% if row.theirs %}
+          <ul class="deck__list deck__list--wait">
+            {% for task in row.theirs %}<li>{{ task.title }}</li>{% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">Ничего не ждём.</p>
+        {% endif %}
+      </div>
+    </div>
+  </article>
+{% empty %}
+  <p class="muted">Проектов в работе нет.</p>
+{% endfor %}
+
+<section class="panel panel--wide">
+  <h2>Завести проект</h2>
+  {% if clients %}
+    <form class="new-project" method="post"
+          action="{% url 'cabinet_project_create' %}">
+      {% csrf_token %}
+      <select class="input input--sm" name="client" aria-label="Клиент" required>
+        <option value="">Кому</option>
+        {% for client in clients %}
+          <option value="{{ client.pk }}">
+            {{ client.name }}{% if client.company %} · {{ client.company }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <input class="input input--sm" type="text" name="title" maxlength="160"
+             placeholder="Название проекта" aria-label="Название проекта" required>
+      <button class="btn btn--sm" type="submit">Завести</button>
+    </form>
+    <p class="muted">Восемь этапов разложатся сами — спрашивать их формой незачем.
+      Проект из заявки удобнее заводить прямо в её карточке.</p>
+  {% else %}
+    <p class="muted">Заказчиков пока нет. Проект проще всего завести из заявки — кнопкой в её карточке.</p>
+  {% endif %}
+</section>
+
+{% if issued %}{% include 'landing/cabinet/_issued.html' %}{% endif %}
 {% endblock %}

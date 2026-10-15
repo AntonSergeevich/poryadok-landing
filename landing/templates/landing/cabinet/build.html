@@ -110,7 +110,8 @@
                   <b>{{ block.title }}</b>
                 </span>
                 <span class="block__price">
-                  {% if block.core %}входит всегда{% else %}+{{ block.price|floatformat:"0g" }} ₽{% endif %}
+                  {% if block.core %}входит всегда
+                  {% else %}+{% if block.open_ended %}от {% endif %}{{ block.price|floatformat:"0g" }} ₽{% endif %}
                 </span>
               </span>
               <span class="block__gain">{{ block.gain }}</span>
