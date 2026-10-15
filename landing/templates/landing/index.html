@@ -309,7 +309,7 @@
             <p class="work__lede">{{ work.lede }}</p>
 
             <ul class="work__facts">
-              <li><span>Город</span><b>{{ work.city }}</b></li>
+              {% if work.city %}<li><span>Город</span><b>{{ work.city }}</b></li>{% endif %}
               {% if work.term %}<li><span>Срок</span><b>{{ work.term }}</b></li>{% endif %}
               {% comment %}
                 Строка с сайтом только у тех работ, где он есть. Систему
