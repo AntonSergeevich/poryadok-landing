@@ -347,6 +347,8 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
   background:var(--sheet);border:1px solid var(--line);
   display:grid;
 }
+/* В колонке отступ уже даёт сетка — свой сверху его удвоил бы. */
+.cab__main .chat{margin-top:0}
 .chat__head{padding:clamp(18px,2.4vw,26px);border-bottom:1px solid var(--line)}
 .chat__head h2{font-size:var(--t-h3);margin-bottom:8px}
 .chat__hint{font-size:var(--t-small);color:var(--muted);line-height:1.55}
