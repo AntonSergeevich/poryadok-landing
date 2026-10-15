@@ -1374,6 +1374,12 @@ html:not([data-js]) [data-print]{display:none}
 
 /* Со скриптом виден один лист за раз */
 .q-js .q-step{display:none}
+/* Горизонтальный жест на вопросах — наш: влево дальше, вправо назад.
+   Без этого браузер принимает его за «назад по истории» и уводит
+   со страницы вместе с недоотвеченным разбором. Вертикальная
+   прокрутка остаётся за браузером. */
+.q-js .q-steps{touch-action:pan-y}
+html.q-js,html.q-js body{overscroll-behavior-x:none}
 .q-js .q-step.is-now{display:block;animation:q-in .2s ease}
 .q-js .q-step + .q-step{margin-top:0;padding-top:0;border-top:0}
 @keyframes q-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}

@@ -18,6 +18,10 @@
 }
 .cab__head h1{font-size:var(--t-h2);letter-spacing:-.02em;margin-block:8px}
 .cab__head .tag{display:inline-flex}
+/* Подзаголовок внутри страницы: «Проекты в работе» под списком заявок. */
+.cab__sub{margin:clamp(40px,6vw,64px) 0 var(--gut);padding-top:var(--gut);
+  border-top:1px solid var(--line)}
+.cab__sub h2{font-size:var(--t-h3)}
 
 .head__out{margin:0}
 
@@ -261,7 +265,7 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .deck__head{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;
   justify-content:space-between;padding:clamp(16px,2.2vw,22px);
   border-bottom:1px solid var(--graphite)}
-.deck__head h2{font-size:var(--t-h3)}
+.deck__head h2,.deck__head h3{font-size:var(--t-h3)}
 .deck__head a{color:inherit}
 .deck__cols{display:grid;gap:0}
 @media (min-width:720px){
@@ -270,7 +274,7 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 }
 .deck__cols > div{padding:clamp(16px,2.2vw,22px)}
 .deck__cols > div + div{border-top:1px solid var(--line)}
-.deck__cols h3{font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
+.deck__cols h3,.deck__cols h4{font:500 var(--t-tag)/1 var(--f-mono);text-transform:uppercase;
   letter-spacing:.14em;color:var(--muted);margin-bottom:12px}
 .deck__list{list-style:none;padding:0;margin:0;display:grid;gap:8px}
 .deck__list li{font-size:var(--t-small);padding-left:16px;position:relative}
@@ -666,3 +670,16 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .file-add{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
 .file-add .input{flex:1 1 160px;min-width:0}
 .file-add button{flex:none}
+
+
+/* ---------- Новая заявка ----------
+   Тот же пошаговый разбор, что на сайте, только тише: заголовок меньше,
+   полоса прогресса не прилипает к шапке — шагов пять, а не шестнадцать,
+   и потеряться в них негде. */
+.q-title--cab{font-size:var(--t-h2);margin-block:8px calc(var(--u)*3)}
+.q-bar--cab{position:static;display:flex;align-items:center;gap:calc(var(--u)*2);
+  background:transparent;padding-block:0 12px}
+.q-steps--cab{padding-block:calc(var(--u)*3) 0}
+.q-steps--cab .q-step > .input,
+.q-steps--cab .q-step > .field{margin-top:calc(var(--u)*2)}
+.q-steps--cab .q-step > .field .input{width:100%}

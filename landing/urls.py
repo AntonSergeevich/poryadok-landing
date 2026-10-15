@@ -73,6 +73,7 @@ urlpatterns = [
     path('cabinet/parol/', cabinet.password, name='cabinet_password'),
     # Разделы кабинета.
     path('cabinet/zayavki/', cabinet.leads, name='cabinet_leads'),
+    path('cabinet/zayavki/novaya/', cabinet.lead_new, name='cabinet_lead_new'),
     path('cabinet/zayavki/<int:pk>/', cabinet.lead_detail, name='cabinet_lead'),
     path('cabinet/zayavki/<int:pk>/pravka/', cabinet.lead_update,
          name='cabinet_lead_update'),

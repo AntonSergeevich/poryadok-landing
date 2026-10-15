@@ -1007,16 +1007,20 @@ class CabinetViewTests(TestCase):
     def login_client(self):
         self.client.force_login(self.card.user)
 
-    def test_one_door_sends_owner_to_the_desk(self):
+    def test_one_door_sends_owner_to_the_leads(self):
+        """«Сегодня» и «Заявки» были двумя пунктами на один вопрос.
+        Остались заявки — с проектами в работе под ними."""
         self.login_owner()
         body = self.client.get(reverse('cabinet')).content.decode()
-        self.assertIn('За что взяться сегодня', body)
+        self.assertIn('Кто написал', body)
+        self.assertIn('Проекты в работе', body)
+        self.assertNotIn('>Сегодня<', body)
 
     def test_one_door_sends_client_to_their_project(self):
         self.login_client()
         body = self.client.get(reverse('cabinet')).content.decode()
         self.assertIn('Ваш проект', body)
-        self.assertNotIn('За что взяться сегодня', body)
+        self.assertNotIn('Кто написал', body)
 
     def test_stranger_is_sent_to_the_login_page(self):
         response = self.client.get(reverse('cabinet'))
@@ -3825,3 +3829,92 @@ class PhoneFieldTests(TestCase):
             body = self.client.get(reverse(page)).content.decode()
             with self.subTest(page=page):
                 self.assertIn('data-validate="phone"', body)
+
+
+class HandLeadTests(TestCase):
+    """Заявка, заведённая руками.
+
+    Раньше её было некуда записать, кроме админки, — а значит, её не
+    записывали вовсе. Дороже всего здесь сломать три вещи: выдать звонок
+    за форму на сайте (сводка начнёт врать в пользу сайта), поставить
+    напоминание задним числом и молча завести второго «Евгения» с тем же
+    номером.
+    """
+
+    GOOD = {'name': 'Евгений Тарасов', 'phone': '+7 (983) 157-69-12',
+            'source': 'call', 'area': 'Мебель', 'note': 'Хочет запись онлайн',
+            'remind': 'tomorrow'}
+
+    def setUp(self):
+        self.owner = User.objects.create_user('anton', password='x' * 12,
+                                              is_staff=True)
+        self.client.force_login(self.owner)
+
+    def test_the_button_is_on_the_leads_page(self):
+        body = self.client.get(reverse('cabinet')).content.decode()
+        self.assertIn(reverse('cabinet_lead_new'), body)
+        self.assertIn('Завести заявку', body)
+
+    def test_questions_come_one_by_one_and_only_offline_sources(self):
+        body = self.client.get(reverse('cabinet_lead_new')).content.decode()
+        self.assertIn('id="q-steps"', body)
+        self.assertEqual(len(re.findall(r'<fieldset class="q-step[" ]', body)), 6)
+        for value in Lead.HAND_SOURCES:
+            with self.subTest(source=value):
+                self.assertIn(f'name="source" value="{value}"', body)
+        self.assertNotIn('name="source" value="form"', body)
+
+    def test_a_good_answer_makes_a_lead(self):
+        response = self.client.post(reverse('cabinet_lead_new'), self.GOOD)
+        lead = Lead.objects.get()
+        self.assertRedirects(response, reverse('cabinet_lead', args=[lead.pk]))
+        self.assertEqual(lead.phone, '+79831576912')
+        self.assertEqual(lead.source, Lead.Source.CALL)
+        self.assertEqual(lead.status, Lead.Status.CONTACTED)
+        self.assertEqual(lead.note, 'Хочет запись онлайн')
+        self.assertEqual(lead.comment, '', 'мои слова — в заметки, не в его комментарий')
+        moment = timezone.localtime(lead.remind_at)
+        self.assertEqual((moment.hour, moment.minute), (10, 0))
+        self.assertEqual(moment.date(), (timezone.localtime() + timedelta(days=1)).date())
+
+    def test_a_call_cannot_pass_for_the_site_form(self):
+        response = self.client.post(reverse('cabinet_lead_new'),
+                                    dict(self.GOOD, source='form'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Lead.objects.count(), 0)
+
+    def test_name_and_phone_are_required(self):
+        response = self.client.post(reverse('cabinet_lead_new'),
+                                    dict(self.GOOD, name='', phone='123'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Lead.objects.count(), 0)
+        body = response.content.decode()
+        self.assertIn('Как его зовут?', body)
+        self.assertIn('10 цифр', body)
+
+    def test_no_reminder_means_none(self):
+        self.client.post(reverse('cabinet_lead_new'), dict(self.GOOD, remind='none'))
+        self.assertIsNone(Lead.objects.get().remind_at)
+
+    def test_this_evening_is_never_in_the_past(self):
+        """После семи «сегодня вечером» не должно сработать мгновенно."""
+        from .forms import HandLeadForm
+        form = HandLeadForm(dict(self.GOOD, remind='evening'))
+        self.assertTrue(form.is_valid(), form.errors)
+        late = timezone.localtime().replace(hour=22, minute=0)
+        self.assertGreater(form.remind_at(late), late)
+        early = timezone.localtime().replace(hour=9, minute=0)
+        self.assertEqual(timezone.localtime(form.remind_at(early)).hour, 19)
+
+    def test_the_same_number_is_noticed(self):
+        Lead.objects.create(name='Евгений', phone='+79831576912')
+        response = self.client.post(reverse('cabinet_lead_new'), self.GOOD, follow=True)
+        self.assertContains(response, 'По этому номеру уже есть заявка')
+
+    def test_a_client_cannot_make_leads(self):
+        card = Client.objects.create(name='Ирина', phone='+79130000004')
+        access.issue(card)
+        card.refresh_from_db()
+        self.client.force_login(card.user)
+        response = self.client.get(reverse('cabinet_lead_new'))
+        self.assertNotEqual(response.status_code, 200)

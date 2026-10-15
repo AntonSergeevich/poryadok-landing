@@ -42,6 +42,7 @@ from .services import files
 from .services import summary as digest
 from .services import notify
 from .services import access
+from .forms import HandLeadForm
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,7 @@ def home(request):
     в «страница не найдена» и звонит.
     """
     if is_owner(request.user):
-        return owner_desk(request)
+        return leads(request)
     if client_of(request.user):
         return my_project(request)
     # Учётная запись есть, а привязки нет — обычно это старый доступ,
@@ -111,14 +112,20 @@ def home(request):
 
 
 # ── Рабочий стол исполнителя ─────────────────────────────────────────
+#
+# Рабочего стола отдельной страницей больше нет. «Сегодня» и «Заявки»
+# отвечали на один вопрос — за что взяться — и делили ответ пополам:
+# заявки на одной странице, проекты на другой, и между ними приходилось
+# ходить. Теперь всё на странице заявок: сверху то, что ждёт ответа,
+# ниже проекты в работе.
 
-def owner_desk(request):
-    """За что взяться сегодня: свежие заявки и проекты в работе."""
+
+def desk_rows():
+    """Проекты в работе: по каждому — текущий этап и чей ход."""
     projects = (Project.objects
                 .exclude(status=Project.Status.DONE)
                 .select_related('client')
                 .prefetch_related('stages__tasks'))
-    fresh = Lead.objects.filter(status=Lead.Status.NEW).order_by('-created_at')[:8]
 
     rows = []
     for project in projects:
@@ -132,14 +139,7 @@ def owner_desk(request):
             'mine': current.open_tasks(who=StageTask.Who.ME) if current else [],
             'theirs': current.open_tasks(who=StageTask.Who.CLIENT) if current else [],
         })
-
-    return render(request, 'landing/cabinet/desk.html', {
-        'section': 'desk',
-        'rows': rows,
-        'fresh': fresh,
-        'clients': Client.objects.filter(is_active=True).order_by('name'),
-        'issued': request.session.pop('issued_access', None),
-    })
+    return rows
 
 
 @owner_only
@@ -235,6 +235,11 @@ def leads(request):
         'rows': rows,
         'which': which,
         'statuses': Lead.Status.choices,
+        # Проекты в работе — тут же, ниже заявок. Вопрос «за что взяться»
+        # один, и ответ на него не должен быть разложен по двум страницам.
+        'projects': desk_rows(),
+        'clients': Client.objects.filter(is_active=True).order_by('name'),
+        'issued': request.session.pop('issued_access', None),
         'counts': {
             'open': Lead.objects.exclude(
                 status__in=(Lead.Status.WON, Lead.Status.LOST)).count(),
@@ -242,6 +247,50 @@ def leads(request):
                 remind_at__lte=timezone.now(), reminded_at__isnull=True,
             ).exclude(status__in=(Lead.Status.WON, Lead.Status.LOST)).count(),
         },
+    })
+
+
+@owner_only
+def lead_new(request):
+    """Завести заявку руками: звонок, знакомый, встреча.
+
+    Раньше такую было некуда записать, кроме админки, — а значит, её
+    не записывали вовсе, и сводка по источникам видела один сайт.
+
+    Вопросы задаются по одному, как в разборе на сайте, и той же
+    вёрсткой: шесть полей подряд — это анкета, а шесть вопросов по
+    одному — разговор, который ведёшь, пока человек ещё на линии.
+    Без скрипта это одна короткая форма, и работает она так же.
+    """
+    form = HandLeadForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        lead = form.save(commit=False)
+        # Заводят руками того, с кем уже поговорили, — новой такую
+        # заявку не назовёшь. Если разговора не было, статус меняется
+        # в карточке одним нажатием.
+        lead.status = Lead.Status.CONTACTED
+        lead.remind_at = form.remind_at(timezone.now())
+        lead.save()
+
+        # Тот же номер уже писал — сказать сразу, пока разговор свежий,
+        # а не через месяц, когда двух «Евгениев» придётся сводить руками.
+        twin = (Lead.objects.filter(phone=lead.phone)
+                .exclude(pk=lead.pk).order_by('-created_at').first())
+        if twin:
+            messages.info(request, f'По этому номеру уже есть заявка от '
+                                   f'{timezone.localtime(twin.created_at):%d.%m.%Y} — '
+                                   f'«{twin.name or "без имени"}».')
+        messages.success(request, 'Заявка заведена.')
+        return redirect('cabinet_lead', pk=lead.pk)
+
+    return render(request, 'landing/cabinet/lead_new.html', {
+        'section': 'leads',
+        'form': form,
+        'sources': form.fields['source'].choices,
+        'reminds': HandLeadForm.REMIND,
+        'picked_source': form['source'].value() or '',
+        'picked_remind': form['remind'].value() or 'tomorrow',
     })
 
 

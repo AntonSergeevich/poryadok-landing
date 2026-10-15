@@ -1,0 +1,151 @@
+{% extends 'landing/cabinet/base_cabinet.html' %}
+
+{% block cab_title %}Новая заявка{% endblock %}
+
+{% block cab_content %}
+{% comment %}
+  Вопросы по одному, той же вёрсткой и тем же скриптом, что разбор на
+  сайте: шесть полей подряд — анкета, а шесть вопросов по одному —
+  разговор, который ведёшь, пока человек ещё на линии. Enter — дальше,
+  цифры выбирают вариант. Без скрипта это одна короткая форма.
+{% endcomment %}
+<div class="wrap--narrow">
+  <p class="cab__back"><a href="{% url 'cabinet' %}">← Заявки</a></p>
+  <span class="tag">Заявки · новая</span>
+  <h1 class="q-title q-title--cab">Завести заявку</h1>
+
+  <form class="q q--cab" method="post" action="{% url 'cabinet_lead_new' %}" novalidate>
+    {% csrf_token %}
+
+    {% if form.errors %}
+      <p class="q-alert" role="alert">Кое-где не хватает ответа — отмечено ниже.</p>
+    {% endif %}
+
+    <div class="q-bar q-bar--cab" id="q-bar" data-questions="5" hidden>
+      <span class="q-bar__num mono" id="q-now">Вопрос 1 из 5</span>
+      <span class="q-bar__track"><span class="q-bar__fill" id="q-fill"></span></span>
+    </div>
+
+    <div class="q-steps q-steps--cab" id="q-steps">
+
+      <fieldset class="q-step" data-step="1">
+        <legend class="q-step__legend">
+          <span class="q-step__num mono" data-num>Вопрос 1 из 5</span>
+          <span class="q-step__title">Как его зовут?</span>
+        </legend>
+        {% if form.name.errors %}<p class="err err--on">{{ form.name.errors.0 }}</p>{% endif %}
+        <input class="input" type="text" name="name" maxlength="120" autocomplete="off"
+               placeholder="Имя, можно с фамилией" aria-label="Имя"
+               value="{{ form.name.value|default_if_none:'' }}" autofocus>
+        <div class="q-nav">
+          <button class="btn btn--ghost q-back" type="button" hidden>Назад</button>
+          <button class="btn q-next" type="button" hidden>Дальше <span class="arrow" aria-hidden="true">→</span></button>
+          <span class="q-keys mono" hidden>Enter — дальше</span>
+        </div>
+      </fieldset>
+
+      <fieldset class="q-step" data-step="2">
+        <legend class="q-step__legend">
+          <span class="q-step__num mono" data-num>Вопрос 2 из 5</span>
+          <span class="q-step__title">Телефон</span>
+        </legend>
+        {% if form.phone.errors %}<p class="err err--on">{{ form.phone.errors.0 }}</p>{% endif %}
+        {% comment %}
+          Мягкая маска: форматирует по ходу, но не держит форму. Строгая
+          здесь не годится — поле может быть на спрятанном шаге, и человек
+          не увидел бы, почему кнопка не срабатывает. Длину проверит сервер
+          и вернёт ровно на этот шаг.
+        {% endcomment %}
+        <div class="field" data-validate="phone-soft">
+          <input class="input" type="tel" name="phone" inputmode="tel" autocomplete="off"
+                 placeholder="+7 (___) ___-__-__" aria-label="Телефон"
+                 value="{{ form.phone.value|default_if_none:'' }}">
+        </div>
+        <div class="q-nav">
+          <button class="btn btn--ghost q-back" type="button" hidden>Назад</button>
+          <button class="btn q-next" type="button" hidden>Дальше <span class="arrow" aria-hidden="true">→</span></button>
+          <span class="q-keys mono" hidden>Enter — дальше</span>
+        </div>
+      </fieldset>
+
+      <fieldset class="q-step" data-step="3">
+        <legend class="q-step__legend">
+          <span class="q-step__num mono" data-num>Вопрос 3 из 5</span>
+          <span class="q-step__title">Откуда он пришёл?</span>
+          <span class="q-step__hint">По этому считается сводка: что приводит людей на самом деле</span>
+        </legend>
+        {% if form.source.errors %}<p class="err err--on">{{ form.source.errors.0 }}</p>{% endif %}
+        <div class="q-opts">
+          {% for value, label in sources %}
+            <label class="q-opt">
+              <input type="radio" name="source" value="{{ value }}"
+                     {% if picked_source == value %}checked{% endif %}>
+              <span class="q-opt__key" aria-hidden="true">{{ forloop.counter }}</span>
+              <span>{{ label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        <div class="q-nav">
+          <button class="btn btn--ghost q-back" type="button" hidden>Назад</button>
+          <button class="btn q-next" type="button" hidden>Дальше <span class="arrow" aria-hidden="true">→</span></button>
+          <span class="q-keys mono" hidden>цифра — выбрать</span>
+        </div>
+      </fieldset>
+
+      <fieldset class="q-step" data-step="4">
+        <legend class="q-step__legend">
+          <span class="q-step__num mono" data-num>Вопрос 4 из 5</span>
+          <span class="q-step__title">Чем он занимается?</span>
+          <span class="q-step__hint">Можно пропустить</span>
+        </legend>
+        <input class="input" type="text" name="area" maxlength="160" autocomplete="off"
+               placeholder="Барбершоп, школа, стройка…" aria-label="Сфера"
+               value="{{ form.area.value|default_if_none:'' }}">
+        <div class="q-nav">
+          <button class="btn btn--ghost q-back" type="button" hidden>Назад</button>
+          <button class="btn q-next" type="button" hidden>Дальше <span class="arrow" aria-hidden="true">→</span></button>
+          <span class="q-keys mono" hidden>Enter — дальше</span>
+        </div>
+      </fieldset>
+
+      <fieldset class="q-step" data-step="5">
+        <legend class="q-step__legend">
+          <span class="q-step__num mono" data-num>Вопрос 5 из 5</span>
+          <span class="q-step__title">О чём договорились?</span>
+          <span class="q-step__hint">Своими словами, для себя. Можно пропустить</span>
+        </legend>
+        <textarea class="input q-text" name="note" rows="4"
+                  placeholder="Хочет запись онлайн, перезвонить после 15-го…"
+                  aria-label="О чём договорились">{{ form.note.value|default_if_none:'' }}</textarea>
+        <div class="q-nav">
+          <button class="btn btn--ghost q-back" type="button" hidden>Назад</button>
+          <button class="btn q-next" type="button" hidden>Дальше <span class="arrow" aria-hidden="true">→</span></button>
+        </div>
+      </fieldset>
+
+      <fieldset class="q-step q-step--last" data-step="6">
+        <legend class="q-step__legend">
+          <span class="q-step__num mono">Последний шаг</span>
+          <span class="q-step__title">Когда напомнить?</span>
+          <span class="q-step__hint">Напоминание придёт в Telegram. Заявка заведётся со статусом «Связались»</span>
+        </legend>
+        <div class="q-opts">
+          {% for value, label in reminds %}
+            <label class="q-opt">
+              <input type="radio" name="remind" value="{{ value }}"
+                     {% if picked_remind == value %}checked{% endif %}>
+              <span class="q-opt__key" aria-hidden="true">{{ forloop.counter }}</span>
+              <span>{{ label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        <div class="q-nav">
+          <button class="btn btn--ghost q-back" type="button" hidden>Назад</button>
+          <button class="btn btn--lg" type="submit">Завести заявку <span class="arrow" aria-hidden="true">→</span></button>
+        </div>
+      </fieldset>
+
+    </div>
+  </form>
+</div>
+{% endblock %}

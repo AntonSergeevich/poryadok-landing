@@ -258,7 +258,10 @@
           // шагов меняется прямо сейчас, и следующий считается уже по нему.
           applyConditions();
           var here = index();
-          setTimeout(function () { show(here + 1, false); }, 180);
+          // С фокусом: если следующий вопрос текстовый, человек, который
+          // идёт с клавиатуры, начнёт печатать сразу — а без фокуса его
+          // буквы уходили в никуда, и ответ терялся молча.
+          setTimeout(function () { show(here + 1, true); }, 180);
         });
       });
     });
@@ -292,9 +295,39 @@
       }
     });
 
+    // Свайп на телефоне: влево — дальше, вправо — назад. Кнопки остаются:
+    // свайп — ускоритель для тех, кто привык, а не единственный путь.
+    // Срабатывает только на явно горизонтальном жесте и не с поля ввода:
+    // иначе прокрутка страницы и выделение текста начинали бы листать
+    // вопросы сами.
+    var touch = null;
+    quiz.addEventListener('touchstart', function (e) {
+      var tag = (e.target.tagName || '').toLowerCase();
+      if (e.touches.length !== 1 || tag === 'input' || tag === 'textarea' || tag === 'select') {
+        touch = null;
+        return;
+      }
+      touch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }, { passive: true });
+    quiz.addEventListener('touchend', function (e) {
+      if (!touch) return;
+      var dx = e.changedTouches[0].clientX - touch.x;
+      var dy = e.changedTouches[0].clientY - touch.y;
+      touch = null;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      if (dx < 0 && at < total - 1) show(at + 1, true);
+      if (dx > 0 && at > 0) show(at - 1, false);
+    }, { passive: true });
+
+    // Подсказка про клавиши на телефоне бессмысленна — клавиш там нет.
+    // Говорим про жест, который там действительно работает.
+    var fingers = window.matchMedia && matchMedia('(hover: none)').matches;
     allSteps.forEach(function (step) {
       var keys = step.querySelector('.q-keys');
-      if (keys) keys.hidden = false;
+      if (keys) {
+        if (fingers) keys.textContent = 'смахните влево — дальше';
+        keys.hidden = false;
+      }
       var back = step.querySelector('.q-back');
       // Назад некуда только с самого первого шага, и какой он — зависит
       // от того, что сейчас видно.

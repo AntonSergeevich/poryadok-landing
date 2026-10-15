@@ -2,6 +2,7 @@
 import re
 
 from django import forms
+from django.utils import timezone
 
 from .models import Lead
 from .survey import QUESTIONS
@@ -68,6 +69,63 @@ class ClubForm(PhoneMixin, forms.ModelForm):
             raise forms.ValidationError(
                 'Ник в Telegram — латиница, цифры и подчёркивание, от 4 символов.')
         return value
+
+
+class HandLeadForm(PhoneMixin, forms.ModelForm):
+    """Заявка, заведённая руками: звонок, знакомый, встреча.
+
+    Согласия здесь не спрашиваем: человек его не заполняет, форму
+    заполняю я, а основание обработки — сам разговор, в котором он
+    оставил номер. Источник — только из «ручных»: сайт про свои заявки
+    знает сам, и выдавать звонок за форму на сайте значило бы портить
+    сводку по источникам.
+    """
+
+    REMIND = (
+        ('evening', 'Сегодня вечером'),
+        ('tomorrow', 'Завтра утром'),
+        ('three', 'Через три дня'),
+        ('week', 'Через неделю'),
+        ('none', 'Не напоминать'),
+    )
+
+    remind = forms.ChoiceField(choices=REMIND, required=False, initial='tomorrow')
+
+    class Meta:
+        model = Lead
+        fields = ('name', 'phone', 'source', 'area', 'note')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].required = True
+        self.fields['name'].error_messages['required'] = 'Как его зовут?'
+        self.fields['source'].choices = [
+            (value, label) for value, label in Lead.Source.choices
+            if value in Lead.HAND_SOURCES]
+        self.fields['source'].error_messages['required'] = 'Откуда он пришёл?'
+        self.fields['area'].required = False
+        self.fields['note'].required = False
+
+    def remind_at(self, now):
+        """Когда напомнить — моментом, а не словами из формы."""
+        from datetime import timedelta
+        choice = self.cleaned_data.get('remind') or 'none'
+        local = timezone.localtime(now)
+        if choice == 'evening':
+            moment = local.replace(hour=19, minute=0, second=0, microsecond=0)
+            # Вечер уже прошёл — значит «сегодня вечером» превратилось
+            # бы в напоминание задним числом, которое сработает мгновенно.
+            return moment if moment > local else local + timedelta(hours=1)
+        if choice == 'tomorrow':
+            return (local + timedelta(days=1)).replace(
+                hour=10, minute=0, second=0, microsecond=0)
+        if choice == 'three':
+            return (local + timedelta(days=3)).replace(
+                hour=10, minute=0, second=0, microsecond=0)
+        if choice == 'week':
+            return (local + timedelta(days=7)).replace(
+                hour=10, minute=0, second=0, microsecond=0)
+        return None
 
 
 class SurveyForm(forms.Form):
