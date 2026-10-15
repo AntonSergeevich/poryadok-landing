@@ -683,3 +683,32 @@ html:not([data-js]) .stages .stage[hidden]{display:block!important}
 .q-steps--cab .q-step > .input,
 .q-steps--cab .q-step > .field{margin-top:calc(var(--u)*2)}
 .q-steps--cab .q-step > .field .input{width:100%}
+
+
+/* ---------- Связаться ----------
+   Звонок и мессенджеры — над карточкой, крупно. На телефоне кнопки
+   делят строку поровну: попасть пальцем в первую же. */
+.reach{display:flex;flex-wrap:wrap;gap:8px;margin:calc(var(--u)*-2) 0 var(--gut)}
+@media (max-width:640px){
+  .reach .btn{flex:1 1 0;justify-content:center;padding-inline:10px}
+}
+
+/* ---------- Отбор и статусы на телефоне ----------
+   Восемь кнопок отбора занимали три строки — экран, который надо
+   пролистать, прежде чем увидишь первую заявку. На узком экране это
+   одна строка, которую двигают пальцем вбок. Край строки мягко гаснет:
+   видно, что там есть ещё. */
+@media (max-width:640px){
+  .filters{
+    flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
+    margin-inline:calc(var(--pad) * -1);padding-inline:var(--pad);
+    -webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);
+            mask-image:linear-gradient(90deg,#000 85%,transparent);
+  }
+  .filters::-webkit-scrollbar{display:none}
+  .filters .chip{flex:none}
+}
+
+/* Поля в правке стояли впритык: подпись следующего поля прилипала
+   к предыдущему, и не было видно, где какое. */
+.panel form > .field + .field{margin-top:calc(var(--u)*1.5)}
